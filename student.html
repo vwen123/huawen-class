@@ -3030,7 +3030,34 @@ function applyUnitContent(content){
     compQs = content.compQs; compIdx=0; compMarks=[];
   }
   if(content.slidesUrl) slidesUrl = content.slidesUrl;
-  if(content.ciQuestion) document.getElementById('ci-q2') && (document.getElementById('ci-q2').textContent = content.ciQuestion);
+  if(content.ciQuestions && content.ciQuestions.length) applyCiQuestions(content.ciQuestions);
+}
+
+function applyCiQuestions(qs){
+  // Q1 → Step 2
+  const q0 = qs[0];
+  if(q0 && q0.text){
+    const qEl = document.getElementById('ci-q2');
+    const optsEl = document.getElementById('ci-opts2');
+    if(qEl) qEl.textContent = q0.text;
+    if(optsEl){
+      optsEl.innerHTML = q0.opts.map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('');
+    }
+  }
+  // Q2 → Step 3 (replace open textarea with option buttons)
+  const q1 = qs[1];
+  const step3 = document.getElementById('ci-step3');
+  if(step3){
+    if(q1 && q1.text){
+      step3.innerHTML = `
+        <div class="ci-q">${q1.text}</div>
+        <div class="ci-opts" id="ci-opts3">${q1.opts.map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('')}</div>
+        <div style="margin-top:12px">
+          <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始上课！</button>
+        </div>`;
+    }
+    // if no Q2, keep original open-textarea as-is
+  }
 }
 
 // After check-in: go to waiting room (unless resuming mid-lesson)

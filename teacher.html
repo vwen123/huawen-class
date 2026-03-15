@@ -233,14 +233,34 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
     <!-- ══ UNITS ══ -->
     <div class="screen" id="screen-units">
+
+      <!-- Grade management -->
+      <div class="card">
+        <div class="ctitle">🏫 年级管理</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <input class="wi" id="new-grade-name" placeholder="年级名称，例如：三年级、P3、P4" style="flex:1">
+          <button class="btn btn-teal" onclick="createGrade()">+ 建立年级</button>
+        </div>
+        <div id="grade-list" style="display:flex;flex-wrap:wrap;gap:8px;min-height:24px">
+          <div style="font-size:12px;color:var(--ink3)">还没有年级</div>
+        </div>
+      </div>
+
+      <!-- Unit management -->
       <div class="card">
         <div class="ctitle">📚 单元列表</div>
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <input class="wi" id="new-unit-title" placeholder="新单元名称，例如：第三课《春天来了》" style="flex:1">
+        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+          <select class="wi" id="unit-grade-select" style="flex:1;min-width:130px;max-width:180px">
+            <option value="">选择年级（选填）</option>
+          </select>
+          <input class="wi" id="new-unit-title" placeholder="单元名称，例如：第三课《春天来了》" style="flex:3;min-width:160px">
           <button class="btn btn-red" onclick="createUnit()">+ 建立</button>
         </div>
+        <!-- Grade filter -->
+        <div id="grade-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
         <div id="unit-list"><div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">加载中…</div></div>
       </div>
+
     </div>
 
     <!-- ══ CONTENT EDITOR ══ -->
@@ -291,6 +311,36 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div class="card">
           <div class="ctitle">📑 课文简报链接（Canva / Google Slides）</div>
           <input class="wi" id="manage-slides-url" placeholder="https://www.canva.com/design/...">
+        </div>
+
+        <!-- Check-in questions -->
+        <div class="card">
+          <div class="ctitle">📝 签到题目（1–2 题）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">学生完成签到心情选择后，会看到这些题目。不填则使用默认题目。</div>
+
+          <!-- Q1 -->
+          <div style="background:var(--mist);border-radius:var(--r);padding:14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 1 题</div>
+            <input class="wi" id="ci-q0-text" placeholder="题目内容，例如：你觉得今天上课的心情怎样？" style="margin-bottom:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <input class="wi" id="ci-q0-opt0" placeholder="选项 A（必填）">
+              <input class="wi" id="ci-q0-opt1" placeholder="选项 B（必填）">
+              <input class="wi" id="ci-q0-opt2" placeholder="选项 C（选填）">
+              <input class="wi" id="ci-q0-opt3" placeholder="选项 D（选填）">
+            </div>
+          </div>
+
+          <!-- Q2 -->
+          <div style="background:var(--mist);border-radius:var(--r);padding:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 2 题（选填）</div>
+            <input class="wi" id="ci-q1-text" placeholder="第二道题目（留空则只有1题）" style="margin-bottom:8px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <input class="wi" id="ci-q1-opt0" placeholder="选项 A">
+              <input class="wi" id="ci-q1-opt1" placeholder="选项 B">
+              <input class="wi" id="ci-q1-opt2" placeholder="选项 C（选填）">
+              <input class="wi" id="ci-q1-opt3" placeholder="选项 D（选填）">
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -372,6 +422,74 @@ function safeKey(s){ return String(s).replace(/[.#$[\]/]/g,'_'); }
 function sessionRef(path){ return db.ref('sessions/' + path); }
 function activeRef(){ return db.ref('meta/activeSession'); }
 function unitsRef(){ return db.ref('units'); }
+function gradesRef(){ return db.ref('grades'); }
+
+// ══════════════════════════════════════
+//  GRADE MANAGEMENT
+// ══════════════════════════════════════
+let currentGradeFilter = '';
+
+function createGrade(){
+  const name = document.getElementById('new-grade-name').value.trim();
+  if(!name){ alert('请输入年级名称'); return; }
+  const id = 'grade_' + Date.now();
+  gradesRef().child(id).set({ name, createdAt: Date.now() }).then(() => {
+    document.getElementById('new-grade-name').value = '';
+    loadGradeList();
+  });
+}
+
+function deleteGrade(id){
+  if(!confirm('确定删除这个年级？单元内容不受影响。')) return;
+  gradesRef().child(id).remove().then(() => loadGradeList());
+}
+
+function loadGradeList(){
+  if(!firebaseReady) return;
+  gradesRef().once('value', snap => {
+    const data = snap.val() || {};
+    const grades = Object.entries(data)
+      .map(([id,g]) => ({id, ...g}))
+      .sort((a,b) => (a.createdAt||0) - (b.createdAt||0));
+
+    // Grade pills
+    const gl = document.getElementById('grade-list');
+    if(gl){
+      gl.innerHTML = grades.length === 0
+        ? '<div style="font-size:12px;color:var(--ink3)">还没有年级</div>'
+        : grades.map(g => `
+          <div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;background:var(--teal-l);border:1px solid var(--teal)">
+            <span style="font-size:13px;font-weight:600;color:var(--teal)">${g.name}</span>
+            <button onclick="deleteGrade('${g.id}')" style="border:none;background:none;color:var(--teal);cursor:pointer;font-size:14px;line-height:1;padding:0">×</button>
+          </div>`).join('');
+    }
+
+    // Grade selector for unit creation
+    const sel = document.getElementById('unit-grade-select');
+    if(sel){
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">选择年级（选填）</option>' +
+        grades.map(g => `<option value="${g.id}" data-name="${g.name}">${g.name}</option>`).join('');
+      if(cur) sel.value = cur;
+    }
+
+    // Filter tabs
+    const ft = document.getElementById('grade-filter');
+    if(ft){
+      ft.innerHTML = grades.length === 0 ? '' :
+        `<button class="btn btn-ghost btn-sm" style="${currentGradeFilter===''?'background:var(--red);color:white;':''}" onclick="filterGrade('')">全部</button>` +
+        grades.map(g =>
+          `<button class="btn btn-ghost btn-sm" style="${currentGradeFilter===g.id?'background:var(--red);color:white;':''}" onclick="filterGrade('${g.id}')">${g.name}</button>`
+        ).join('');
+    }
+  });
+}
+
+function filterGrade(gradeId){
+  currentGradeFilter = gradeId;
+  loadGradeList();
+  loadUnitList();
+}
 
 // ── Listen to active session ──
 function listenActiveSession(){
@@ -583,13 +701,16 @@ function loadUnitList(){
     const data = snap.val() || {};
     const ul = document.getElementById('unit-list');
     if(!ul) return;
-    const units = Object.entries(data).map(([id,u])=>({id,...u.info,hasContent:!!u.content})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有建立任何单元</div>'; return; }
+    let units = Object.entries(data).map(([id,u])=>({id,...u.info,hasContent:!!u.content})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    if(currentGradeFilter) units = units.filter(u => u.gradeId === currentGradeFilter);
+    if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>'; return; }
     ul.innerHTML = units.map(u=>`
       <div class="unit-card ${selectedUnitId===u.id?'selected':''}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
         <div style="flex:1">
           <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
-          <div style="font-size:11px;color:var(--ink3)">${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}</div>
+          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
+            ${u.gradeName?`<span style="background:var(--teal-l);color:var(--teal);padding:1px 7px;border-radius:10px;font-weight:600;margin-right:4px">${u.gradeName}</span>`:''}${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}
+          </div>
         </div>
         <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
       </div>`).join('');
@@ -599,8 +720,13 @@ function loadUnitList(){
 function createUnit(){
   const title = document.getElementById('new-unit-title').value.trim();
   if(!title){ alert('请输入单元名称'); return; }
+  const sel = document.getElementById('unit-grade-select');
+  const gradeId   = sel ? sel.value : '';
+  const gradeName = sel && sel.value ? sel.options[sel.selectedIndex].text : '';
   const id = 'unit_' + Date.now();
-  db.ref('units/'+id+'/info').set({title, createdAt:Date.now(), status:'ready'}).then(()=>{
+  const info = {title, createdAt:Date.now(), status:'ready'};
+  if(gradeId){ info.gradeId = gradeId; info.gradeName = gradeName; }
+  db.ref('units/'+id+'/info').set(info).then(()=>{
     document.getElementById('new-unit-title').value = '';
     loadUnitList();
     selectUnit(id, title);
@@ -622,6 +748,15 @@ function selectUnit(id, title){
     if(el('cp-write'))           el('cp-write').value           = c.cpMarkdown||'';
     if(el('qz-write'))           el('qz-write').value           = c.qzMarkdown||'';
     if(el('manage-slides-url'))  el('manage-slides-url').value  = c.slidesUrl||'';
+    // Load check-in questions
+    const qs = c.ciQuestions || [];
+    for(let qi=0;qi<2;qi++){
+      const q = qs[qi]||{};
+      if(el('ci-q'+qi+'-text')) el('ci-q'+qi+'-text').value = q.text||'';
+      for(let oi=0;oi<4;oi++){
+        if(el('ci-q'+qi+'-opt'+oi)) el('ci-q'+qi+'-opt'+oi).value = (q.opts&&q.opts[oi])||'';
+      }
+    }
   });
   document.getElementById('editing-title').textContent = title;
   document.getElementById('no-unit-msg').style.display    = 'none';
@@ -675,6 +810,19 @@ function saveAllContent(){
     if(parts.length >= 6) quizQs.push({ q:parts[0], opts:[parts[1],parts[2],parts[3],parts[4]], ans:parseInt(parts[5])||0 });
   });
 
+  // Parse check-in questions
+  const ciQuestions = [];
+  for(let qi=0;qi<2;qi++){
+    const text = g('ci-q'+qi+'-text').trim();
+    if(!text) continue;
+    const opts = [];
+    for(let oi=0;oi<4;oi++){
+      const v = g('ci-q'+qi+'-opt'+oi).trim();
+      if(v) opts.push(v);
+    }
+    if(opts.length>=2) ciQuestions.push({text, opts});
+  }
+
   const content = {
     lessonTitle: g('lesson-title-input'),
     lessonText:  g('lesson-text-input'),
@@ -682,7 +830,7 @@ function saveAllContent(){
     fcMarkdown:  fcMD,
     cpMarkdown:  g('cp-write'),
     qzMarkdown:  g('qz-write'),
-    flashcards, compQs, quizQs,
+    flashcards, compQs, quizQs, ciQuestions,
   };
 
   db.ref('units/'+selectedUnitId+'/content').set(content).then(()=>{
@@ -725,7 +873,7 @@ function showTab(id){
   document.getElementById('tab-'+id).classList.add('on');
   document.getElementById('screen-'+id).classList.add('on');
   if(id==='progress') renderStudents();
-  if(id==='units')    loadUnitList();
+  if(id==='units'){ loadGradeList(); loadUnitList(); }
 }
 
 // ── Shake animation ──
