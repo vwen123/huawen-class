@@ -293,6 +293,12 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div class="ctitle">📖 生字词语（Markdown 格式）</div>
           <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：## 词语 | 拼音 → 含义 → 例句（用 --- 分隔）</div>
           <textarea class="md-textarea" id="fc-write" placeholder="## 五颜六色 | wǔ yán liù sè&#10;形容颜色很多，非常好看&#10;花园里的花五颜六色，非常漂亮。&#10;---&#10;## 辛勤 | xīn qín&#10;努力不懈地工作或劳动&#10;爸爸辛勤地工作，为了养家糊口。" style="min-height:180px"></textarea>
+          <!-- Import from alternative markdown format -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+            <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">📥 从闪卡 Markdown 导入（<code style="font-size:11px">**Q:** 词语 (拼音) / **A:** 含义</code>）</div>
+            <textarea id="fc-import-raw" class="md-textarea" placeholder="**Q:** 信函 (xìn hán)&#10;**A:** 书信（多用于比较正式的场合）。&#10;&#10;---&#10;&#10;**Q:** 稚气 (zhì qì)&#10;**A:** 孩子气；幼稚的气味。" style="min-height:100px;font-size:12px;background:#F8F8F8"></textarea>
+            <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="importFcMarkdown()">↩ 转换并填入</button>
+          </div>
         </div>
 
         <!-- Comprehension questions -->
@@ -306,6 +312,12 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div class="ctitle">🏆 Quiz 题目（Markdown 格式）</div>
           <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：? 题目 / 选项A / 选项B / 选项C / 选项D / 正确答案(0-3)</div>
           <textarea class="md-textarea" id="qz-write" placeholder="? 课文里花儿「五颜六色」是指什么？ / 颜色很多非常好看 / 只有一种颜色 / 花儿很小 / 花儿很香 / 0&#10;? 农民伯伯为什么要在春天播种？ / 因为春天很美 / 希望秋天有好收成 / 因为没有其他事 / 因为老师叫他 / 1"></textarea>
+          <!-- Import from MCQ markdown format -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+            <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">📥 从测验 Markdown 导入（<code style="font-size:11px">## n. 题目 / - **A.** 选项 / &gt; **Answer:** A</code>）</div>
+            <textarea id="qz-import-raw" class="md-textarea" placeholder="## 1. 招牌上写着什么字？&#10;- **A.** 成业&#10;- **B.** 兴业&#10;- **C.** 成家&#10;- **D.** 建业&#10;> **Answer:** A" style="min-height:100px;font-size:12px;background:#F8F8F8"></textarea>
+            <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="importQzMarkdown()">↩ 转换并填入</button>
+          </div>
           <!-- Quiz game settings -->
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
             <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">🎮 游戏风格（学生端同步）</div>
@@ -749,6 +761,71 @@ function createUnit(){
     showTab('content');
     alert('✅ 单元「'+title+'」建立成功！请填写内容后保存。');
   });
+}
+
+// ── Import flashcard Markdown (Q/A format) ──
+function importFcMarkdown(){
+  const raw = (document.getElementById('fc-import-raw')||{}).value||'';
+  if(!raw.trim()){ alert('请先贴入闪卡 Markdown 内容'); return; }
+  const lines = raw.split('\n');
+  const cards = [];
+  let curQ = '', curA = '';
+  for(const line of lines){
+    const qm = line.match(/^\*\*Q:\*\*\s*(.+)/);
+    const am = line.match(/^\*\*A:\*\*\s*(.+)/);
+    if(qm){ curQ = qm[1].trim(); curA = ''; }
+    else if(am){ curA = am[1].trim(); }
+    if(curQ && curA){
+      // Parse "词语 (pinyin)" → word | pinyin
+      const pm = curQ.match(/^(.+?)\s*\(([^)]+)\)\s*$/);
+      if(pm){
+        cards.push('## ' + pm[1].trim() + ' | ' + pm[2].trim() + '\n' + curA);
+      } else {
+        cards.push('## ' + curQ + '\n' + curA);
+      }
+      curQ = ''; curA = '';
+    }
+  }
+  if(!cards.length){ alert('未能解析到任何卡片，请检查格式'); return; }
+  const ta = document.getElementById('fc-write');
+  if(ta) ta.value = cards.join('\n---\n') + '\n---';
+  document.getElementById('fc-import-raw').value = '';
+  alert('✅ 已转换 ' + cards.length + ' 张卡片');
+}
+
+// ── Import quiz Markdown (MCQ format) ──
+function importQzMarkdown(){
+  const raw = (document.getElementById('qz-import-raw')||{}).value||'';
+  if(!raw.trim()){ alert('请先贴入测验 Markdown 内容'); return; }
+  // Split blocks by blank lines or ---
+  const blocks = raw.split(/\n(?=##\s*\d)/);
+  const questions = [];
+  for(const block of blocks){
+    const lines = block.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) continue;
+    // Question line: ## n. question text
+    const qm = lines[0].match(/^#+\s*\d+[\.\s]+(.+)/);
+    if(!qm) continue;
+    const qText = qm[1].trim();
+    const opts = [];
+    let ansIdx = 0;
+    const optLetters = ['A','B','C','D'];
+    for(const line of lines.slice(1)){
+      const om = line.match(/^-\s*\*\*([A-D])\.\*\*\s*(.+)/);
+      if(om) opts.push(om[2].trim());
+      const am = line.match(/^>\s*\*\*Answer:\*\*\s*([A-D])/);
+      if(am) ansIdx = optLetters.indexOf(am[1]);
+    }
+    if(opts.length >= 2){
+      while(opts.length < 4) opts.push('—');
+      questions.push('? ' + qText + ' / ' + opts[0] + ' / ' + opts[1] + ' / ' + opts[2] + ' / ' + opts[3] + ' / ' + ansIdx);
+    }
+  }
+  if(!questions.length){ alert('未能解析到任何题目，请检查格式'); return; }
+  const ta = document.getElementById('qz-write');
+  if(ta) ta.value = questions.join('\n');
+  document.getElementById('qz-import-raw').value = '';
+  alert('✅ 已转换 ' + questions.length + ' 道题目');
 }
 
 function selectUnit(id, title){
