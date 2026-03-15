@@ -306,6 +306,26 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div class="ctitle">🏆 Quiz 题目（Markdown 格式）</div>
           <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：? 题目 / 选项A / 选项B / 选项C / 选项D / 正确答案(0-3)</div>
           <textarea class="md-textarea" id="qz-write" placeholder="? 课文里花儿「五颜六色」是指什么？ / 颜色很多非常好看 / 只有一种颜色 / 花儿很小 / 花儿很香 / 0&#10;? 农民伯伯为什么要在春天播种？ / 因为春天很美 / 希望秋天有好收成 / 因为没有其他事 / 因为老师叫他 / 1"></textarea>
+          <!-- Quiz game settings -->
+          <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">🎮 游戏风格（学生端同步）</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="qst" value="arcade" id="qst-arcade" checked> 🕹 街机积分</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="qst" value="adventure" id="qst-adventure"> 🗺 闯关冒险</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="qst" value="rocket" id="qst-rocket"> 🚀 火箭升空</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px"><input type="radio" name="qst" value="star" id="qst-star"> ⭐ 星球探险</label>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:12px;color:var(--ink3);flex-shrink:0">每题限时</span>
+              <input type="range" id="quiz-timer" min="5" max="30" value="15" step="5" oninput="document.getElementById('quiz-timer-val').textContent=this.value+'秒'" style="flex:1;accent-color:var(--red)">
+              <span style="font-size:13px;font-weight:700;color:var(--ink);width:38px;text-align:right" id="quiz-timer-val">15秒</span>
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap">
+              <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="quiz-combo" checked> 连击加成</label>
+              <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="quiz-hints" checked> 提示按钮</label>
+              <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" id="quiz-fx" checked> 特效动画</label>
+            </div>
+          </div>
         </div>
 
         <!-- Slides URL -->
@@ -744,6 +764,16 @@ function selectUnit(id, title){
     if(el('cp-write'))           el('cp-write').value           = c.cpMarkdown||'';
     if(el('qz-write'))           el('qz-write').value           = c.qzMarkdown||'';
     if(el('manage-slides-url'))  el('manage-slides-url').value  = c.slidesUrl||'';
+    // Load quiz game settings
+    const gs = c.gameSettings || {};
+    const qstyle = gs.style || 'arcade';
+    const qstEl = document.querySelector('input[name="qst"][value="'+qstyle+'"]');
+    if(qstEl) qstEl.checked = true;
+    const timerEl = document.getElementById('quiz-timer');
+    if(timerEl){ timerEl.value = gs.timer||15; document.getElementById('quiz-timer-val').textContent=(gs.timer||15)+'秒'; }
+    if(el('quiz-combo')) el('quiz-combo').checked = gs.combo!==false;
+    if(el('quiz-hints')) el('quiz-hints').checked = gs.hints!==false;
+    if(el('quiz-fx'))    el('quiz-fx').checked    = gs.fx!==false;
     // Load check-in questions
     const qs = c.ciQuestions || [];
     for(let qi=0;qi<2;qi++){
@@ -819,6 +849,16 @@ function saveAllContent(){
     if(opts.length>=2) ciQuestions.push({text, opts});
   }
 
+  // Read quiz game settings
+  const qstChecked = document.querySelector('input[name="qst"]:checked');
+  const gameSettings = {
+    style:  qstChecked ? qstChecked.value : 'arcade',
+    timer:  parseInt(document.getElementById('quiz-timer')?.value)||15,
+    combo:  document.getElementById('quiz-combo')?.checked !== false,
+    hints:  document.getElementById('quiz-hints')?.checked !== false,
+    fx:     document.getElementById('quiz-fx')?.checked !== false,
+  };
+
   const content = {
     lessonTitle: g('lesson-title-input'),
     lessonText:  g('lesson-text-input'),
@@ -826,7 +866,7 @@ function saveAllContent(){
     fcMarkdown:  fcMD,
     cpMarkdown:  g('cp-write'),
     qzMarkdown:  g('qz-write'),
-    flashcards, compQs, quizQs, ciQuestions,
+    flashcards, compQs, quizQs, ciQuestions, gameSettings,
   };
 
   db.ref('units/'+selectedUnitId+'/content').set(content).then(()=>{
