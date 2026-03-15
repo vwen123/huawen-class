@@ -1112,7 +1112,8 @@ function listenActiveSession(){
 // (removed duplicate)
 
 // ── DATA ──
-const role='student' // student-only build, curPage='checkin';
+const role='student'; // student-only build
+let curPage='checkin';
 
 let fcCards=[
   {char:'五颜六色',pin:'wǔ yán liù sè',mean:'形容颜色很多，非常好看',ex:'花园里的花五颜六色，非常漂亮。'},
@@ -1286,6 +1287,9 @@ function updateCiDots(){
   document.querySelectorAll('.sdot').forEach((d,i)=>{
     d.style.display = i < ciMaxStep ? '' : 'none';
   });
+  // If no extra steps, rename step-1 button to "开始学习！"
+  const btn1 = document.getElementById('ci1-btn');
+  if(btn1) btn1.textContent = ciMaxStep === 1 ? '开始学习！' : '下一步 →';
 }
 function ciSubmit(){
   const nameIn = document.getElementById('qg-pname');
@@ -3126,16 +3130,9 @@ function applyCiQuestions(qs){
   }
 }
 
-// After check-in: go directly to reading (or resume saved progress)
+// After check-in: always go to reading
 function ciSubmitAndContinue(){
-  const n = qgState.name || '';
-  const saved = loadProgress(n + '_' + (currentUnitId||''));
-  const resumable = ['reading','flashcard','slides','comp','quiz'];
-  if(saved && resumable.includes(saved.currentPage)){
-    nav(saved.currentPage);
-  } else {
-    nav('reading');
-  }
+  nav('reading');
 }
 
 let _waitPoll = null;
