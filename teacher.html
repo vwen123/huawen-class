@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华文学习系统 — 老师端</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#C0392B;--red-l:#FDECEA;--gold:#D4A017;--gold-l:#F0C040;--gold-pale:#FEF9E7;
+  --ink:#1A1A2E;--ink2:#2C3E50;--ink3:rgba(26,26,46,0.5);
+  --teal:#16A085;--teal-l:#E8F6F3;--orange:#E67E22;--orange-l:#FEF0E3;
+  --white:#FFFFFF;--mist:#F8F7F4;--mist2:#EAE8E3;--border:#DDD9CF;
+  --sky:#2980B9;--sky-l:#EBF5FB;--green:#27AE60;
+  --r:10px;--rl:14px;--shadow:0 4px 20px rgba(0,0,0,.08);
+}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--ink);min-height:100vh}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#1A1A2E,#0A0A18);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px}
+.login-card{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:40px 32px;max-width:360px;width:100%;text-align:center}
+.login-title{font-family:'Noto Serif SC',serif;font-size:26px;font-weight:700;color:#FFD700;margin-bottom:6px}
+.login-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:28px}
+.pw-dots{display:flex;gap:12px;justify-content:center;margin-bottom:20px}
+.pw-dot{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:transparent;transition:all .15s}
+.pw-dot.filled{background:#FFD700;border-color:#FFD700}
+.pw-keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.pw-key{padding:16px;border-radius:10px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);color:white;font-size:20px;font-weight:600;cursor:pointer;transition:all .15s;font-family:'Noto Sans SC',sans-serif}
+.pw-key:hover{background:rgba(255,255,255,.15);border-color:rgba(255,255,255,.3)}
+.pw-err{font-size:13px;color:#FF4466;min-height:20px;margin-top:8px}
+
+/* ── TOPNAV ── */
+.topnav{background:var(--ink);color:white;display:flex;align-items:center;padding:0 20px;height:54px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,.25);gap:14px}
+.topnav-title{font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;color:#FFD700}
+.topnav-sub{font-size:12px;color:rgba(255,255,255,.5);flex:1}
+.t-badge{background:var(--red);color:white;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:700}
+
+/* ── TABS ── */
+.tab-bar{background:white;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:54px;z-index:150}
+.tab{padding:14px 18px;font-size:13px;font-weight:500;color:var(--ink3);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab:hover{color:var(--ink);background:var(--mist)}
+.tab.on{color:var(--red);border-bottom-color:var(--red);font-weight:700}
+
+/* ── LAYOUT ── */
+.main{max-width:960px;margin:0 auto;padding:24px 16px}
+.card{background:white;border-radius:var(--rl);padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.04);margin-bottom:16px;border:1px solid var(--border)}
+.ctitle{font-family:'Noto Serif SC',serif;font-size:15px;font-weight:700;margin-bottom:14px;color:var(--ink)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.g2,.g3{grid-template-columns:1fr}}
+.stat{background:white;border-radius:var(--r);padding:14px;display:flex;align-items:center;gap:12px;border:1px solid var(--border)}
+.sticon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.stv{font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700}
+.stl{font-size:11px;color:var(--ink3);margin-top:1px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 16px;border-radius:8px;border:none;font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.btn-red{background:var(--red);color:white}.btn-red:hover{background:#A93226}
+.btn-teal{background:var(--teal);color:white}.btn-teal:hover{background:#0F7367}
+.btn-gold{background:var(--gold);color:white}.btn-gold:hover{background:#B8860B}
+.btn-ghost{background:transparent;color:var(--ink2);border:1.5px solid var(--border)}.btn-ghost:hover{background:var(--mist)}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn-lg{padding:13px 24px;font-size:15px}
+.btn:disabled{opacity:.5;cursor:default}
+
+/* ── FORMS ── */
+.wi{border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'Noto Sans SC',sans-serif;color:var(--ink);background:white;width:100%}
+.wi:focus{outline:none;border-color:var(--teal)}
+.md-textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-size:13px;font-family:'Noto Sans SC',sans-serif;color:var(--ink);min-height:120px;resize:vertical}
+.md-textarea:focus{outline:none;border-color:var(--teal)}
+label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);cursor:pointer}
+
+/* ── TABLE ── */
+.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
+.ts-row:last-child{border-bottom:none}
+.ts-cell{text-align:center;font-weight:600}
+.ts-total{text-align:center;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900}
+.ts-dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.weak-bar{background:var(--mist);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;gap:10px;margin-bottom:8px}
+
+/* ── TAGS ── */
+.tag{display:inline-flex;align-items:center;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:700}
+.tok{background:var(--teal-l);color:var(--teal)}.twn{background:var(--gold-pale);color:var(--gold)}.tno{background:var(--red-l);color:var(--red)}
+
+/* ── UNIT CARD ── */
+.unit-card{padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.unit-card:hover{border-color:var(--red);background:var(--red-l)}
+.unit-card.selected{border-color:var(--red);background:var(--red-l)}
+
+/* ── SESSION BANNER ── */
+.session-banner{background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border:1.5px solid var(--teal);border-radius:var(--rl);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.code-display{font-family:'Noto Serif SC',serif;font-size:36px;font-weight:900;color:var(--red);letter-spacing:.2em;background:white;padding:8px 20px;border-radius:10px;border:2px dashed var(--red)}
+
+/* ── WAITING LIST ── */
+.waiting-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--mist);border:1px solid var(--border);font-size:12px;margin:3px}
+.waiting-pill.in-progress{background:var(--teal-l);border-color:var(--teal)}
+.waiting-pill.done{background:var(--teal-l);border-color:var(--teal);opacity:.7}
+
+/* ── SCREEN ── */
+.screen{display:none}.screen.on{display:block}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div style="font-size:48px;margin-bottom:10px">🔐</div>
+    <div class="login-title">老师专用</div>
+    <div class="login-sub">华文学习系统 · 管理端</div>
+    <div class="pw-dots" id="pw-dots">
+      <div class="pw-dot" id="pd0"></div>
+      <div class="pw-dot" id="pd1"></div>
+      <div class="pw-dot" id="pd2"></div>
+      <div class="pw-dot" id="pd3"></div>
+    </div>
+    <div class="pw-keypad">
+      <button class="pw-key" onclick="pwKey('1')">1</button>
+      <button class="pw-key" onclick="pwKey('2')">2</button>
+      <button class="pw-key" onclick="pwKey('3')">3</button>
+      <button class="pw-key" onclick="pwKey('4')">4</button>
+      <button class="pw-key" onclick="pwKey('5')">5</button>
+      <button class="pw-key" onclick="pwKey('6')">6</button>
+      <button class="pw-key" onclick="pwKey('7')">7</button>
+      <button class="pw-key" onclick="pwKey('8')">8</button>
+      <button class="pw-key" onclick="pwKey('9')">9</button>
+      <button class="pw-key" onclick="pwClear()">⌫</button>
+      <button class="pw-key" onclick="pwKey('0')">0</button>
+      <button class="pw-key" onclick="pwKey('')"> </button>
+    </div>
+    <div class="pw-err" id="pw-err"></div>
+  </div>
+</div>
+
+<!-- ══ MAIN APP (shown after login) ══ -->
+<div id="app" style="display:none">
+
+  <!-- Topnav -->
+  <nav class="topnav">
+    <div class="topnav-title">🏮 华文学习系统</div>
+    <div class="topnav-sub" id="nav-subtitle">老师管理端</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div id="nav-live-badge" style="display:none" class="t-badge">🟢 上课中</div>
+      <button class="btn btn-ghost btn-sm" style="color:rgba(255,255,255,.6);border-color:rgba(255,255,255,.2)" onclick="logout()">退出</button>
+    </div>
+  </nav>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab on" id="tab-dashboard" onclick="showTab('dashboard')">📊 班级概览</div>
+    <div class="tab" id="tab-progress"  onclick="showTab('progress')">👥 学生进度</div>
+    <div class="tab" id="tab-units"     onclick="showTab('units')">📚 单元管理</div>
+    <div class="tab" id="tab-content"   onclick="showTab('content')">✏️ 编辑内容</div>
+  </div>
+
+  <div class="main">
+
+    <!-- ══ DASHBOARD ══ -->
+    <div class="screen on" id="screen-dashboard">
+
+      <!-- Active session banner -->
+      <div id="session-banner" style="display:none" class="session-banner">
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:4px">🟢 课堂进行中</div>
+          <div style="font-size:15px;font-weight:600" id="sb-unit-name">—</div>
+          <div style="font-size:12px;color:var(--ink3)" id="sb-class-label">—</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">学生进入码</div>
+          <div class="code-display" id="sb-code">—</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-teal btn-sm" onclick="copyCode()">📋 复制进入码</button>
+          <button class="btn btn-ghost btn-sm" onclick="endSession()">🏁 结束课堂</button>
+        </div>
+      </div>
+
+      <!-- No session banner -->
+      <div id="no-session-banner" class="card" style="text-align:center;padding:28px;background:var(--mist)">
+        <div style="font-size:36px;margin-bottom:8px">📋</div>
+        <div style="font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;margin-bottom:6px">还没有进行中的课堂</div>
+        <div style="font-size:13px;color:var(--ink3);margin-bottom:16px">前往「单元管理」选择单元并开课</div>
+        <button class="btn btn-red" onclick="showTab('units')">📚 前往单元管理</button>
+      </div>
+
+      <!-- Stats -->
+      <div class="g3" style="margin-bottom:16px">
+        <div class="stat"><div class="sticon" style="background:var(--red-l)">👥</div><div><div class="stv" id="dash-total">0</div><div class="stl">已进入学生</div></div></div>
+        <div class="stat"><div class="sticon" style="background:var(--teal-l)">✅</div><div><div class="stv" id="dash-done">0</div><div class="stl">已完成学习</div></div></div>
+        <div class="stat"><div class="sticon" style="background:var(--orange-l)">⚠️</div><div><div class="stv" id="dash-low">0</div><div class="stl">需要关注</div></div></div>
+      </div>
+
+      <!-- Waiting room control -->
+      <div class="card" id="waiting-control" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
+          <div>
+            <div class="ctitle" style="margin:0">🚦 等待室</div>
+            <div style="font-size:12px;color:var(--ink3);margin-top:4px">确认所有学生进入后，点「开始上课」</div>
+          </div>
+          <button class="btn btn-red btn-lg" onclick="startClass()" id="start-class-btn">
+            ▶ 开始上课（<span id="waiting-count">0</span> 人）
+          </button>
+        </div>
+        <div id="waiting-list" style="display:flex;flex-wrap:wrap;gap:4px;min-height:44px"></div>
+      </div>
+
+      <!-- Needs attention -->
+      <div class="card">
+        <div class="ctitle">⚠️ 需要跟进</div>
+        <div id="t-needs-attention"><div style="font-size:13px;color:var(--ink3)">学生完成学习后显示</div></div>
+      </div>
+    </div>
+
+    <!-- ══ PROGRESS ══ -->
+    <div class="screen" id="screen-progress">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+          <div class="ctitle" style="margin:0">📋 全班成绩明细</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-teal btn-sm" onclick="downloadCSV()">⬇️ CSV</button>
+            <button class="btn btn-red btn-sm" onclick="downloadPDF()">⬇️ PDF</button>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
+          <div style="text-align:left">学生</div>
+          <div>朗读</div><div>词语</div><div>理解</div><div>Quiz</div><div>签到</div>
+          <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div>
+        </div>
+        <div id="t-score-list"></div>
+        <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
+          <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--teal);display:inline-block"></span>优秀 ≥85</span>
+          <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--gold);display:inline-block"></span>良好 70–84</span>
+          <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--orange);display:inline-block"></span>继续加油 50–69</span>
+          <span style="font-size:11px;display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);display:inline-block"></span>需跟进 &lt;50</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">🔍 全班薄弱环节</div>
+        <div id="t-weak-analysis"></div>
+      </div>
+    </div>
+
+    <!-- ══ UNITS ══ -->
+    <div class="screen" id="screen-units">
+      <div class="card">
+        <div class="ctitle">📚 单元列表</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+          <input class="wi" id="new-unit-title" placeholder="新单元名称，例如：第三课《春天来了》" style="flex:1">
+          <button class="btn btn-red" onclick="createUnit()">+ 建立</button>
+        </div>
+        <div id="unit-list"><div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">加载中…</div></div>
+      </div>
+    </div>
+
+    <!-- ══ CONTENT EDITOR ══ -->
+    <div class="screen" id="screen-content">
+      <div id="no-unit-msg" class="card" style="text-align:center;padding:28px;background:var(--mist)">
+        <div style="font-size:32px;margin-bottom:8px">✏️</div>
+        <div style="font-size:14px;color:var(--ink3)">请先在「单元管理」选择一个单元</div>
+      </div>
+      <div id="content-editor" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-size:12px;color:var(--ink3)">正在编辑</div>
+            <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700" id="editing-title">—</div>
+          </div>
+          <button class="btn btn-gold btn-lg" onclick="saveAllContent()">💾 保存到云端</button>
+        </div>
+
+        <!-- Lesson text -->
+        <div class="card">
+          <div class="ctitle">📄 课文内容</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input class="wi" id="lesson-title-input" placeholder="课文标题" style="flex:1">
+          </div>
+          <textarea class="md-textarea" id="lesson-text-input" placeholder="在这里贴上课文内容…" style="min-height:200px"></textarea>
+        </div>
+
+        <!-- Flashcards -->
+        <div class="card">
+          <div class="ctitle">📖 生字词语（Markdown 格式）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：## 词语 | 拼音 → 含义 → 例句（用 --- 分隔）</div>
+          <textarea class="md-textarea" id="fc-write" placeholder="## 五颜六色 | wǔ yán liù sè&#10;形容颜色很多，非常好看&#10;花园里的花五颜六色，非常漂亮。&#10;---&#10;## 辛勤 | xīn qín&#10;努力不懈地工作或劳动&#10;爸爸辛勤地工作，为了养家糊口。" style="min-height:180px"></textarea>
+        </div>
+
+        <!-- Comprehension questions -->
+        <div class="card">
+          <div class="ctitle">💬 课文理解题（每行一题）</div>
+          <textarea class="md-textarea" id="cp-write" placeholder="课文里说春天是「播种的季节」，这是什么意思？&#10;课文中，小鸟和蜜蜂分别在做什么？&#10;如果你是农民伯伯，你会希望秋天收成怎样？"></textarea>
+        </div>
+
+        <!-- Quiz questions -->
+        <div class="card">
+          <div class="ctitle">🏆 Quiz 题目（Markdown 格式）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：? 题目 / 选项A / 选项B / 选项C / 选项D / 正确答案(0-3)</div>
+          <textarea class="md-textarea" id="qz-write" placeholder="? 课文里花儿「五颜六色」是指什么？ / 颜色很多非常好看 / 只有一种颜色 / 花儿很小 / 花儿很香 / 0&#10;? 农民伯伯为什么要在春天播种？ / 因为春天很美 / 希望秋天有好收成 / 因为没有其他事 / 因为老师叫他 / 1"></textarea>
+        </div>
+
+        <!-- Slides URL -->
+        <div class="card">
+          <div class="ctitle">📑 课文简报链接（Canva / Google Slides）</div>
+          <input class="wi" id="manage-slides-url" placeholder="https://www.canva.com/design/...">
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ══════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCYPCU-YgH0bQhXOLQXBIYJ5FkDzBI8t0Y",
+  authDomain:        "vwenbcclass.firebaseapp.com",
+  databaseURL:       "https://vwenbcclass-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "vwenbcclass",
+  storageBucket:     "vwenbcclass.firebasestorage.app",
+  messagingSenderId: "33967330028",
+  appId:             "1:33967330028:web:16986664ba4f57e2880bc9"
+};
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+const TEACHER_PW = '5504';
+let pwInput = '';
+let db = null;
+let firebaseReady = false;
+let currentSession = null;
+let currentUnitId  = null;
+let activeCode     = null;
+let selectedUnitId = null;
+let selectedUnitTitle = '';
+let studentRegistry = [];
+let classRoster     = [];
+let sessionListener = null;
+let classStatus     = 'waiting'; // waiting | started
+
+// ══════════════════════════════════════
+//  LOGIN
+// ══════════════════════════════════════
+function pwKey(d){
+  if(pwInput.length >= 4) return;
+  pwInput += d;
+  updateDots();
+  if(pwInput.length === 4) setTimeout(checkPW, 120);
+}
+function pwClear(){ pwInput = pwInput.slice(0,-1); updateDots(); document.getElementById('pw-err').textContent=''; }
+function updateDots(){
+  for(let i=0;i<4;i++){
+    const d = document.getElementById('pd'+i);
+    d.classList.toggle('filled', i < pwInput.length);
+  }
+}
+function checkPW(){
+  if(pwInput === TEACHER_PW){
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('pw-err').textContent = '密码错误，请再试';
+    const dots = document.getElementById('pw-dots');
+    dots.style.animation = 'shake .35s ease';
+    setTimeout(()=>dots.style.animation='', 400);
+    pwInput = ''; updateDots();
+  }
+}
+function logout(){
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  pwInput = ''; updateDots();
+  document.getElementById('pw-err').textContent = '';
+}
+
+// ══════════════════════════════════════
+//  FIREBASE
+// ══════════════════════════════════════
+function initApp(){
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    firebaseReady = true;
+    listenActiveSession();
+    loadUnitList();
+  } catch(e){ console.warn('Firebase error:', e.message); }
+}
+
+function safeKey(s){ return String(s).replace(/[.#$[\]/]/g,'_'); }
+function sessionRef(path){ return db.ref('sessions/' + path); }
+function activeRef(){ return db.ref('meta/activeSession'); }
+function unitsRef(){ return db.ref('units'); }
+
+// ── Listen to active session ──
+function listenActiveSession(){
+  activeRef().on('value', snap => {
+    const meta = snap.val();
+    if(meta && meta.sessionId){
+      currentSession = meta.sessionId;
+      currentUnitId  = meta.unitId;
+      activeCode     = meta.code;
+      classStatus    = meta.classStatus || 'waiting';
+      showSessionBanner(meta);
+      attachListener(meta.sessionId);
+    } else {
+      currentSession = null;
+      hideBanner();
+    }
+  });
+}
+
+function showSessionBanner(meta){
+  document.getElementById('session-banner').style.display = 'flex';
+  document.getElementById('no-session-banner').style.display = 'none';
+  document.getElementById('sb-code').textContent = meta.code || '—';
+  document.getElementById('nav-live-badge').style.display = 'flex';
+  document.getElementById('waiting-control').style.display = 'block';
+  // Get unit title
+  db.ref('units/' + meta.unitId + '/info/title').once('value', s => {
+    const t = s.val() || '课文';
+    document.getElementById('sb-unit-name').textContent = t;
+    document.getElementById('sb-class-label').textContent = meta.classLabel || '';
+    document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
+  });
+  // Update start button if already started
+  if(meta.classStatus === 'started'){
+    document.getElementById('start-class-btn').textContent = '🟢 课堂已开始';
+    document.getElementById('start-class-btn').disabled = true;
+    document.getElementById('start-class-btn').style.background = 'var(--teal)';
+  }
+}
+
+function hideBanner(){
+  document.getElementById('session-banner').style.display = 'none';
+  document.getElementById('no-session-banner').style.display = 'block';
+  document.getElementById('nav-live-badge').style.display = 'none';
+  document.getElementById('waiting-control').style.display = 'none';
+  document.getElementById('nav-subtitle').textContent = '老师管理端';
+}
+
+// ── Listen to students ──
+function attachListener(sid){
+  if(sessionListener) sessionListener.off();
+  sessionListener = sessionRef(sid + '/students');
+  sessionListener.on('value', snap => {
+    const data = snap.val() || {};
+    studentRegistry = [];
+    classRoster = [];
+    Object.values(data).forEach(s => {
+      studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false });
+      if(s.done && s.scores) classRoster.push({ name:s.name, av:s.av||'🐯', ...s.scores, total:s.scores.total||0, time:s.doneTime||s.time||'--:--' });
+    });
+    refreshAllViews();
+  });
+}
+
+function refreshAllViews(){
+  renderDashboard();
+  const prog = document.getElementById('screen-progress');
+  if(prog.classList.contains('on')) renderStudents();
+}
+
+// ══════════════════════════════════════
+//  CLASS CONTROL
+// ══════════════════════════════════════
+function startClass(){
+  if(!currentSession){ alert('请先开课'); return; }
+  sessionRef(currentSession).update({ classStatus: 'started' });
+  activeRef().update({ classStatus: 'started' });
+  classStatus = 'started';
+  const btn = document.getElementById('start-class-btn');
+  btn.textContent = '🟢 课堂已开始';
+  btn.disabled = true;
+  btn.style.background = 'var(--teal)';
+}
+
+function copyCode(){
+  const code = document.getElementById('sb-code').textContent;
+  navigator.clipboard.writeText(code)
+    .then(()=> alert('✅ 进入码「' + code + '」已复制！'))
+    .catch(()=> prompt('请手动复制：', code));
+}
+
+function endSession(){
+  if(!currentSession){ alert('没有进行中的课堂'); return; }
+  if(!confirm('确定结束课堂并清除学生数据？\n请先确认已下载成绩！')) return;
+  sessionRef(currentSession + '/status').set('ended');
+  sessionRef(currentSession + '/students').remove();
+  activeRef().remove();
+  studentRegistry = []; classRoster = [];
+  refreshAllViews();
+}
+
+// ══════════════════════════════════════
+//  DASHBOARD
+// ══════════════════════════════════════
+function renderDashboard(){
+  const d1 = document.getElementById('dash-total'); if(d1) d1.textContent = studentRegistry.length;
+  const d2 = document.getElementById('dash-done');  if(d2) d2.textContent = classRoster.length;
+  const d3 = document.getElementById('dash-low');   if(d3) d3.textContent = classRoster.filter(s=>s.total<60).length + '人';
+
+  // Waiting list
+  const wc = document.getElementById('waiting-count');
+  if(wc) wc.textContent = studentRegistry.length;
+  const wl = document.getElementById('waiting-list');
+  if(wl) wl.innerHTML = studentRegistry.map(s =>
+    `<div class="waiting-pill ${s.done?'done':s.currentPage!=='waiting'&&s.currentPage!=='checkin'?'in-progress':''}">
+      <span>${s.av}</span><span style="font-weight:600">${s.name}</span>
+      <span style="opacity:.6">${s.done?'✅完成':s.currentPage==='waiting'?'⏳':s.currentPage}</span>
+    </div>`).join('');
+
+  // Needs attention
+  const attn = document.getElementById('t-needs-attention');
+  if(attn){
+    const low = classRoster.filter(s=>s.total<60);
+    if(low.length === 0){
+      attn.innerHTML = '<div style="font-size:13px;color:var(--ink3)">暂时没有需要跟进的学生 🎉</div>';
+    } else {
+      attn.innerHTML = low.map(s => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--red-l);border-radius:var(--r);margin-bottom:8px">
+          <span style="font-size:22px">${s.av}</span>
+          <div><div style="font-size:13px;font-weight:600">${s.name}</div>
+          <div style="font-size:11px;color:var(--ink3)">总分 ${s.total} · 朗读${s.reading||'—'} 词语${s.flashcard||'—'} 理解${s.comp||'—'} Quiz${s.quiz||'—'}</div></div>
+          <span class="tag tno" style="margin-left:auto">需跟进</span>
+        </div>`).join('');
+    }
+  }
+}
+
+// ══════════════════════════════════════
+//  STUDENT PROGRESS TABLE
+// ══════════════════════════════════════
+function renderStudents(){
+  const list = document.getElementById('t-score-list');
+  if(!list) return;
+  list.innerHTML = '';
+  if(studentRegistry.length === 0){
+    list.innerHTML = `<div style="text-align:center;padding:32px;color:var(--ink3)"><div style="font-size:32px;margin-bottom:8px">👥</div><div>还没有学生进入</div></div>`;
+    updateWeakAnalysis(); return;
+  }
+  const rows = studentRegistry.map(reg => ({ ...reg, scores: classRoster.find(r=>r.name===reg.name) }));
+  rows.sort((a,b) => { if(a.scores&&!b.scores)return -1; if(!a.scores&&b.scores)return 1; if(a.scores&&b.scores)return b.scores.total-a.scores.total; return 0; });
+  const medals = ['🥇','🥈','🥉'];
+  rows.forEach((s, rank) => {
+    const sc = s.scores;
+    const row = document.createElement('div'); row.className = 'ts-row';
+    if(sc){
+      const dc = sc.total>=85?'var(--teal)':sc.total>=70?'var(--gold)':sc.total>=50?'var(--orange)':'var(--red)';
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div><div style="font-size:10px;color:var(--teal)">✅ ${sc.time}</div></div></div>
+        <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'}">${sc.comp??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
+        <div class="ts-cell" style="color:var(--teal)">✓</div>
+        <div class="ts-total" style="color:${dc}">${sc.total}</div>
+        <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
+    } else {
+      const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div></div></div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-total" style="color:var(--ink3)">—</div>
+        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>`;
+    }
+    list.appendChild(row);
+  });
+  updateWeakAnalysis();
+
+  // Update dash stats too
+  const d1 = document.getElementById('dash-total'); if(d1) d1.textContent = studentRegistry.length;
+  const d2 = document.getElementById('dash-done');  if(d2) d2.textContent = classRoster.length;
+  const d3 = document.getElementById('dash-low');   if(d3) d3.textContent = classRoster.filter(s=>s.total<60).length+'人';
+}
+
+function updateWeakAnalysis(){
+  const wa = document.getElementById('t-weak-analysis');
+  if(!wa) return;
+  const finished = classRoster;
+  if(finished.length === 0){ wa.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:12px">学生完成后显示薄弱环节分析</div>'; return; }
+  wa.innerHTML = '';
+  [{k:'reading',lbl:'朗读录音'},{k:'flashcard',lbl:'词语学习'},{k:'comp',lbl:'课文理解'},{k:'quiz',lbl:'Quiz竞赛'}].forEach(({k,lbl})=>{
+    const vals = finished.map(s=>s[k]||0);
+    const avg = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const below = finished.filter(s=>(s[k]||0)<70).length;
+    const col = avg>=75?'var(--teal)':avg>=60?'var(--gold)':'var(--red)';
+    const bar = document.createElement('div'); bar.className='weak-bar';
+    bar.innerHTML = `<div style="font-size:13px;width:72px;flex-shrink:0;color:var(--ink2)">${lbl}</div><div style="flex:1;height:7px;background:var(--mist2);border-radius:4px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${col};width:${avg}%;transition:width .8s"></div></div><div style="font-size:12px;font-weight:700;width:36px;text-align:right;color:${col}">${avg}</div><div style="font-size:11px;color:var(--ink3);min-width:60px;text-align:right">${below>0?below+'人需加强':''}</div>`;
+    wa.appendChild(bar);
+  });
+}
+
+// ══════════════════════════════════════
+//  UNIT MANAGEMENT
+// ══════════════════════════════════════
+function loadUnitList(){
+  if(!firebaseReady) return;
+  unitsRef().once('value', snap => {
+    const data = snap.val() || {};
+    const ul = document.getElementById('unit-list');
+    if(!ul) return;
+    const units = Object.entries(data).map(([id,u])=>({id,...u.info,hasContent:!!u.content})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有建立任何单元</div>'; return; }
+    ul.innerHTML = units.map(u=>`
+      <div class="unit-card ${selectedUnitId===u.id?'selected':''}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
+          <div style="font-size:11px;color:var(--ink3)">${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}</div>
+        </div>
+        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
+      </div>`).join('');
+  });
+}
+
+function createUnit(){
+  const title = document.getElementById('new-unit-title').value.trim();
+  if(!title){ alert('请输入单元名称'); return; }
+  const id = 'unit_' + Date.now();
+  db.ref('units/'+id+'/info').set({title, createdAt:Date.now(), status:'ready'}).then(()=>{
+    document.getElementById('new-unit-title').value = '';
+    loadUnitList();
+    selectUnit(id, title);
+    showTab('content');
+    alert('✅ 单元「'+title+'」建立成功！请填写内容后保存。');
+  });
+}
+
+function selectUnit(id, title){
+  selectedUnitId    = id;
+  selectedUnitTitle = title;
+  // Load content into editor
+  db.ref('units/'+id+'/content').once('value', snap=>{
+    const c = snap.val() || {};
+    const el = id => document.getElementById(id);
+    if(el('lesson-title-input')) el('lesson-title-input').value = c.lessonTitle||title;
+    if(el('lesson-text-input'))  el('lesson-text-input').value  = c.lessonText||'';
+    if(el('fc-write'))           el('fc-write').value           = c.fcMarkdown||'';
+    if(el('cp-write'))           el('cp-write').value           = c.cpMarkdown||'';
+    if(el('qz-write'))           el('qz-write').value           = c.qzMarkdown||'';
+    if(el('manage-slides-url'))  el('manage-slides-url').value  = c.slidesUrl||'';
+  });
+  document.getElementById('editing-title').textContent = title;
+  document.getElementById('no-unit-msg').style.display    = 'none';
+  document.getElementById('content-editor').style.display = 'block';
+  loadUnitList(); // refresh highlights
+}
+
+// ══════════════════════════════════════
+//  START SESSION
+// ══════════════════════════════════════
+function openSession(unitId, unitTitle){
+  const label = prompt('输入班级名称（例如：6A、6B）', '班级');
+  if(!label) return;
+  const code = label.toUpperCase().replace(/\s/g,'').slice(0,4) + Math.floor(100+Math.random()*900);
+  const sid  = 'session_' + Date.now();
+  const data = { unitId, classLabel:label, code, startedAt:Date.now(), status:'active', classStatus:'waiting', students:{} };
+  db.ref('sessions/'+sid).set(data).then(()=>{
+    activeRef().set({ sessionId:sid, unitId, code, classLabel:label, classStatus:'waiting' });
+    currentSession = sid; currentUnitId = unitId; activeCode = code;
+    alert('✅ 课堂已开启！\n\n学生进入码：' + code + '\n\n告诉学生这个进入码，他们就可以进入系统。');
+    showTab('dashboard');
+  });
+}
+
+// ══════════════════════════════════════
+//  SAVE CONTENT
+// ══════════════════════════════════════
+function saveAllContent(){
+  if(!selectedUnitId){ alert('请先选择单元'); return; }
+  const g = id => (document.getElementById(id)||{}).value||'';
+
+  // Parse flashcards
+  const fcMD = g('fc-write');
+  const flashcards = [];
+  fcMD.split('---').map(b=>b.trim()).filter(Boolean).forEach(b=>{
+    const lines = b.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length >= 2){
+      const hdr = lines[0].replace(/^##\s*/,'');
+      const parts = hdr.split('|').map(s=>s.trim());
+      flashcards.push({ char:parts[0]||'', pin:parts[1]||'', mean:lines[1]||'', ex:lines[2]||'' });
+    }
+  });
+
+  // Parse comprehension questions
+  const compQs = g('cp-write').split('\n').map(l=>l.trim()).filter(Boolean);
+
+  // Parse quiz questions
+  const quizQs = [];
+  g('qz-write').split('\n').map(l=>l.trim()).filter(l=>l.startsWith('?')).forEach(l=>{
+    const parts = l.slice(1).split('/').map(s=>s.trim());
+    if(parts.length >= 6) quizQs.push({ q:parts[0], opts:[parts[1],parts[2],parts[3],parts[4]], ans:parseInt(parts[5])||0 });
+  });
+
+  const content = {
+    lessonTitle: g('lesson-title-input'),
+    lessonText:  g('lesson-text-input'),
+    slidesUrl:   g('manage-slides-url'),
+    fcMarkdown:  fcMD,
+    cpMarkdown:  g('cp-write'),
+    qzMarkdown:  g('qz-write'),
+    flashcards, compQs, quizQs,
+  };
+
+  db.ref('units/'+selectedUnitId+'/content').set(content).then(()=>{
+    alert('✅ 内容已保存到云端！学生进入时会自动加载。');
+    loadUnitList();
+  }).catch(e=>alert('保存失败：'+e.message));
+}
+
+// ══════════════════════════════════════
+//  DOWNLOAD
+// ══════════════════════════════════════
+function downloadCSV(){
+  const h=['姓名','朗读','词语','理解','Quiz','签到','总分','时间'];
+  const rows = classRoster.map(s=>[s.name,s.reading||0,s.flashcard||0,s.comp||0,s.quiz||0,s.checkout?100:0,s.total,s.time]);
+  const csv = [h,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download = '华文成绩_'+selectedUnitTitle+'_'+new Date().toLocaleDateString('zh')+'.csv';
+  a.click();
+}
+
+function downloadPDF(){
+  const date = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+  const sorted = [...classRoster].sort((a,b)=>b.total-a.total);
+  const rows = sorted.map((s,i)=>`<tr style="background:${i%2===0?'#fafaf8':'white'}"><td style="padding:7px 10px">${i+1}</td><td style="padding:7px 10px;font-weight:600">${s.name}</td><td style="text-align:center;padding:7px 10px">${s.reading||'—'}</td><td style="text-align:center;padding:7px 10px">${s.flashcard||'—'}</td><td style="text-align:center;padding:7px 10px">${s.comp||'—'}</td><td style="text-align:center;padding:7px 10px">${s.quiz||'—'}</td><td style="text-align:center;padding:7px 10px">${s.checkout?100:'—'}</td><td style="text-align:center;padding:7px 10px;font-weight:900;font-size:15px;color:${s.total>=85?'#16A085':s.total>=70?'#D4A017':s.total>=50?'#E67E22':'#C0392B'}">${s.total}</td></tr>`).join('');
+  const totals = classRoster.map(s=>s.total).filter(t=>t>0);
+  const avg = totals.length?Math.round(totals.reduce((a,b)=>a+b,0)/totals.length):0;
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:"Noto Sans SC",sans-serif;padding:32px;color:#1A1A2E;font-size:13px}h1{font-size:20px;margin-bottom:4px}.sub{color:#888;margin-bottom:20px;font-size:12px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#1A1A2E;color:white;padding:8px 10px;font-size:12px}th:not(:first-child):not(:nth-child(2)){text-align:center}.footer{font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head><body><h1>🏮 ${selectedUnitTitle} — 学生成绩报告</h1><div class="sub">日期：${date} | 共 ${classRoster.length} 位学生 | 班级平均分：${avg}</div><table><thead><tr><th>#</th><th>姓名</th><th>朗读(25%)</th><th>词语(25%)</th><th>理解(20%)</th><th>Quiz(20%)</th><th>签到(10%)</th><th>总分</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">华文学习系统自动生成 · ${date}</div></body></html>`;
+  const w = window.open('','_blank');
+  w.document.write(html); w.document.close();
+  setTimeout(()=>w.print(), 600);
+}
+
+// ══════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════
+function showTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  document.getElementById('tab-'+id).classList.add('on');
+  document.getElementById('screen-'+id).classList.add('on');
+  if(id==='progress') renderStudents();
+  if(id==='units')    loadUnitList();
+}
+
+// ── Shake animation ──
+const style=document.createElement('style');
+style.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}}';
+document.head.appendChild(style);
+</script>
+</body>
+</html>

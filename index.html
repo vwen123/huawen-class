@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华文学习系统</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans SC',sans-serif;background:linear-gradient(135deg,#1A1A2E,#0A0A18);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.wrap{max-width:400px;width:100%;text-align:center}
+.logo{font-size:56px;margin-bottom:12px}
+h1{font-family:'Noto Serif SC',serif;font-size:26px;font-weight:700;color:#FFD700;margin-bottom:6px}
+.sub{font-size:13px;color:rgba(255,255,255,.45);margin-bottom:40px}
+.card{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:18px;padding:28px 24px;margin-bottom:14px;cursor:pointer;text-decoration:none;display:block;transition:all .2s}
+.card:hover{background:rgba(255,255,255,.1);transform:translateY(-3px)}
+.card-icon{font-size:36px;margin-bottom:10px}
+.card-title{font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700;color:white;margin-bottom:4px}
+.card-sub{font-size:12px;color:rgba(255,255,255,.45)}
+.student{border-color:rgba(212,160,23,.3)}
+.student:hover{border-color:#FFD700;box-shadow:0 0 20px rgba(255,215,0,.2)}
+.teacher{border-color:rgba(192,57,43,.3)}
+.teacher:hover{border-color:#C0392B;box-shadow:0 0 20px rgba(192,57,43,.2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">🏮</div>
+  <h1>华文学习系统</h1>
+  <p class="sub">请选择你的身份</p>
+  <a class="card student" href="student.html">
+    <div class="card-icon">📚</div>
+    <div class="card-title">学生入口</div>
+    <div class="card-sub">输入进入码，开始今天的华文学习</div>
+  </a>
+  <a class="card teacher" href="teacher.html">
+    <div class="card-icon">👩‍🏫</div>
+    <div class="card-title">老师入口</div>
+    <div class="card-sub">管理课堂、查看成绩、编辑内容</div>
+  </a>
+</div>
+</body>
+</html>

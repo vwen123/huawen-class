@@ -1,0 +1,3185 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>华文学习系统 — 学生</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root {
+  --red:#C0392B; --red-l:#FDECEA; --red-m:#E74C3C;
+  --gold:#D4A017; --gold-l:#F0C040; --gold-pale:#FEF9E7;
+  --ink:#1A1A2E; --ink2:#2C3E50; --ink3:rgba(26,26,46,0.5);
+  --teal:#16A085; --teal-l:#E8F6F3;
+  --purple:#6C3483; --purple-l:#F4ECF7;
+  --orange:#E67E22; --orange-l:#FEF0E3;
+  --sky:#2980B9; --sky-l:#EBF5FB;
+  --mist:#F4F1EC; --mist2:#E8E3D8; --white:#FDFCFA;
+  --border:rgba(26,26,46,0.1);
+  --shadow:0 2px 16px rgba(26,26,46,0.08);
+  --shadow-lg:0 8px 32px rgba(26,26,46,0.14);
+  --r:12px; --rl:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--ink);min-height:100vh;}
+
+/* NAV */
+.topnav{background:var(--ink);color:white;display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:54px;position:sticky;top:0;z-index:200;box-shadow:0 2px 12px rgba(0,0,0,0.25);}
+.brand{font-family:'Noto Serif SC',serif;font-size:17px;font-weight:700;color:var(--gold-l);display:flex;align-items:center;gap:8px;}
+.lesson-info{font-size:12px;color:rgba(255,255,255,0.45);}
+.lesson-info strong{color:var(--gold-l);}
+.role-sw{display:flex;background:rgba(255,255,255,0.1);border-radius:8px;padding:3px;gap:2px;}
+.rbtn{padding:5px 14px;border:none;border-radius:6px;font-family:'Noto Sans SC',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;background:transparent;color:rgba(255,255,255,0.55);}
+.rbtn.on{background:var(--gold);color:var(--ink);font-weight:700;}
+
+/* LAYOUT */
+.app{display:flex;min-height:calc(100vh - 54px);}
+.sidebar{width:214px;background:var(--white);border-right:1px solid var(--border);padding:16px 0;flex-shrink:0;overflow-y:auto;display:none;}
+.sidebar.teacher-visible{display:block;}
+.sec-lbl{padding:8px 14px 2px;font-size:10px;font-weight:700;letter-spacing:.1em;color:rgba(26,26,46,.3);text-transform:uppercase;margin-top:6px;}
+.nitem{display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;transition:all .15s;border-left:3px solid transparent;font-size:13px;color:var(--ink2);}
+.nitem:hover{background:var(--mist);color:var(--ink);}
+.nitem.on{background:var(--red-l);border-left-color:var(--red);color:var(--red);font-weight:500;}
+.nicon{font-size:15px;width:18px;text-align:center;}
+.nbadge{margin-left:auto;background:var(--red);color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;}
+.nprog{margin-left:auto;font-size:11px;color:var(--teal);font-weight:500;}
+
+/* MAIN */
+.main{flex:1;padding:24px;overflow-y:auto;max-width:900px;width:100%;}
+.page{display:none;animation:fadeIn .25s ease;}
+.page.on{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* PAGE HEADER */
+.ph{margin-bottom:20px;}
+.ph h1{font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;margin-bottom:3px;}
+.ph p{font-size:13px;color:var(--ink3);}
+
+/* CARD */
+.card{background:var(--white);border-radius:var(--rl);border:1px solid var(--border);padding:22px;box-shadow:var(--shadow);margin-bottom:18px;}
+.ctitle{font-family:'Noto Serif SC',serif;font-size:15px;font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:7px;}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:8px;border:none;font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+.btn-red{background:var(--red);color:white;} .btn-red:hover{background:var(--red-m);transform:translateY(-1px);box-shadow:0 4px 12px rgba(192,57,43,.3);}
+.btn-teal{background:var(--teal);color:white;} .btn-teal:hover{opacity:.9;}
+.btn-ghost{background:var(--mist);color:var(--ink);border:1px solid var(--border);} .btn-ghost:hover{background:var(--mist2);}
+.btn-gold{background:var(--gold);color:var(--ink);font-weight:700;} .btn-gold:hover{background:var(--gold-l);}
+.btn-sky{background:var(--sky);color:white;} .btn-sky:hover{opacity:.9;}
+.btn-sm{padding:6px 12px;font-size:12px;}
+.btn-lg{padding:13px 26px;font-size:15px;}
+
+/* GRIDS */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+
+/* ── CHECK-IN ── */
+.checkin-wrap{max-width:560px;margin:0 auto;}
+.mood-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0;}
+.mood-btn{border:2px solid var(--border);border-radius:var(--r);padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;background:white;}
+.mood-btn:hover{border-color:var(--gold);transform:translateY(-2px);}
+.mood-btn.sel{border-color:var(--gold);background:var(--gold-pale);transform:translateY(-2px);}
+.mood-emoji{font-size:28px;display:block;margin-bottom:4px;}
+.mood-lbl{font-size:11px;color:var(--ink3);}
+.ci-q{font-family:'Noto Serif SC',serif;font-size:17px;font-weight:600;margin-bottom:12px;color:var(--ink);line-height:1.6;}
+.ci-opts{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.ci-opt{padding:11px 16px;border-radius:var(--r);border:1.5px solid var(--border);background:white;cursor:pointer;text-align:left;font-family:'Noto Sans SC',sans-serif;font-size:14px;transition:all .2s;color:var(--ink);}
+.ci-opt:hover{border-color:var(--red);background:var(--red-l);}
+.ci-opt.sel{border-color:var(--red);background:var(--red-l);color:var(--red);font-weight:600;}
+.ci-input{width:100%;border:1.5px solid var(--border);border-radius:var(--r);padding:12px;font-family:'Noto Sans SC',sans-serif;font-size:14px;resize:none;color:var(--ink);transition:border-color .2s;}
+.ci-input:focus{outline:none;border-color:var(--red);}
+.step-dots{display:flex;gap:8px;justify-content:center;margin-bottom:20px;}
+.sdot{width:9px;height:9px;border-radius:50%;background:var(--mist2);transition:all .3s;}
+.sdot.on{background:var(--red);transform:scale(1.2);}
+.sdot.done{background:var(--teal);}
+
+/* ── READING ── */
+.text-box{background:var(--mist);border-radius:var(--r);padding:22px;line-height:2.2;font-size:18px;font-family:'Noto Serif SC',serif;border:1px solid var(--border);margin-bottom:18px;}
+.text-box .hl{color:var(--red);font-weight:700;}
+.rec-area{display:flex;flex-direction:column;align-items:center;gap:14px;padding:26px;background:linear-gradient(135deg,var(--red-l),#FFF8F8);border-radius:var(--rl);border:2px dashed rgba(192,57,43,.3);text-align:center;}
+.recbtn{width:68px;height:68px;border-radius:50%;background:var(--red);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:26px;color:white;box-shadow:0 4px 20px rgba(192,57,43,.4);transition:all .2s;}
+.recbtn:hover{transform:scale(1.08);}
+.recbtn.rec{animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 4px 20px rgba(192,57,43,.4);}50%{box-shadow:0 4px 30px rgba(192,57,43,.7),0 0 0 8px rgba(192,57,43,.15);}}
+.srow{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.slbl{font-size:12px;width:56px;color:var(--ink2);}
+.sbg{flex:1;height:9px;background:var(--mist2);border-radius:5px;overflow:hidden;}
+.sfill{height:100%;border-radius:5px;transition:width 1s ease;}
+.snum{font-size:12px;font-weight:700;width:38px;text-align:right;}
+
+/* ── FLASHCARD ── */
+.fc-wrap{perspective:1000px;width:100%;max-width:420px;margin:0 auto 20px;height:210px;}
+.fc-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1);}
+.fc-inner.flip{transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:22px;box-shadow:var(--shadow-lg);cursor:pointer;}
+.fc-front{background:linear-gradient(135deg,var(--ink),var(--ink2));color:white;}
+.fc-back{background:linear-gradient(135deg,#1A6B5E,var(--teal));color:white;transform:rotateY(180deg);}
+.fc-char{font-family:'Noto Serif SC',serif;font-size:52px;font-weight:700;}
+.fc-pin{font-size:17px;opacity:.65;}
+.fc-mean{font-size:16px;font-weight:500;text-align:center;}
+.fc-ex{font-size:12px;opacity:.72;text-align:center;font-style:italic;}
+.fc-hint{font-size:11px;opacity:.45;}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fc-pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.fc-nav{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:12px;}
+.fcdots{display:flex;gap:5px;}
+.fcd{width:7px;height:7px;border-radius:50%;background:var(--mist2);transition:background .2s;}
+.fcd.done{background:var(--teal);} .fcd.cur{background:var(--red);}
+
+/* ── MARKDOWN EDITOR ── */
+.md-editor-wrap{border:1.5px solid var(--border);border-radius:var(--r);overflow:hidden;}
+.md-toolbar{display:flex;gap:4px;padding:8px 10px;background:var(--mist);border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.md-tb-btn{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:white;font-size:12px;cursor:pointer;font-family:'Noto Sans SC',sans-serif;color:var(--ink2);transition:all .15s;}
+.md-tb-btn:hover{background:var(--mist2);}
+.md-tabs{display:flex;border-bottom:1px solid var(--border);}
+.md-tab{padding:8px 16px;font-size:13px;cursor:pointer;border:none;background:transparent;color:var(--ink3);font-family:'Noto Sans SC',sans-serif;transition:all .15s;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.md-tab.on{color:var(--red);border-bottom-color:var(--red);font-weight:600;}
+.md-textarea{width:100%;border:none;padding:14px;font-family:'Noto Serif SC',serif;font-size:14px;line-height:1.9;resize:vertical;min-height:180px;color:var(--ink);background:white;}
+.md-textarea:focus{outline:none;}
+.md-preview{padding:14px;min-height:180px;background:white;font-family:'Noto Serif SC',serif;font-size:14px;line-height:1.9;color:var(--ink);}
+.md-preview h1,.md-preview h2,.md-preview h3{font-family:'Noto Serif SC',serif;margin:10px 0 6px;}
+.md-preview p{margin-bottom:8px;}
+.md-preview ul,.md-preview ol{padding-left:20px;margin-bottom:8px;}
+.md-preview li{margin-bottom:4px;}
+.md-preview strong{color:var(--red);}
+.md-preview blockquote{border-left:3px solid var(--red);padding:8px 12px;background:var(--red-l);border-radius:0 6px 6px 0;margin:8px 0;}
+.md-preview code{background:var(--mist);padding:2px 6px;border-radius:4px;font-size:13px;}
+
+/* ── PDF VIEWER ── */
+.pdf-url-row{display:flex;gap:8px;margin-bottom:14px;}
+.pdf-url-input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'Noto Sans SC',sans-serif;color:var(--ink);transition:border-color .2s;}
+.pdf-url-input:focus{outline:none;border-color:var(--sky);}
+.pdf-frame-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--border);background:var(--mist);min-height:420px;display:flex;align-items:center;justify-content:center;}
+.pdf-frame-wrap iframe{width:100%;height:500px;border:none;display:block;}
+.pdf-placeholder{text-align:center;padding:40px;color:var(--ink3);}
+.pdf-placeholder .icon{font-size:48px;margin-bottom:12px;}
+.pdf-upload-area{border:2px dashed var(--border);border-radius:var(--r);padding:24px;text-align:center;cursor:pointer;transition:all .2s;background:white;}
+.pdf-upload-area:hover{border-color:var(--sky);background:var(--sky-l);}
+.pdf-upload-area input{display:none;}
+
+/* ── QUIZ ── */
+.quiz-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.qpbar{height:7px;background:var(--mist2);border-radius:4px;overflow:hidden;margin-bottom:20px;}
+.qpfill{height:100%;background:linear-gradient(90deg,var(--red),var(--gold));border-radius:4px;transition:width .4s ease;}
+.q-text{font-family:'Noto Serif SC',serif;font-size:18px;font-weight:600;color:var(--ink);margin-bottom:20px;line-height:1.6;}
+.q-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.qopt{padding:13px 16px;border-radius:var(--r);border:2px solid var(--border);background:var(--white);font-family:'Noto Sans SC',sans-serif;font-size:13px;cursor:pointer;transition:all .2s;text-align:left;color:var(--ink);}
+.qopt:hover{border-color:var(--red);background:var(--red-l);}
+.qopt.ok{border-color:var(--teal);background:var(--teal-l);color:var(--teal);font-weight:600;}
+.qopt.no{border-color:var(--red);background:var(--red-l);color:var(--red);}
+.qopt:disabled{cursor:default;}
+.qfb{display:none;padding:10px 14px;border-radius:var(--r);margin-top:14px;font-size:13px;font-weight:500;}
+.qfb.show{display:block;} .qfb.ok{background:var(--teal-l);color:var(--teal);} .qfb.no{background:var(--red-l);color:var(--red);}
+.scoreboard{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.spill{background:var(--white);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;display:flex;align-items:center;gap:5px;}
+.spill .dot{width:7px;height:7px;border-radius:50%;}
+
+/* ── ARCADE QUIZ GAME ── */
+#page-quiz { background:#0A0A1A; padding:0 !important; }
+.qg-av-btn{width:48px;height:48px;border-radius:50%;border:2.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.06);font-size:22px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;}
+.qg-av-btn:hover{border-color:#FFD700;transform:scale(1.1);}
+.qg-av-btn.qg-av-sel{border-color:#FFD700;background:rgba(255,215,0,.15);box-shadow:0 0 10px rgba(255,215,0,.35);}
+.qg-opt{padding:13px 12px;border-radius:10px;border:2px solid rgba(255,255,255,.09);background:rgba(255,255,255,.05);font-family:'Noto Sans SC',sans-serif;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;color:#F0F0FF;text-align:left;line-height:1.5;}
+.qg-opt:hover:not(:disabled){border-color:#FFD700;background:rgba(255,215,0,.08);transform:translateY(-2px);}
+.qg-opt.qg-ok{border-color:#00E676;background:rgba(0,230,118,.1);color:#00E676;animation:qg-correct .4s ease;}
+.qg-opt.qg-no{border-color:#FF4466;background:rgba(255,68,102,.1);color:#FF4466;animation:qg-shake .35s ease;}
+.qg-opt.qg-reveal{border-color:#00E676;background:rgba(0,230,118,.07);color:#00E676;}
+@keyframes qg-correct{0%{transform:scale(1)}40%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes qg-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-5px)}60%{transform:translateX(5px)}}
+.qg-opt-lbl{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:5px;background:rgba(255,255,255,.07);font-size:11px;font-weight:700;margin-right:7px;vertical-align:middle;flex-shrink:0;}
+.qg-qdot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.12);transition:all .3s;}
+.qg-qdot.qg-done-ok{background:#00E676;border-color:#00E676;}
+.qg-qdot.qg-done-no{background:#FF4466;border-color:#FF4466;}
+.qg-qdot.qg-active{background:#FFD700;border-color:#FFD700;transform:scale(1.35);box-shadow:0 0 7px rgba(255,215,0,.6);}
+.qg-fb-pop{font-family:'Noto Serif SC',serif;font-size:44px;font-weight:900;animation:qg-fbpop .7s cubic-bezier(.36,.07,.19,.97) forwards;filter:drop-shadow(0 0 14px currentColor);}
+@keyframes qg-fbpop{0%{opacity:0;transform:scale(.4) translateY(20px)}40%{opacity:1;transform:scale(1.12) translateY(-6px)}80%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1) translateY(-28px)}}
+.qg-combo-txt{font-family:'Noto Serif SC',serif;font-size:26px;font-weight:900;color:#FFD700;animation:qg-combo-in .4s cubic-bezier(.36,.07,.19,.97) both;filter:drop-shadow(0 0 8px rgba(255,215,0,.55));}
+@keyframes qg-combo-in{0%{opacity:0;transform:scale(.5)}60%{transform:scale(1.2)}100%{opacity:1;transform:scale(1)}}
+.qg-score-pop{position:fixed;pointer-events:none;font-family:'Noto Serif SC',serif;font-size:18px;font-weight:900;color:#FFD700;animation:qg-sfloat .9s ease-out forwards;z-index:160;}
+@keyframes qg-sfloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-55px) scale(.8)}}
+.qg-particle{position:fixed;pointer-events:none;border-radius:50%;z-index:155;animation:qg-pfly var(--dur,.8s) ease-out forwards;}
+@keyframes qg-pfly{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--tx,0px),var(--ty,-70px)) scale(0)}}
+.qg-lb-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);margin-bottom:7px;animation:qg-lbrow .5s ease both;}
+@keyframes qg-lbrow{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.qg-lb-row.qg-me{border-color:#FFD700;background:rgba(255,215,0,.07);}
+.qg-star-bg{position:fixed;inset:0;z-index:0;pointer-events:none;}
+.qg-star{position:absolute;border-radius:50%;background:white;animation:qg-twinkle var(--d,3s) ease-in-out infinite;opacity:0;}
+@keyframes qg-twinkle{0%,100%{opacity:0}50%{opacity:var(--op,.5)}}
+@media(max-width:480px){#qgs-game .qg-opts-grid{grid-template-columns:1fr !important}}
+
+/* ── COMPREHENSION SELF-MARK ── */
+.comp-mark-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:16px 12px;border-radius:var(--r);border:2px solid var(--border);background:var(--white);cursor:pointer;transition:all .2s;font-family:'Noto Sans SC',sans-serif;}
+.comp-mark-btn:hover{transform:translateY(-2px);box-shadow:var(--shadow);}
+.comp-mark-correct:hover{border-color:var(--teal);background:var(--teal-l);}
+.comp-mark-wrong:hover{border-color:var(--red);background:var(--red-l);}
+.comp-mark-btn.selected-correct{border-color:var(--teal);background:var(--teal-l);box-shadow:0 0 0 3px rgba(22,160,133,.15);}
+.comp-mark-btn.selected-wrong{border-color:var(--red);background:var(--red-l);box-shadow:0 0 0 3px rgba(192,57,43,.15);}
+.comp-mark-icon{font-size:28px;line-height:1;}
+.comp-mark-lbl{font-size:13px;font-weight:600;color:var(--ink2);}
+.comp-q-pill{padding:5px 12px;border-radius:20px;border:1.5px solid var(--border);background:white;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;color:var(--ink3);}
+.comp-q-pill.active{border-color:var(--red);background:var(--red-l);color:var(--red);}
+.comp-q-pill.done-ok{border-color:var(--teal);background:var(--teal-l);color:var(--teal);}
+.comp-q-pill.done-no{border-color:var(--red-m,#E74C3C);background:var(--red-l);color:var(--red);}
+
+/* ── COMPREHENSION SELF-MARK ── */
+.comp-q-box{background:var(--mist);border-left:4px solid var(--red);padding:14px 18px;border-radius:0 var(--r) var(--r) 0;font-family:'Noto Serif SC',serif;font-size:15px;line-height:1.7;margin-bottom:14px;}
+.mode-tabs{display:flex;gap:7px;margin-bottom:14px;flex-wrap:wrap;}
+.mtab{padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:white;font-size:12px;cursor:pointer;transition:all .2s;font-family:'Noto Sans SC',sans-serif;color:var(--ink2);}
+.mtab.on{border-color:var(--red);background:var(--red-l);color:var(--red);font-weight:600;}
+
+/* ── SCORE SYSTEM ── */
+.co-sect-row{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.co-sect-icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+.co-sect-name{font-size:13px;width:70px;flex-shrink:0;color:var(--ink2);}
+.co-sect-bar-wrap{flex:1;height:8px;background:var(--mist2);border-radius:4px;overflow:hidden;}
+.co-sect-bar{height:100%;border-radius:4px;width:0%;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.co-sect-val{font-size:13px;font-weight:700;width:40px;text-align:right;flex-shrink:0;}
+.co-mood-btn{font-size:28px;cursor:pointer;padding:8px;border-radius:10px;border:2px solid var(--border);background:white;transition:all .15s;flex:1;text-align:center;}
+.co-mood-btn:hover{border-color:var(--gold);transform:scale(1.06);}
+.co-mood-btn.sel{border-color:var(--gold);background:var(--gold-pale);transform:scale(1.1);}
+/* Teacher score table */
+.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;gap:0;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px;}
+.ts-row:last-child{border-bottom:none;}
+.ts-cell{text-align:center;font-weight:600;}
+.ts-total{text-align:center;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900;}
+.ts-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin:auto;}
+.weak-bar{background:var(--mist);border-radius:var(--r);padding:10px 14px;display:flex;align-items:center;gap:10px;}
+.weak-bar-fill{height:7px;background:var(--red);border-radius:4px;transition:width .8s ease;}
+
+/* ── WORD CLOUD ── */
+.wc-container{position:relative;width:100%;height:320px;background:linear-gradient(135deg,var(--ink),var(--ink2));border-radius:var(--rl);overflow:hidden;margin-bottom:16px;}
+.wc-word{position:absolute;cursor:default;font-family:'Noto Serif SC',serif;font-weight:600;opacity:0;animation:wc-appear .6s ease forwards;}
+@keyframes wc-appear{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.co-input-row{display:flex;gap:8px;margin-bottom:12px;}
+.co-input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'Noto Serif SC',serif;font-size:15px;color:var(--ink);}
+.co-input:focus{outline:none;border-color:var(--gold);}
+.submitted-words{display:flex;flex-wrap:wrap;gap:6px;min-height:40px;padding:10px;background:var(--mist);border-radius:var(--r);margin-bottom:12px;}
+.sw-tag{padding:5px 12px;border-radius:20px;font-size:13px;font-weight:600;color:white;}
+
+/* ── PROGRESS ── */
+.srow2{display:flex;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);gap:10px;}
+.srow2:last-child{border-bottom:none;}
+.sav{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:white;flex-shrink:0;}
+.sname{font-size:13px;font-weight:500;flex:1;}
+.smets{display:flex;gap:14px;}
+.smet{text-align:center;}
+.smetv{font-size:14px;font-weight:700;}
+.smetl{font-size:10px;color:rgba(26,26,46,.4);}
+.mbar{width:52px;height:5px;background:var(--mist2);border-radius:3px;margin-top:3px;overflow:hidden;}
+.mbarf{height:100%;border-radius:3px;}
+.tag{font-size:11px;padding:2px 7px;border-radius:10px;font-weight:600;}
+.tok{background:var(--teal-l);color:var(--teal);}
+.twn{background:var(--orange-l);color:var(--orange);}
+.tno{background:var(--red-l);color:var(--red);}
+
+/* ── STAT CARDS ── */
+.stat{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:16px 18px;display:flex;align-items:center;gap:12px;}
+.sticon{width:40px;height:40px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+.stv{font-size:24px;font-weight:700;line-height:1;}
+.stl{font-size:11px;color:var(--ink3);margin-top:2px;}
+
+/* ── MANAGE / MARKDOWN PANELS ── */
+.manage-section{margin-bottom:22px;}
+.manage-section h3{font-family:'Noto Serif SC',serif;font-size:15px;font-weight:600;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.word-row{display:flex;gap:8px;align-items:center;margin-bottom:7px;}
+.wi{flex:1;border:1px solid var(--border);border-radius:6px;padding:7px 9px;font-size:13px;font-family:'Noto Sans SC',sans-serif;color:var(--ink);}
+.wi:focus{outline:none;border-color:var(--teal);}
+/* Game settings */
+.gs-radio-lbl,.gs-check-lbl{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);background:var(--mist);cursor:pointer;font-size:13px;color:var(--ink2);transition:all .15s;}
+.gs-radio-lbl:hover,.gs-check-lbl:hover{border-color:var(--teal);background:var(--teal-l);color:var(--teal);}
+.gs-radio-lbl input,.gs-check-lbl input{accent-color:var(--teal);}
+.gs-radio-lbl.gs-sel{border-color:var(--teal);background:var(--teal-l);color:var(--teal);font-weight:600;}
+
+/* HOMEWORK */
+.hwcard{background:var(--white);border-radius:var(--r);border:1px solid var(--border);padding:15px 18px;margin-bottom:11px;}
+.hwword{font-family:'Noto Serif SC',serif;font-size:19px;font-weight:700;margin-bottom:3px;}
+.hwpin{font-size:11px;color:var(--ink3);margin-bottom:8px;}
+
+.hwinput{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 11px;font-family:'Noto Serif SC',serif;font-size:14px;color:var(--ink);background:var(--mist);transition:border-color .2s;}
+.hwinput:focus{outline:none;border-color:var(--teal);background:white;}
+.hwinput.done{border-color:var(--teal);background:var(--teal-l);}
+
+/* SUMMARY SUMMARY */
+.sumcard{background:var(--white);border-radius:var(--rl);border:1px solid var(--border);padding:18px;text-align:center;}
+.sumemoji{font-size:34px;margin-bottom:6px;}
+.sumtitle{font-family:'Noto Serif SC',serif;font-size:14px;font-weight:600;margin-bottom:3px;}
+.sumsub{font-size:11px;color:var(--ink3);}
+
+/* ── NAME ENTRY OVERLAY ── */
+#name-overlay{position:fixed;inset:0;z-index:1000;background:linear-gradient(135deg,#1A1A2E 0%,#0A0A18 100%);display:flex;align-items:center;justify-content:center;padding:24px;}
+.name-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:24px;padding:36px 32px;width:100%;max-width:380px;text-align:center;}
+.name-title{font-family:'Noto Serif SC',serif;font-size:28px;font-weight:900;background:linear-gradient(135deg,#FFD700,#FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px;}
+.name-sub{font-size:13px;color:rgba(255,255,255,.5);margin-bottom:24px;}
+.name-input{width:100%;background:rgba(255,255,255,.08);border:2px solid rgba(255,255,255,.15);border-radius:12px;padding:13px 16px;font-family:'Noto Sans SC',sans-serif;font-size:16px;color:white;margin-bottom:14px;text-align:center;transition:border-color .2s;}
+.name-input:focus{outline:none;border-color:#FFD700;}
+.name-input::placeholder{color:rgba(255,255,255,.3);}
+.name-submit{width:100%;padding:14px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:16px;font-weight:900;cursor:pointer;transition:all .2s;box-shadow:0 4px 20px rgba(255,215,0,.35);}
+.name-submit:hover{transform:translateY(-2px);}
+.name-resume{margin-top:12px;font-size:12px;color:rgba(255,255,255,.45);display:none;padding:8px 12px;background:rgba(255,215,0,.1);border-radius:8px;border:1px solid rgba(255,215,0,.2);}
+/* Quiz fullscreen */
+#page-quiz.quiz-fullscreen{position:fixed;inset:0;z-index:300;overflow-y:auto;}
+/* PASSWORD MODAL ── */
+.pw-key{padding:14px;border-radius:var(--r);border:1.5px solid var(--border);background:var(--white);font-family:'Noto Sans SC',sans-serif;font-size:18px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--ink);}
+.pw-key:hover{background:var(--mist);border-color:var(--red);}
+.pw-key:active{transform:scale(.93);background:var(--red-l);}
+.pw-clear{font-size:12px;color:var(--ink3);}
+.pw-del{font-size:16px;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.pb-step{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;min-width:60px;position:relative;z-index:2;padding:8px 2px 6px;user-select:none;}
+.pb-circle{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;border:2.5px solid var(--mist2);background:var(--white);margin-bottom:4px;transition:all .3s;}
+.pb-label{font-size:9.5px;color:var(--ink3);text-align:center;line-height:1.3;white-space:nowrap;font-family:"Noto Sans SC",sans-serif;transition:color .3s;}
+.pb-step.pb-done .pb-circle{background:var(--teal);border-color:var(--teal);color:white;}
+.pb-step.pb-done .pb-label{color:var(--teal);font-weight:500;}
+.pb-step.pb-active .pb-circle{background:var(--red);border-color:var(--red);color:white;box-shadow:0 0 0 4px rgba(192,57,43,.15);transform:scale(1.1);}
+.pb-step.pb-active .pb-label{color:var(--red);font-weight:700;}
+.pb-step.pb-up .pb-circle{background:var(--white);border-color:var(--mist2);color:var(--ink3);}
+.pb-step.pb-up .pb-label{color:var(--ink3);opacity:.55;}
+.pb-seg{flex:1;height:3px;background:var(--mist2);border-radius:2px;margin-bottom:20px;max-width:40px;transition:background .4s;}
+.pb-seg.pb-done{background:linear-gradient(90deg,var(--teal),var(--teal));}
+
+/* ── PART STEPPER ── */
+.pstep{display:flex;align-items:center;gap:9px;padding:0 18px;cursor:pointer;position:relative;transition:background .18s;border-bottom:3px solid transparent;min-height:62px;white-space:nowrap;}
+.pstep:hover{background:var(--mist);}
+.pstep.on{background:var(--red-l);border-bottom-color:var(--red);}
+.pstep.done{background:var(--teal-l);border-bottom-color:var(--teal);}
+.ps-ic{font-size:20px;line-height:1;flex-shrink:0;}
+.ps-label{display:flex;flex-direction:column;gap:1px;}
+.ps-num{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);}
+.pstep.on .ps-num{color:var(--red);}
+.pstep.done .ps-num{color:var(--teal);}
+.ps-name{font-size:13px;font-weight:500;color:var(--ink2);}
+.pstep.on .ps-name{color:var(--red);font-weight:700;}
+.pstep.done .ps-name{color:var(--teal);}
+.ps-tick{font-size:11px;font-weight:700;color:var(--teal);background:var(--teal-l);width:18px;height:18px;border-radius:50%;display:none;align-items:center;justify-content:center;flex-shrink:0;}
+.pstep.done .ps-tick{display:flex;}
+.ps-sep{font-size:18px;color:var(--mist2);padding:0 2px;display:flex;align-items:center;flex-shrink:0;}
+
+@media(max-width:700px){
+  .sidebar{display:none;}
+  .g2,.g3,.q-opts{grid-template-columns:1fr;}
+  .smets{gap:8px;}
+}
+</style>
+</head>
+<body>
+
+<nav class="topnav" id="hud-topnav-wrap">
+  <div class="brand">🏮 华文学习系统</div>
+  <div class="lesson-info">当前课文：<strong id="lesson-title">第三课《春天来了》</strong></div>
+  </nav>
+
+<!-- ══ STUDENT PART STEPPER ══ -->
+<div id="part-bar" style="background:var(--white);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:54px;z-index:150;box-shadow:0 2px 8px rgba(26,26,46,0.07);display:none">
+  <div style="display:flex;align-items:stretch;min-width:max-content;">
+
+    <div class="pstep on" id="ps-checkin" onclick="navPart('checkin')">
+      <div class="ps-ic">👋</div>
+      <div class="ps-label"><span class="ps-num">Part 1</span><span class="ps-name">Check In</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-reading" onclick="navPart('reading')">
+      <div class="ps-ic">🎙</div>
+      <div class="ps-label"><span class="ps-num">Part 2</span><span class="ps-name">朗读录音</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-flashcard" onclick="navPart('flashcard')">
+      <div class="ps-ic">📖</div>
+      <div class="ps-label"><span class="ps-num">Part 3</span><span class="ps-name">词语学习</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-slides" onclick="navPart('slides')">
+      <div class="ps-ic">📑</div>
+      <div class="ps-label"><span class="ps-num">Part 4</span><span class="ps-name">课文简报</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-comp" onclick="navPart('comp')">
+      <div class="ps-ic">💬</div>
+      <div class="ps-label"><span class="ps-num">Part 5</span><span class="ps-name">课文理解</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-quiz" onclick="navPart('quiz')">
+      <div class="ps-ic">🏆</div>
+      <div class="ps-label"><span class="ps-num">Part 6</span><span class="ps-name">Quiz 竞赛</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-checkout" onclick="navPart('checkout')">
+      <div class="ps-ic">☁️</div>
+      <div class="ps-label"><span class="ps-num">Part 7</span><span class="ps-name">Check Out</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+
+  </div>
+</div>
+
+<div class="app">
+<aside class="sidebar">
+  <div id="s-sidebar">
+    <div class="sec-lbl">课堂开始</div>
+    <div class="nitem on" onclick="nav('checkin')"><span class="nicon">👋</span>Check In <span class="nbadge">新</span></div>
+    <div class="sec-lbl">课堂环节</div>
+    <div class="nitem" onclick="nav('reading')"><span class="nicon">🎙</span>朗读录音</div>
+    <div class="nitem" onclick="nav('flashcard')"><span class="nicon">📖</span>词语学习 <span class="nprog" id="fc-prog">0/8</span></div>
+    <div class="nitem" onclick="nav('slides')"><span class="nicon">📑</span>课文简报</div>
+    <div class="nitem" onclick="nav('comp')"><span class="nicon">💬</span>课文理解</div>
+    <div class="nitem" onclick="nav('quiz')"><span class="nicon">🏆</span>Quiz竞赛 <span class="nbadge">新</span></div>
+    <div class="sec-lbl">课堂结束</div>
+    <div class="nitem" onclick="nav('checkout')"><span class="nicon">☁️</span>Check Out</div>
+  </div>
+  </aside>
+
+<main class="main">
+
+<!-- ══ CHECK IN ══ -->
+<div class="page on" id="page-checkin">
+  <div class="ph">
+    <h1>👋 Check In</h1>
+    <p id="ci-greeting">上课前，先告诉老师你今天的状态！</p>
+  </div>
+  <!-- Resume banner — shown if student has saved progress -->
+  <div id="ci-resume-banner" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--teal-l);border-radius:var(--r);border-left:4px solid var(--teal);font-size:13px;color:var(--teal)">
+    📖 找到你上次的进度！完成签到后将从 <strong id="ci-resume-part">—</strong> 继续。
+  </div>
+  <div class="card checkin-wrap">
+    <div class="step-dots" id="ci-dots">
+      <div class="sdot on"></div><div class="sdot"></div><div class="sdot"></div>
+    </div>
+    <!-- Step 1: Mood -->
+    <div id="ci-step1">
+      <div class="ci-q">今天你的心情怎么样？</div>
+      <div class="mood-grid">
+        <div class="mood-btn" onclick="selMood(this,'😄')"><span class="mood-emoji">😄</span><span class="mood-lbl">很开心</span></div>
+        <div class="mood-btn" onclick="selMood(this,'😊')"><span class="mood-emoji">😊</span><span class="mood-lbl">还不错</span></div>
+        <div class="mood-btn" onclick="selMood(this,'😐')"><span class="mood-emoji">😐</span><span class="mood-lbl">普普通通</span></div>
+        <div class="mood-btn" onclick="selMood(this,'😔')"><span class="mood-emoji">😔</span><span class="mood-lbl">有点难过</span></div>
+        <div class="mood-btn" onclick="selMood(this,'😴')"><span class="mood-emoji">😴</span><span class="mood-lbl">很疲倦</span></div>
+      </div>
+      <button class="btn btn-red" onclick="ciNext(2)" id="ci1-btn" disabled>下一步 →</button>
+    </div>
+    <!-- Step 2: Topic intro -->
+    <div id="ci-step2" style="display:none">
+      <div class="ci-q" id="ci-q2">今天我们要学习《春天来了》。你觉得春天是什么样的季节？</div>
+      <div class="ci-opts" id="ci-opts2">
+        <button class="ci-opt" onclick="selCiOpt(this)">🌸 温暖、百花盛开的季节</button>
+        <button class="ci-opt" onclick="selCiOpt(this)">🌧️ 多雨、潮湿的季节</button>
+        <button class="ci-opt" onclick="selCiOpt(this)">🌱 万物生长的季节</button>
+        <button class="ci-opt" onclick="selCiOpt(this)">🤔 我还不太了解春天</button>
+      </div>
+      <button class="btn btn-red" onclick="ciNext(3)" id="ci2-btn">下一步 →</button>
+    </div>
+    <!-- Step 3: Open question -->
+    <div id="ci-step3" style="display:none">
+      <div class="ci-q">你见过哪些春天的景色或动植物？分享一下！</div>
+      <textarea class="ci-input" rows="3" placeholder="例如：我见过樱花、青蛙、燕子……" id="ci-open"></textarea>
+      <div style="margin-top:12px">
+        <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始上课！</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ WAITING ROOM ══ -->
+<div class="page" id="page-waiting">
+  <div style="min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 16px;text-align:center">
+    <!-- Animated waiting icon -->
+    <div style="position:relative;width:100px;height:100px;margin-bottom:24px">
+      <div style="position:absolute;inset:0;border-radius:50%;border:4px solid var(--red-l);border-top-color:var(--red);animation:spin 1.2s linear infinite"></div>
+      <div style="position:absolute;inset:12px;border-radius:50%;background:var(--red-l);display:flex;align-items:center;justify-content:center;font-size:32px">🏮</div>
+    </div>
+    <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;color:var(--ink);margin-bottom:8px">等待老师开始上课</div>
+    <div style="font-size:14px;color:var(--ink3);margin-bottom:24px">老师确认所有同学进入后，课堂会自动开启</div>
+    <!-- Student info -->
+    <div style="background:var(--mist);border-radius:var(--r);padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px" id="wr-av">🐯</div>
+      <div style="text-align:left">
+        <div style="font-size:15px;font-weight:600" id="wr-name">—</div>
+        <div style="font-size:12px;color:var(--ink3)">已签到 ✅</div>
+      </div>
+    </div>
+    <!-- Classmates online -->
+    <div style="width:100%;max-width:400px;background:white;border:1px solid var(--border);border-radius:var(--r);padding:14px">
+      <div style="font-size:12px;font-weight:600;color:var(--ink3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.06em">同学们 <span id="wr-count" style="color:var(--red)">0</span> 人已进入</div>
+      <div id="wr-students" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:36px"></div>
+    </div>
+    <div style="margin-top:20px;font-size:12px;color:var(--ink3)">请保持页面开启，等待老师开启课堂…</div>
+  </div>
+</div>
+
+<!-- ══ READING ══ -->
+<div class="page" id="page-reading">
+  <div class="ph"><h1>🎙 朗读 + 录音评测</h1><p>认真朗读课文，录制后系统会自动评分。</p></div>
+  <div class="card">
+    <div class="ctitle">📄 课文：<span id="reading-lesson-title">第三课《春天来了》</span></div>
+    <div class="text-box" id="reading-text">
+      　　春天来了，大地换上了<span class="hl">绿色</span>的新衣。小草从土里钻出来，花儿也开放了，有红的、黄的、紫的，真是<span class="hl">五颜六色</span>。小鸟在枝头<span class="hl">欢快</span>地唱歌，蜜蜂在花丛中<span class="hl">忙碌</span>地采蜜。<br><br>
+      　　春天是播种的季节，农民伯伯在田里<span class="hl">辛勤</span>地劳作，希望秋天能有好收成。
+    </div>
+    <div class="rec-area">
+      <button class="recbtn" id="recbtn" onclick="toggleRec()">🎙</button>
+      <div style="font-size:13px;color:var(--ink3)" id="rec-lbl">点击开始录音</div>
+      <div style="font-size:20px;font-weight:700;color:var(--red);display:none" id="rec-timer">00:00</div>
+    </div>
+  </div>
+  <div class="card" id="score-card" style="display:none">
+    <div class="ctitle">📊 AI 评测结果</div>
+    <div style="display:none" id="legacy-bars">
+      <div class="srow"><div class="slbl">准确度</div><div class="sbg"><div class="sfill" id="b-acc" style="width:0%;background:var(--teal)"></div></div></div>
+      <div class="srow"><div class="slbl">流利度</div><div class="sbg"><div class="sfill" id="b-flu" style="width:0%;background:var(--gold)"></div></div></div>
+      <div class="srow"><div class="slbl">完整度</div><div class="sbg"><div class="sfill" id="b-cmp" style="width:0%;background:var(--purple)"></div></div></div>
+    </div>
+    <div style="margin-top:14px;padding:11px 14px;background:var(--teal-l);border-radius:8px;font-size:13px;color:var(--teal)" id="rec-feedback-msg">✅ <strong>做得不错！</strong>注意"忙碌"的读音，再试一次会更好。</div>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="rec-sub-scores">
+      <div style="background:var(--mist);border-radius:8px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:var(--teal)" id="n-acc">—</div>
+        <div style="font-size:10px;color:var(--ink3);margin-top:2px">准确度 ×50%</div>
+      </div>
+      <div style="background:var(--mist);border-radius:8px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:var(--gold)" id="n-flu">—</div>
+        <div style="font-size:10px;color:var(--ink3);margin-top:2px">流利度 ×30%</div>
+      </div>
+      <div style="background:var(--mist);border-radius:8px;padding:9px;text-align:center">
+        <div style="font-size:18px;font-weight:900;color:var(--purple)" id="n-cmp">—</div>
+        <div style="font-size:10px;color:var(--ink3);margin-top:2px">完整度 ×20%</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:9px 14px;background:var(--gold-pale);border-radius:8px;font-size:13px;color:var(--ink2);display:none" id="reading-score-line">
+      📊 朗读综合得分：<strong id="reading-score-val" style="color:var(--red);font-size:15px">—</strong> / 100
+    </div>
+    <div style="margin-top:12px;display:flex;gap:9px">
+      <button class="btn btn-ghost btn-sm" onclick="resetRec()">🔄 重新录音</button>
+      <button class="btn btn-red btn-sm" onclick="nav('flashcard')">继续学习词语 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FLASHCARD ══ -->
+<div class="page" id="page-flashcard">
+  <div class="ph"><h1>📖 词语学习</h1><p>点击词卡翻看含义，学完按"认识"或"再学"。</p></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div class="ctitle" style="margin:0">📚 生字新词</div>
+      <span style="font-size:12px;color:var(--ink3)">已学 <strong id="fc-done-n" style="color:var(--teal)">0</strong> / <strong id="fc-total-n">8</strong></span>
+    </div>
+
+    <!-- Progress bar for vocab -->
+    <div style="height:6px;background:var(--mist2);border-radius:3px;overflow:hidden;margin-bottom:16px">
+      <div id="fc-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--teal),var(--gold-l));border-radius:3px;width:0%;transition:width .5s ease"></div>
+    </div>
+
+    <div class="fc-wrap" onclick="flipFC()">
+      <div class="fc-inner" id="fc-inner">
+        <div class="fc-face fc-front">
+          <div class="fc-char" id="fc-char">五颜六色</div>
+          <div class="fc-pin" id="fc-pin">wǔ yán liù sè</div>
+          <div class="fc-hint" style="margin-top:6px">👆 点击翻面看含义</div>
+        </div>
+        <div class="fc-face fc-back">
+          <div class="fc-mean" id="fc-mean">形容颜色很多，非常好看</div>
+          <div style="height:1px;background:rgba(255,255,255,.2);width:80%;margin:9px 0"></div>
+          <div class="fc-ex" id="fc-ex">花园里的花五颜六色，非常漂亮。</div>
+        </div>
+      </div>
+    </div>
+    <div class="fc-nav">
+      <button class="btn btn-ghost btn-sm" onclick="prevFC()">← 上一个</button>
+      <div class="fcdots" id="fcdots"></div>
+      <button class="btn btn-red btn-sm" onclick="nextFC()">下一个 →</button>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:14px">
+      <button class="btn btn-ghost" onclick="markFC(false)" style="flex:1;max-width:150px">✗ 再学一次</button>
+      <button class="btn btn-teal" onclick="markFC(true)" style="flex:1;max-width:150px">✓ 认识了！</button>
+    </div>
+
+    <!-- Completion banner — hidden until all words done -->
+    <div id="fc-complete-banner" style="display:none;margin-top:20px;padding:16px;background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border-radius:var(--r);border:1.5px solid var(--teal);text-align:center;animation:fc-pop .4s ease">
+      <div style="font-size:28px;margin-bottom:6px">🎉</div>
+      <div style="font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;color:var(--teal);margin-bottom:4px">所有词语学完了！</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:14px">太棒了！现在可以观看课文简报了。</div>
+      <button class="btn btn-teal btn-lg" onclick="nav('slides')" style="width:100%">继续：观看课文简报 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDES / PDF ══ -->
+<div class="page" id="page-slides">
+  <div class="ph"><h1>📑 课文简报</h1><p>观看老师准备的简报，更好地理解课文内容。</p></div>
+  <div class="card">
+    <div id="slides-student-view">
+      <div class="pdf-frame-wrap" id="pdf-frame-wrap">
+        <div class="pdf-placeholder" id="slides-placeholder">
+          <div class="icon">📑</div>
+          <div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--ink)">老师还没有上传简报</div>
+          <div style="font-size:12px;color:var(--ink3)">请等待老师在课文管理里设置简报链接</div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:9px">
+      <button class="btn btn-red" onclick="nav('comp')">看完了，开始理解问答 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ COMPREHENSION ══ -->
+<div class="page" id="page-comp">
+  <div class="ph"><h1>💬 课文理解问答</h1><p>认真思考，把答案写在讲义上，然后根据课堂讨论为自己评分。</p></div>
+
+  <!-- Question navigator -->
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:600;color:var(--ink2)">问题</span>
+    <div id="comp-q-pills" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  </div>
+
+  <!-- Question card -->
+  <div class="card" id="comp-q-card">
+
+    <!-- Question header -->
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;flex:1">
+        <div style="width:32px;height:32px;border-radius:50%;background:var(--red);color:white;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0" id="comp-q-num">1</div>
+        <div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:600;color:var(--ink);line-height:1.65" id="comp-q-text">加载题目中…</div>
+      </div>
+    </div>
+
+    <!-- Think on paper instruction -->
+    <div style="background:var(--gold-pale);border-radius:var(--r);padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;gap:10px;border:1px solid rgba(212,160,23,.2)">
+      <span style="font-size:22px">✏️</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--gold)">把答案写在讲义上</div>
+        <div style="font-size:12px;color:var(--ink3);margin-top:2px">先独立思考，写完后等老师带领课堂讨论</div>
+      </div>
+    </div>
+
+    <!-- Self-marking section -->
+    <div style="border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:13px;font-weight:600;color:var(--ink2);margin-bottom:10px">📋 课堂讨论后，你的答案……</div>
+      <div style="display:flex;gap:10px" id="comp-mark-btns">
+        <button class="comp-mark-btn comp-mark-correct" onclick="markCompQ(true)" id="comp-btn-correct">
+          <span class="comp-mark-icon">✅</span>
+          <span class="comp-mark-lbl">答对了！</span>
+        </button>
+        <button class="comp-mark-btn comp-mark-wrong" onclick="markCompQ(false)" id="comp-btn-wrong">
+          <span class="comp-mark-icon">❌</span>
+          <span class="comp-mark-lbl">答错了</span>
+        </button>
+      </div>
+      <!-- Result badge shown after marking -->
+      <div id="comp-marked-badge" style="display:none;margin-top:12px;padding:10px 14px;border-radius:var(--r);font-size:13px;font-weight:600"></div>
+    </div>
+  </div>
+
+  <!-- Navigation row -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
+    <button class="btn btn-ghost btn-sm" onclick="prevCompQ()" id="comp-prev-btn">← 上一题</button>
+    <div style="font-size:12px;color:var(--ink3)">第 <span id="comp-cur">1</span> / <span id="comp-tot">3</span> 题</div>
+    <button class="btn btn-red btn-sm" onclick="nextCompQ()" id="comp-next-btn">下一题 →</button>
+  </div>
+
+  <!-- All-done banner -->
+  <div id="comp-done-banner" style="display:none;margin-top:16px;padding:16px;background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border-radius:var(--r);border:1.5px solid var(--teal);text-align:center;animation:fc-pop .4s ease">
+    <div style="font-size:26px;margin-bottom:6px">🎊</div>
+    <div style="font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;color:var(--teal);margin-bottom:4px">所有题目完成！</div>
+    <div style="font-size:13px;color:var(--ink3);margin-bottom:14px">
+      答对 <strong id="comp-correct-count" style="color:var(--teal)">0</strong> 题 / 共 <strong id="comp-total-count">0</strong> 题
+    </div>
+    <button class="btn btn-teal btn-lg" onclick="nav('quiz')" style="width:100%">继续：Quiz 竞赛 →</button>
+  </div>
+</div>
+
+<!-- ══ QUIZ GAME ══ -->
+<div class="page" id="page-quiz">
+  <!-- STARFIELD canvas (behind everything) -->
+  <div id="qg-stars" style="position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden"></div>
+  <!-- Particles / feedback layer -->
+  <div id="qg-feedback-ov" style="position:fixed;inset:0;z-index:50;pointer-events:none;display:flex;align-items:center;justify-content:center"></div>
+  <div id="qg-combo-disp" style="position:fixed;top:80px;right:16px;z-index:51;pointer-events:none;text-align:right"></div>
+
+  <!-- ── SCREEN: LOBBY ── -->
+  <div id="qgs-lobby" style="position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+    <div style="font-family:'Noto Serif SC',serif;font-size:clamp(28px,7vw,52px);font-weight:900;text-align:center;background:linear-gradient(135deg,#FFD700,#FFA500,#FF6B6B,#CE93D8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(255,215,0,.3));margin-bottom:6px;line-height:1.2">华文闯关<br>大挑战</div>
+    <div style="font-size:14px;color:rgba(240,240,255,.5);margin-bottom:28px;text-align:center" id="qg-sub-mode">街机积分 · 限时抢答 · 连击加成</div>
+
+    <!-- Avatar + name -->
+    <div style="background:rgba(18,18,42,.85);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px;width:100%;max-width:400px;margin-bottom:16px;backdrop-filter:blur(8px)">
+      <div style="font-size:12px;color:rgba(240,240,255,.45);margin-bottom:10px;text-align:center">选择角色</div>
+      <div style="display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:16px" id="qg-av-grid">
+        <button class="qg-av-btn qg-av-sel" onclick="qgSelAv(this,'🐯')">🐯</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🦁')">🦁</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🐉')">🐉</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🦊')">🦊</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🐼')">🐼</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🦋')">🦋</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🌟')">🌟</button>
+        <button class="qg-av-btn" onclick="qgSelAv(this,'🎯')">🎯</button>
+      </div>
+      <input id="qg-pname" placeholder="输入你的名字…" maxlength="8"
+        style="width:100%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;font-family:'Noto Sans SC',sans-serif;font-size:15px;color:#F0F0FF;margin-bottom:14px">
+      <button onclick="qgStart()" style="width:100%;padding:15px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.4);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+        ⚡ 开始挑战！
+      </button>
+    </div>
+
+    <!-- Leaderboard preview -->
+    <div style="width:100%;max-width:400px" id="qg-lb-preview"></div>
+  </div>
+
+  <!-- ── SCREEN: GAME ── -->
+  <div id="qgs-game" style="display:none;position:relative;z-index:10;min-height:100vh;flex-direction:column;align-items:center;padding:70px 16px 24px">
+
+    <!-- HUD bar -->
+    <div id="qg-hud" style="position:fixed;top:54px;left:0;right:0;z-index:40;background:rgba(10,10,26,.92);border-bottom:1px solid rgba(255,255,255,.07);backdrop-filter:blur(8px);display:flex;align-items:center;gap:12px;padding:8px 16px;height:52px">
+      <div style="display:flex;align-items:center;gap:7px">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:2px solid #FFD700;display:flex;align-items:center;justify-content:center;font-size:17px" id="qg-hud-av">🐯</div>
+        <span style="font-size:13px;font-weight:700;color:#F0F0FF" id="qg-hud-name">玩家</span>
+      </div>
+      <span style="font-size:11px;color:rgba(240,240,255,.45)" id="qg-hud-q">1/5</span>
+      <span style="font-size:12px;font-weight:700;color:#FF4466;min-width:56px" id="qg-hud-combo"></span>
+      <span style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:900;color:#FFD700;margin-left:auto" id="qg-hud-score">0</span>
+    </div>
+
+    <!-- Progress dots -->
+    <div style="display:flex;gap:7px;justify-content:center;margin-bottom:14px;flex-wrap:wrap" id="qg-dots"></div>
+
+    <!-- Level + timer row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:560px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.12em;background:linear-gradient(135deg,#FFD700,#FFA500);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="qg-lvl">关卡 1</div>
+        <div style="font-size:18px;letter-spacing:3px" id="qg-stars">⭐⭐⭐</div>
+      </div>
+      <div style="position:relative;width:66px;height:66px">
+        <svg style="transform:rotate(-90deg)" width="66" height="66" viewBox="0 0 66 66">
+          <circle cx="33" cy="33" r="27" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/>
+          <circle id="qg-arc" cx="33" cy="33" r="27" fill="none" stroke="#FFD700" stroke-width="5" stroke-linecap="round"
+            stroke-dasharray="169.6" stroke-dashoffset="0" style="transition:stroke-dashoffset .1s linear,stroke .3s"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif SC',serif;font-size:20px;font-weight:900;color:#FFD700;transition:color .3s" id="qg-tnum">15</div>
+      </div>
+    </div>
+
+    <!-- Question card -->
+    <div id="qg-card" style="background:rgba(18,18,42,.9);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:24px 20px 20px;width:100%;max-width:560px;box-shadow:0 8px 40px rgba(0,0,0,.5);backdrop-filter:blur(8px)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <span style="font-size:11px;color:rgba(240,240,255,.4)" id="qg-qnum">第 1 题</span>
+        <button id="qg-hint-btn" onclick="qgHint()" style="display:flex;align-items:center;gap:5px;padding:6px 12px;border-radius:16px;border:1.5px solid rgba(206,147,216,.4);background:rgba(206,147,216,.1);color:#CE93D8;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.background='rgba(206,147,216,.2)'" onmouseout="this.style.background='rgba(206,147,216,.1)'">
+          💡 提示 <span id="qg-hints-left" style="opacity:.7">× 2</span>
+        </button>
+      </div>
+      <div style="font-family:'Noto Serif SC',serif;font-size:clamp(16px,4vw,20px);font-weight:700;color:#F0F0FF;line-height:1.6;margin-bottom:20px;text-align:center" id="qg-qtxt">加载题目中…</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px" id="qg-opts"></div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN: RESULTS ── -->
+  <div id="qgs-results" style="display:none;position:relative;z-index:10;min-height:100vh;flex-direction:column;align-items:center;padding:80px 16px 40px">
+
+    <!-- ── Quiz performance card ── -->
+    <div style="background:rgba(18,18,42,.92);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:22px;width:100%;max-width:480px;margin-bottom:14px;text-align:center;backdrop-filter:blur(8px)">
+      <div style="font-size:48px;margin-bottom:6px" id="qg-grade">🏆</div>
+      <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700;margin-bottom:3px;color:#F0F0FF" id="qg-rmsg"></div>
+      <div style="font-size:13px;color:rgba(240,240,255,.5);margin-bottom:16px" id="qg-rsub"></div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px 6px">
+          <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#FFD700" id="qg-rscore">0</div>
+          <div style="font-size:10px;color:rgba(240,240,255,.4);margin-top:2px">游戏积分</div>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px 6px">
+          <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#00E676" id="qg-rcorrect">0</div>
+          <div style="font-size:10px;color:rgba(240,240,255,.4);margin-top:2px">答对</div>
+        </div>
+        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:12px 6px">
+          <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#FF4466" id="qg-rcombo">0×</div>
+          <div style="font-size:10px;color:rgba(240,240,255,.4);margin-top:2px">最高连击</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Leaderboard ── -->
+    <div style="width:100%;max-width:480px;margin-bottom:20px" id="qg-lb-section">
+      <div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:700;color:#FFD700;text-align:center;margin-bottom:10px">🏆 课堂排行榜</div>
+      <div id="qg-lb"></div>
+    </div>
+
+    <!-- ── Buttons ── -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:100%;max-width:480px">
+      <button onclick="qgRestart()" style="flex:1;min-width:100px;padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:rgba(240,240,255,.7);font-family:'Noto Sans SC',sans-serif;font-size:14px;cursor:pointer">🔄 再挑战</button>
+      <button onclick="qgGoCheckout()" style="flex:2;min-width:180px;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:900;cursor:pointer;box-shadow:0 4px 16px rgba(255,215,0,.35)">前往 Check Out →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CHECK OUT ══ -->
+<div class="page" id="page-checkout">
+  <div class="ph"><h1>☁️ Check Out</h1><p>今天辛苦了！先分享你的感受，完成后会显示今天的学习成绩。</p></div>
+
+  <!-- ── WORD CLOUD + REFLECTION ── -->
+  <div class="card" id="co-input-card">
+    <div class="ctitle">☁️ 今天我学会了……</div>
+    <div class="co-input-row">
+      <input class="co-input" id="co-input" placeholder="输入今天学到的一个词语…" maxlength="10" onkeydown="if(event.key==='Enter')addWord()">
+      <button class="btn btn-red" onclick="addWord()">+ 加入</button>
+    </div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">已提交：</div>
+    <div class="submitted-words" id="sw-tags"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ctitle" style="margin:0">🌟 全班文字云</div>
+      <button class="btn btn-ghost btn-sm" onclick="buildCloud()">🔄 刷新</button>
+    </div>
+    <div class="wc-container" id="wc-canvas"></div>
+
+    <!-- Exit ticket -->
+    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif">今天，我最大的收获是……</div>
+      <textarea class="ci-input" rows="2" id="co-reflection" placeholder="写一句话总结今天的学习…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+      <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
+        <div class="co-mood-btn" onclick="setCoMood(this)" title="很开心">😄</div>
+        <div class="co-mood-btn" onclick="setCoMood(this)" title="还不错">😊</div>
+        <div class="co-mood-btn" onclick="setCoMood(this)" title="普通">😐</div>
+      </div>
+      <button class="btn btn-gold btn-lg" style="margin-top:16px;width:100%" onclick="finishLesson()">完成今天的学习，查看成绩 🎉</button>
+    </div>
+  </div>
+
+  <!-- ── TOTAL SCORE REPORT — hidden until finishLesson() ── -->
+  <div class="card" id="score-report-card" style="display:none">
+    <div class="ctitle">🏅 今日学习成绩报告</div>
+
+    <!-- Big total score -->
+    <div style="display:flex;align-items:center;gap:20px;padding:18px;background:linear-gradient(135deg,var(--ink),var(--ink2));border-radius:var(--rl);margin-bottom:16px;color:white">
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-size:52px;font-weight:900;font-family:'Noto Serif SC',serif;color:var(--gold-l);line-height:1" id="co-total-score">—</div>
+        <div style="font-size:11px;opacity:.6;margin-top:2px">总分 / 100</div>
+      </div>
+      <div style="flex:1">
+        <div style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:700;margin-bottom:4px" id="co-grade-label">—</div>
+        <div style="font-size:13px;opacity:.7" id="co-grade-sub">—</div>
+        <div style="margin-top:8px;font-size:22px;letter-spacing:3px" id="co-stars">☆☆☆☆☆</div>
+      </div>
+    </div>
+
+    <!-- Per-section breakdown -->
+    <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px" id="co-breakdown">
+      <div class="co-sect-row">
+        <div class="co-sect-icon">🎙</div>
+        <div class="co-sect-name">朗读录音</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-reading" style="background:var(--purple)"></div></div>
+        <div class="co-sect-val" id="cosv-reading">—</div>
+      </div>
+      <div class="co-sect-row">
+        <div class="co-sect-icon">📖</div>
+        <div class="co-sect-name">词语学习</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-flashcard" style="background:var(--blue)"></div></div>
+        <div class="co-sect-val" id="cosv-flashcard">—</div>
+      </div>
+      <div class="co-sect-row">
+        <div class="co-sect-icon">💬</div>
+        <div class="co-sect-name">课文理解</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-comp" style="background:var(--teal)"></div></div>
+        <div class="co-sect-val" id="cosv-comp">—</div>
+      </div>
+      <div class="co-sect-row">
+        <div class="co-sect-icon">🏆</div>
+        <div class="co-sect-name">Quiz 竞赛</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-quiz" style="background:var(--gold)"></div></div>
+        <div class="co-sect-val" id="cosv-quiz">—</div>
+      </div>
+      <div class="co-sect-row">
+        <div class="co-sect-icon">☁️</div>
+        <div class="co-sect-name">Check Out</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-checkout" style="background:var(--green)"></div></div>
+        <div class="co-sect-val" id="cosv-checkout">—</div>
+      </div>
+    </div>
+
+    <!-- Advice -->
+    <div style="background:var(--sky-l);border-radius:var(--r);padding:14px 16px;border-left:4px solid var(--sky);margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--sky);margin-bottom:6px">💡 建议</div>
+      <div style="font-size:13px;color:var(--ink2);line-height:1.7" id="co-advice-text">—</div>
+    </div>
+
+    <!-- Done button -->
+    <button class="btn btn-red btn-lg" style="width:100%" onclick="showCompletionBanner(qgState.name||'同学', calcTotal(studentScores))">明天见 👋</button>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════
+const FIREBASE_CONFIG = {
+  apiKey:            "AIzaSyCYPCU-YgH0bQhXOLQXBIYJ5FkDzBI8t0Y",
+  authDomain:        "vwenbcclass.firebaseapp.com",
+  databaseURL:       "https://vwenbcclass-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "vwenbcclass",
+  storageBucket:     "vwenbcclass.firebasestorage.app",
+  messagingSenderId: "33967330028",
+  appId:             "1:33967330028:web:16986664ba4f57e2880bc9"
+};
+
+// ══════════════════════════════════════
+//  FIREBASE STATE
+// ══════════════════════════════════════
+let db = null;
+let firebaseReady = false;
+let currentUnitId  = null;   // e.g. "unit_001"
+let currentSession = null;   // e.g. "session_20250315_6A"
+let activeClassCode = null;  // e.g. "BC2025"
+
+// ── Init ──
+function initFirebase(){
+  try {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    firebaseReady = true;
+    console.log('✅ Firebase connected');
+    // Teacher: listen to active session in real-time
+    listenActiveSession();
+  } catch(e){
+    console.warn('Firebase init failed, offline mode:', e.message);
+  }
+}
+
+// ── Helpers ──
+function safeKey(s){ return String(s).replace(/[.#$[\]/]/g,'_'); }
+function unitsRef()   { return db.ref('units'); }
+function sessionRef(sid){ return db.ref('sessions/' + sid); }
+function activeRef()  { return db.ref('meta/activeSession'); }
+
+// ══════════════════════════════════════
+//  UNITS (永久课文内容)
+// ══════════════════════════════════════
+
+// Save unit content (called when teacher saves from manage page)
+function fbSaveUnit(unitId, content){
+  if(!firebaseReady) return;
+  db.ref('units/' + unitId + '/content').set(content)
+    .then(()=> console.log('Unit saved:', unitId))
+    .catch(e => console.warn('fbSaveUnit:', e));
+}
+
+// Load all units list for teacher dropdown
+function fbLoadUnits(cb){
+  if(!firebaseReady){ cb([]); return; }
+  db.ref('units').once('value', snap => {
+    const data = snap.val() || {};
+    const list = Object.entries(data).map(([id, u]) => ({
+      id, ...u.info, hasContent: !!u.content
+    }));
+    cb(list.sort((a,b) => (b.createdAt||0) - (a.createdAt||0)));
+  });
+}
+
+// Load one unit's content
+function fbLoadUnitContent(unitId, cb){
+  if(!firebaseReady){ cb(null); return; }
+  db.ref('units/' + unitId + '/content').once('value', snap => cb(snap.val()));
+}
+
+// Create a new unit (teacher side)
+function fbCreateUnit(title, cb){
+  if(!firebaseReady){ cb(null); return; }
+  const id = 'unit_' + Date.now();
+  db.ref('units/' + id + '/info').set({
+    title, createdAt: Date.now(), status: 'ready'
+  }).then(() => cb(id)).catch(e => { console.warn(e); cb(null); });
+}
+
+// ══════════════════════════════════════
+//  SESSIONS (每次上课的学生数据)
+// ══════════════════════════════════════
+
+// Teacher starts a new session → generates class code
+function fbStartSession(unitId, classLabel, cb){
+  if(!firebaseReady){ cb(null, null); return; }
+  const code = classLabel.toUpperCase().replace(/\s/g,'').slice(0,8)
+             + Math.floor(100+Math.random()*900);
+  const sid  = 'session_' + Date.now();
+  const data = {
+    unitId, classLabel, code,
+    startedAt: Date.now(), status: 'active', students: {}
+  };
+  sessionRef(sid).set(data).then(() => {
+    // Mark as active session globally
+    activeRef().set({ sessionId: sid, unitId, code });
+    currentSession = sid;
+    currentUnitId  = unitId;
+    activeClassCode = code;
+    cb(sid, code);
+  }).catch(e => { console.warn(e); cb(null, null); });
+}
+
+// Teacher ends session (after download)
+function fbEndSession(sid){
+  if(!firebaseReady || !sid) return;
+  sessionRef(sid + '/status').set('ended');
+  sessionRef(sid + '/endedAt').set(Date.now());
+  // Clear active pointer
+  activeRef().remove();
+}
+
+// Teacher clears student data from a session
+function fbClearSessionStudents(sid){
+  if(!firebaseReady || !sid) return;
+  sessionRef(sid + '/students').remove()
+    .then(() => alert('✅ 学生数据已清除，课文内容保留。'))
+    .catch(e => console.warn(e));
+}
+
+// Student: look up active session by class code
+function fbFindSessionByCode(code, cb){
+  if(!firebaseReady){ cb(null); return; }
+  activeRef().once('value', snap => {
+    const meta = snap.val();
+    if(meta && meta.code === code.toUpperCase()){
+      currentSession = meta.sessionId;
+      currentUnitId  = meta.unitId;
+      activeClassCode = meta.code;
+      cb(meta);
+    } else {
+      cb(null);
+    }
+  });
+}
+
+// ══════════════════════════════════════
+//  STUDENT SYNC (实时同步)
+// ══════════════════════════════════════
+
+function fbRegisterStudent(name, av){
+  if(!firebaseReady || !currentSession) return;
+  const time = new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'});
+  sessionRef(currentSession + '/students/' + safeKey(name)).set({
+    name, av, time, currentPage:'checkin', done:false
+  });
+}
+
+function fbUpdatePage(name, page){
+  if(!firebaseReady || !currentSession) return;
+  sessionRef(currentSession + '/students/' + safeKey(name)).update({ currentPage: page });
+}
+
+function fbUpdateScore(name, section, value){
+  if(!firebaseReady || !currentSession) return;
+  sessionRef(currentSession + '/students/' + safeKey(name) + '/scores')
+    .update({ [section]: value });
+}
+
+function fbFinishStudent(name, av, scores){
+  if(!firebaseReady || !currentSession) return;
+  const doneTime = new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'});
+  sessionRef(currentSession + '/students/' + safeKey(name)).update({
+    done: true, doneTime,
+    scores: { ...scores, total: calcTotal(scores) }
+  });
+}
+
+// ══════════════════════════════════════
+//  TEACHER: REAL-TIME LISTENER
+// ══════════════════════════════════════
+let sessionListener = null;
+
+function listenActiveSession(){
+  if(!firebaseReady) return;
+  // Listen to meta/activeSession for changes
+  activeRef().on('value', snap => {
+    const meta = snap.val();
+    if(!meta){ return; }
+    currentSession  = meta.sessionId;
+    currentUnitId   = meta.unitId;
+    activeClassCode = meta.code;
+    // Now listen to students in this session
+    attachStudentListener(meta.sessionId);
+  });
+}
+
+// (removed duplicate)
+
+// ── DATA ──
+const role='student' // student-only build, curPage='checkin';
+
+let fcCards=[
+  {char:'五颜六色',pin:'wǔ yán liù sè',mean:'形容颜色很多，非常好看',ex:'花园里的花五颜六色，非常漂亮。'},
+  {char:'辛勤',pin:'xīn qín',mean:'努力不懈地工作或劳动',ex:'爸爸辛勤地工作，为了养家糊口。'},
+  {char:'欢快',pin:'huān kuài',mean:'快乐愉快，心情愉悦',ex:'小鸟欢快地在枝头唱歌。'},
+  {char:'忙碌',pin:'máng lù',mean:'事情很多，非常繁忙',ex:'蜜蜂忙碌地在花丛中采蜜。'},
+  {char:'播种',pin:'bō zhǒng',mean:'把种子撒在土里让植物生长',ex:'春天是播种的好时节。'},
+  {char:'收成',pin:'shōu chéng',mean:'农作物成熟后收获的情况',ex:'今年风调雨顺，收成很好。'},
+  {char:'换上',pin:'huàn shàng',mean:'换掉旧的，套上新的',ex:'春天来了，大地换上了绿色的新衣。'},
+  {char:'大地',pin:'dà dì',mean:'广阔的土地，泛指地面',ex:'春天来了，大地一片生机。'},
+];
+let fcIdx=0, fcDone=[], fcFlipped=false;
+
+let quizQs=[
+  {q:'课文里花儿"五颜六色"是指什么？',opts:['颜色很多非常好看','只有一种颜色','花儿很小','花儿很香'],ans:0},
+  {q:'农民伯伯为什么要在春天播种？',opts:['因为春天很美','希望秋天有好收成','因为没有其他事','因为老师叫他'],ans:1},
+  {q:'"辛勤"在课文中是用来形容谁的？',opts:['小鸟','蜜蜂','农民伯伯','小草'],ans:2},
+  {q:'小鸟在课文里在哪里唱歌？',opts:['地上','花丛中','枝头','天空'],ans:2},
+  {q:'课文中蜜蜂在花丛中做什么？',opts:['唱歌','跳舞','忙碌地采蜜','欢快地飞翔'],ans:2},
+];
+let qIdx=0, myScore=0;
+
+let compQs=[
+  '课文里说春天是"播种的季节"，这是什么意思？你认为农民伯伯为什么要在春天播种？',
+  '课文中，小鸟和蜜蜂分别在做什么？用自己的话说一说。',
+  '如果你是农民伯伯，你会希望秋天收成怎样？为什么？',
+];
+let compIdx=0;
+
+let students=[
+  {n:'王小明',av:'王',col:'#C0392B',r:88,v:7,q:4,s:'ok'},
+  {n:'李小花',av:'李',col:'#E67E22',r:0,v:5,q:0,s:'warn'},
+  {n:'张大伟',av:'张',col:'#16A085',r:76,v:6,q:3,s:'ok'},
+  {n:'陈小美',av:'陈',col:'#6C3483',r:92,v:8,q:5,s:'ok'},
+  {n:'林阿强',av:'林',col:'#C0392B',r:45,v:3,q:1,s:'no'},
+  {n:'黄小慧',av:'黄',col:'#16A085',r:81,v:7,q:4,s:'ok'},
+];
+
+let cloudWords=[];
+const cloudColors=['#F0C040','#5DCAA5','#E74C3C','#9B59B6','#3498DB','#E67E22','#1ABC9C','#E91E63'];
+
+// ── PART BAR DATA ──
+const PARTS=[
+  {id:'checkin', icon:'👋', label:'Check In'},
+  {id:'reading', icon:'🎙', label:'朗读'},
+  {id:'flashcard',icon:'📖', label:'词语'},
+  {id:'slides',  icon:'📑', label:'简报'},
+  {id:'comp',    icon:'💬', label:'理解'},
+  {id:'quiz',    icon:'🏆', label:'Quiz'},
+  {id:'checkout',icon:'☁️', label:'Check Out'},
+];
+let completedParts=new Set();
+
+function buildPartBar(){
+  updatePartBar(curPage);
+}
+
+function updatePartBar(activeId){
+  const activeIdx=PARTS.findIndex(p=>p.id===activeId);
+  PARTS.forEach((p,i)=>{
+    const step=document.getElementById('ps-'+p.id);
+    if(!step)return;
+    step.classList.remove('on','done');
+    if(p.id===activeId) step.classList.add('on');
+    else if(i<activeIdx||completedParts.has(p.id)) step.classList.add('done');
+  });
+  setTimeout(()=>{
+    const el=document.getElementById('ps-'+activeId);
+    if(el)el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  },80);
+}
+
+// ── NAV ──
+function nav(id){
+  if(curPage && curPage!==id) completedParts.add(curPage);
+
+  // Exit quiz fullscreen when leaving quiz
+  if(curPage==='quiz' && id!=='quiz'){
+    document.getElementById('page-quiz').classList.remove('quiz-fullscreen');
+    document.getElementById('part-bar').style.display='block';
+  }
+
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.nitem').forEach(n=>n.classList.remove('on'));
+  document.getElementById('page-'+id).classList.add('on');
+  curPage=id;
+  document.querySelectorAll('.nitem').forEach(n=>{
+    if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'"))n.classList.add('on');
+  });
+  if(id==='flashcard')renderFC();
+  if(id==='quiz'){ qgInitLobby(); }
+  if(id==='progress')renderStudents();
+  if(id==='dashboard')renderDashboard();
+  if(id==='manage'){ loadUnitList(); checkActiveSession(); }
+  if(id==='comp'){compIdx=0;compMarks=Array(compQs.length).fill(null);renderCompQ();}
+  if(id==='checkout'){
+    buildCloud();
+    // Always hide score report until finish is clicked
+    const report=document.getElementById('score-report-card');
+    if(report) report.style.display='none';
+    // Re-enable the finish button in case of revisit
+    const btn=document.querySelector('#co-input-card .btn-gold');
+    if(btn){btn.disabled=false;btn.textContent='完成今天的学习，查看成绩 🎉';}
+  }
+  if(id==='slides')renderSlidesForStudent();
+
+  const isStudentPage=PARTS.some(p=>p.id===id);
+  const teacherPages=['dashboard','progress','manage'];
+  if(teacherPages.includes(id)){
+    document.getElementById('part-bar').style.display='none';
+  } else if(isStudentPage && id!=='quiz'){
+    document.getElementById('part-bar').style.display='block';
+  }
+  if(role==='student'&&isStudentPage) updatePartBar(id);
+
+  // Save progress and update registry page
+  if(role==='student' && id!=='checkin' && id!=='checkout'){
+    saveProgress(qgState.name||'');
+    updateStudentPage(qgState.name||'', id);
+  }
+
+  setTimeout(()=>{
+    const el=document.getElementById('ps-'+id);
+    if(el) el.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  },100);
+}
+
+function setRole(r){
+  role=r;
+  document.querySelectorAll('.rbtn').forEach(b=>b.classList.toggle('on',b.textContent===(r==='student'?'学生':'老师')));
+  const sidebar = document.querySelector('.sidebar');
+  if(r==='teacher'){
+    sidebar.classList.add('teacher-visible');
+    document.getElementById('s-sidebar').style.display='none';
+    document.getElementById('t-sidebar').style.display='block';
+    document.getElementById('part-bar').style.display='none';
+    nav('dashboard');
+  } else {
+    sidebar.classList.remove('teacher-visible');
+    document.getElementById('s-sidebar').style.display='none';
+    document.getElementById('t-sidebar').style.display='none';
+    document.getElementById('part-bar').style.display='block';
+    completedParts.clear();
+    nav('checkin');
+  }
+}
+
+// ── CHECK IN ──
+let ciStep=1;
+function selMood(el,m){
+  document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('ci1-btn').removeAttribute('disabled');
+}
+function selCiOpt(el){
+  document.querySelectorAll('.ci-opt').forEach(o=>o.classList.remove('sel'));
+  el.classList.add('sel');
+}
+function ciNext(step){
+  document.getElementById('ci-step'+ciStep).style.display='none';
+  ciStep=step;
+  document.getElementById('ci-step'+step).style.display='';
+  document.querySelectorAll('.sdot').forEach((d,i)=>{
+    d.classList.toggle('done',i<step-1);
+    d.classList.toggle('on',i===step-1);
+  });
+}
+function ciSubmit(){
+  const nameIn = document.getElementById('qg-pname');
+  if(nameIn && qgState.name) nameIn.value = qgState.name;
+  ciSubmitAndContinue();
+}
+
+// ── RECORDING STATE ──
+let isRec=false, recInt=null, recSecs=0;
+
+function initSpeechAPI(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){
+    console.warn('Web Speech API not supported in this browser');
+    return false;
+  }
+  speechRecognition = new SR();
+  speechRecognition.lang = 'zh-CN';
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+  speechRecognition.maxAlternatives = 1;
+
+  speechRecognition.onresult = e => {
+    let interim = '', final = '';
+    for(let i = e.resultIndex; i < e.results.length; i++){
+      const t = e.results[i][0].transcript;
+      if(e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    recognizedText += final;
+    // Live preview
+    const lbl = document.getElementById('rec-lbl');
+    if(lbl) lbl.textContent = '识别中：' + (recognizedText + interim).slice(-40) + '…';
+  };
+
+  speechRecognition.onerror = e => {
+    console.warn('Speech error:', e.error);
+    if(e.error === 'not-allowed'){
+      document.getElementById('rec-lbl').textContent = '❌ 请允许麦克风权限后重试';
+    }
+  };
+  return true;
+}
+
+function toggleRec(){ isRec ? stopRec() : startRec(); }
+
+function startRec(){
+  if(!initSpeechAPI()){
+    // Fallback: simulate if browser not supported
+    startRecFallback(); return;
+  }
+  isRec = true; recSecs = 0; recognizedText = '';
+  const b = document.getElementById('recbtn');
+  b.textContent = '⏹'; b.classList.add('rec');
+  document.getElementById('rec-lbl').textContent = '正在聆听…点击停止';
+  document.getElementById('rec-timer').style.display = 'block';
+  recInt = setInterval(()=>{
+    recSecs++;
+    const m = String(Math.floor(recSecs/60)).padStart(2,'0');
+    const s = String(recSecs%60).padStart(2,'0');
+    document.getElementById('rec-timer').textContent = m+':'+s;
+  }, 1000);
+  try { speechRecognition.start(); } catch(e){}
+}
+
+function startRecFallback(){
+  // Browser doesn't support Web Speech API — use timer only
+  isRec = true; recSecs = 0;
+  const b = document.getElementById('recbtn');
+  b.textContent = '⏹'; b.classList.add('rec');
+  document.getElementById('rec-lbl').textContent = '录音中…点击停止（此浏览器不支持AI评测，建议用Chrome）';
+  document.getElementById('rec-timer').style.display = 'block';
+  recInt = setInterval(()=>{
+    recSecs++;
+    const m = String(Math.floor(recSecs/60)).padStart(2,'0');
+    const s = String(recSecs%60).padStart(2,'0');
+    document.getElementById('rec-timer').textContent = m+':'+s;
+  }, 1000);
+}
+
+function stopRec(){
+  isRec = false;
+  clearInterval(recInt);
+  if(speechRecognition){ try{ speechRecognition.stop(); }catch(e){} }
+  const b = document.getElementById('recbtn');
+  b.textContent = '✓'; b.classList.remove('rec');
+  document.getElementById('rec-lbl').textContent = 'AI 评测中…';
+
+  setTimeout(()=>{
+    assessReading(recognizedText);
+  }, 600);
+}
+
+function assessReading(spokenText){
+  const reference = lessonText.replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim();
+  const spoken    = spokenText.trim();
+
+  let acc = 0, flu = 0, cmp = 0;
+
+  if(!spoken || spoken.length < 2){
+    // No speech detected — fallback scores
+    acc = 0; flu = 0; cmp = 0;
+    showReadingFeedback(acc, flu, cmp, [], '未检测到语音，请重新录音。');
+    return;
+  }
+
+  // ── Accuracy: character-level match against reference ──
+  const refChars = reference.replace(/[，。！？、\s]/g,'').split('');
+  const spkChars = spoken.replace(/[，。！？、\s]/g,'').split('');
+  let matches = 0;
+  const wrongChars = [];
+  refChars.forEach(c => {
+    const idx = spkChars.indexOf(c);
+    if(idx >= 0){ matches++; spkChars.splice(idx,1); }
+    else wrongChars.push(c);
+  });
+  acc = Math.round(Math.min(100, matches / Math.max(1, refChars.length) * 100));
+
+  // ── Completeness: what % of the text was covered ──
+  cmp = Math.round(Math.min(100, spoken.length / Math.max(1, reference.replace(/\s/g,'').length) * 120));
+  cmp = Math.min(100, cmp);
+
+  // ── Fluency: based on speed (chars/second) and time ──
+  const charsPerSec = recSecs > 0 ? spokenText.length / recSecs : 0;
+  // Ideal reading speed ~4-6 chars/sec for primary school
+  flu = charsPerSec < 1   ? 30 :
+        charsPerSec < 2.5 ? Math.round(30 + charsPerSec * 12) :
+        charsPerSec < 6   ? Math.round(60 + (charsPerSec-2.5) * 10) :
+                            Math.round(95 - (charsPerSec-6) * 5);
+  flu = Math.min(100, Math.max(0, flu));
+
+  // Wrong characters feedback (show up to 5)
+  const wrongSample = wrongChars.slice(0,5);
+
+  let feedback = '';
+  if(acc >= 90) feedback = '🌟 非常准确！读音很好。';
+  else if(acc >= 75) feedback = '👍 读得不错！' + (wrongSample.length ? '注意这些字：' + wrongSample.join('、') : '');
+  else feedback = '💪 继续练习！' + (wrongSample.length ? '这些字需要注意：' + wrongSample.join('、') : '');
+
+  showReadingFeedback(acc, flu, cmp, wrongChars, feedback);
+}
+
+function showReadingFeedback(acc, flu, cmp, wrongChars, feedback){
+  document.getElementById('score-card').style.display = 'block';
+  document.getElementById('rec-lbl').textContent = 'AI 评测完成';
+
+  // Animate bars
+  setTimeout(()=>{
+    document.getElementById('b-acc').style.width = acc+'%';
+    document.getElementById('b-flu').style.width = flu+'%';
+    document.getElementById('b-cmp').style.width = cmp+'%';
+    document.getElementById('n-acc').textContent = acc;
+    document.getElementById('n-flu').textContent = flu;
+    document.getElementById('n-cmp').textContent = cmp;
+
+    // Highlight wrong characters in the lesson text
+    if(wrongChars.length > 0) highlightWrongChars(wrongChars);
+
+    // Weighted reading score
+    const readingScore = Math.round(acc*0.5 + flu*0.3 + cmp*0.2);
+    const rsLine = document.getElementById('reading-score-line');
+    const rsVal  = document.getElementById('reading-score-val');
+    if(rsLine && rsVal){ rsLine.style.display='block'; rsVal.textContent=readingScore; }
+
+    // Feedback message
+    const fbEl = document.getElementById('rec-feedback-msg');
+    if(fbEl){ fbEl.textContent = feedback; fbEl.style.display='block'; }
+
+    setScore('reading', readingScore);
+  }, 200);
+}
+
+function highlightWrongChars(wrongChars){
+  const box = document.getElementById('reading-text');
+  if(!box) return;
+  let html = box.innerHTML;
+  wrongChars.slice(0,8).forEach(c => {
+    // Only highlight chars not already in a span
+    html = html.replace(
+      new RegExp('(?<!<[^>]*)' + c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g'),
+      `<span style="background:#FFF3CD;border-bottom:2px solid var(--red);border-radius:2px">${c}</span>`
+    );
+  });
+  box.innerHTML = html;
+}
+
+function resetRec(){
+  isRec = false; clearInterval(recInt);
+  if(speechRecognition){ try{ speechRecognition.stop(); }catch(e){} }
+  recognizedText = '';
+  document.getElementById('recbtn').textContent = '🎙';
+  document.getElementById('recbtn').classList.remove('rec');
+  document.getElementById('rec-lbl').textContent = '点击开始录音';
+  document.getElementById('rec-timer').style.display = 'none';
+  document.getElementById('score-card').style.display = 'none';
+  // Reset lesson text highlights
+  renderLessonText();
+}
+
+function animBar(bid,nid,val,u){
+  document.getElementById(bid).style.width=val+'%';
+  document.getElementById(nid).textContent=val+u;
+}
+
+// ── FLASHCARD ──
+function renderFC(){
+  fcFlipped=false;
+  document.getElementById('fc-inner').classList.remove('flip');
+  const c=fcCards[fcIdx];
+  document.getElementById('fc-char').textContent=c.char;
+  document.getElementById('fc-pin').textContent=c.pin;
+  document.getElementById('fc-mean').textContent=c.mean;
+  document.getElementById('fc-ex').textContent=c.ex;
+  const dots=document.getElementById('fcdots');
+  dots.innerHTML='';
+  fcCards.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='fcd'+(fcDone.includes(i)?' done':'')+(i===fcIdx?' cur':'');
+    dots.appendChild(d);
+  });
+  const doneN=document.getElementById('fc-done-n');
+  const totN=document.getElementById('fc-total-n');
+  if(doneN) doneN.textContent=fcDone.length;
+  if(totN)  totN.textContent=fcCards.length;
+  // Progress bar
+  const pct=fcCards.length>0?Math.round(fcDone.length/fcCards.length*100):0;
+  const pb=document.getElementById('fc-progress-bar');
+  if(pb) pb.style.width=pct+'%';
+  // Sidebar label
+  const prog=document.getElementById('fc-prog');
+  if(prog) prog.textContent=fcDone.length+'/'+fcCards.length;
+  // Completion banner
+  updateFCcompleteBanner();
+}
+
+function updateFCcompleteBanner(){
+  const banner=document.getElementById('fc-complete-banner');
+  if(!banner) return;
+  const allDone=fcDone.length>=fcCards.length && fcCards.length>0;
+  if(allDone && banner.style.display==='none'){
+    banner.style.display='block';
+    setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'nearest'}),120);
+  } else if(!allDone){
+    banner.style.display='none';
+  }
+}
+
+function flipFC(){fcFlipped=!fcFlipped;document.getElementById('fc-inner').classList.toggle('flip',fcFlipped);}
+function nextFC(){fcIdx=(fcIdx+1)%fcCards.length;renderFC();}
+function prevFC(){fcIdx=(fcIdx-1+fcCards.length)%fcCards.length;renderFC();}
+function markFC(k){
+  if(k&&!fcDone.includes(fcIdx)) fcDone.push(fcIdx);
+  else if(!k) fcDone=fcDone.filter(i=>i!==fcIdx);
+  // Update vocab score
+  setScore('flashcard',Math.round(fcDone.length/fcCards.length*100));
+  // Save progress
+  saveProgress(qgState.name||'');
+  // If all done show banner without advancing; else advance to next card
+  if(fcDone.length<fcCards.length){
+    nextFC();
+  } else {
+    renderFC();
+  }
+}
+
+// Save FC from Markdown
+function saveFCfromMD(){
+  const md=document.getElementById('fc-write').value;
+  const blocks=md.split('---').map(b=>b.trim()).filter(Boolean);
+  const parsed=[];
+  blocks.forEach(b=>{
+    const lines=b.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length>=3){
+      const hdr=lines[0].replace(/^##\s*/,'');
+      const parts=hdr.split('|').map(s=>s.trim());
+      parsed.push({char:parts[0]||'',pin:parts[1]||'',mean:lines[1]||'',ex:lines[2]||''});
+    }
+  });
+  if(parsed.length>0){fcCards=parsed;fcIdx=0;fcDone=[];alert('✅ 已保存 '+parsed.length+' 张词卡！');}
+  else alert('格式有误，请检查 Markdown 格式。');
+}
+
+// Save Quiz from Markdown
+function saveQZfromMD(){
+  const md=document.getElementById('qz-write').value;
+  const blocks=md.split('---').map(b=>b.trim()).filter(Boolean);
+  const parsed=[];
+  blocks.forEach(b=>{
+    const lines=b.split('\n').map(l=>l.trim()).filter(Boolean);
+    const q=lines[0].replace(/^##\s*/,'');
+    const opts=[];let ansIdx=0;
+    lines.slice(1).forEach((l,i)=>{
+      const clean=l.replace(/^-\s*[A-Z]\.\s*/,'');
+      if(clean.startsWith('✓')){ansIdx=i;opts.push(clean.replace(/^✓\s*/,''));}
+      else opts.push(clean);
+    });
+    if(opts.length>=2)parsed.push({q,opts,ans:ansIdx});
+  });
+  if(parsed.length>0){quizQs=parsed;qIdx=0;alert('✅ 已保存 '+parsed.length+' 道题目！');}
+  else alert('格式有误，请检查 Markdown 格式。');
+}
+
+// Save Comprehension from MD
+function saveCPfromMD(){
+  const md=document.getElementById('cp-write').value;
+  const blocks=md.split('---').map(b=>b.trim()).filter(Boolean);
+  const parsed=blocks.map(b=>{
+    const lines=b.split('\n').map(l=>l.trim()).filter(Boolean);
+    return lines[0].replace(/^##\s*/,'');
+  }).filter(Boolean);
+  if(parsed.length>0){
+    compQs=parsed;
+    compIdx=0;
+    compMarks=[];
+    renderCompQ();
+    alert('✅ 已保存 '+parsed.length+' 道理解题！');
+  }
+}
+
+// ── COMP ──
+// compMarks[i] = true (correct) | false (wrong) | null (unmarked)
+let compMarks = [];
+
+function renderCompQ(){
+  // Ensure marks array is sized
+  while(compMarks.length < compQs.length) compMarks.push(null);
+
+  // Question text
+  const q = compQs[compIdx] || '暂无问题';
+  const numEl = document.getElementById('comp-q-num');
+  const txtEl = document.getElementById('comp-q-text');
+  const curEl = document.getElementById('comp-cur');
+  const totEl = document.getElementById('comp-tot');
+  if(numEl) numEl.textContent = compIdx + 1;
+  if(txtEl) txtEl.textContent = q;
+  if(curEl) curEl.textContent = compIdx + 1;
+  if(totEl) totEl.textContent = compQs.length;
+
+  // Prev / Next buttons
+  const prevBtn = document.getElementById('comp-prev-btn');
+  const nextBtn = document.getElementById('comp-next-btn');
+  if(prevBtn) prevBtn.style.visibility = compIdx > 0 ? 'visible' : 'hidden';
+  if(nextBtn){
+    const isLast = compIdx >= compQs.length - 1;
+    nextBtn.textContent = isLast ? '完成 ✓' : '下一题 →';
+    nextBtn.onclick = isLast ? checkCompAllDone : nextCompQ;
+  }
+
+  // Mark buttons state
+  updateMarkButtons();
+
+  // Pills
+  renderCompPills();
+}
+
+function renderCompPills(){
+  const c = document.getElementById('comp-q-pills');
+  if(!c) return;
+  c.innerHTML = '';
+  compQs.forEach((_,i) => {
+    const p = document.createElement('button');
+    p.className = 'comp-q-pill';
+    if(i === compIdx) p.classList.add('active');
+    else if(compMarks[i] === true)  p.classList.add('done-ok');
+    else if(compMarks[i] === false) p.classList.add('done-no');
+    p.textContent = '问题 ' + (i+1);
+    if(compMarks[i] === true)  p.textContent += ' ✅';
+    if(compMarks[i] === false) p.textContent += ' ❌';
+    p.onclick = () => { compIdx = i; renderCompQ(); };
+    c.appendChild(p);
+  });
+}
+
+function updateMarkButtons(){
+  const mark = compMarks[compIdx];
+  const bc = document.getElementById('comp-btn-correct');
+  const bw = document.getElementById('comp-btn-wrong');
+  const badge = document.getElementById('comp-marked-badge');
+  if(!bc || !bw || !badge) return;
+
+  bc.classList.toggle('selected-correct', mark === true);
+  bw.classList.toggle('selected-wrong', mark === false);
+
+  if(mark === true){
+    badge.style.display = 'block';
+    badge.style.background = 'var(--teal-l)';
+    badge.style.color = 'var(--teal)';
+    badge.style.borderLeft = '4px solid var(--teal)';
+    badge.textContent = '✅ 已标记：答对了！继续保持！';
+  } else if(mark === false){
+    badge.style.display = 'block';
+    badge.style.background = 'var(--red-l)';
+    badge.style.color = 'var(--red)';
+    badge.style.borderLeft = '4px solid var(--red)';
+    badge.textContent = '❌ 已标记：答错了，下次继续努力！';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function markCompQ(correct){
+  while(compMarks.length <= compIdx) compMarks.push(null);
+  // Toggle: click same again to unmark
+  compMarks[compIdx] = compMarks[compIdx] === correct ? null : correct;
+  updateMarkButtons();
+  renderCompPills();
+  // Update comp score based on marks
+  const marked = compMarks.filter(m => m !== null).length;
+  const correctCount = compMarks.filter(m => m === true).length;
+  const scoreVal = marked > 0 ? Math.round(correctCount / compQs.length * 100) : 0;
+  setScore('comp', scoreVal);
+  saveProgress(qgState.name || '');
+}
+
+function nextCompQ(){
+  if(compIdx < compQs.length - 1){ compIdx++; renderCompQ(); }
+}
+function prevCompQ(){
+  if(compIdx > 0){ compIdx--; renderCompQ(); }
+}
+
+function checkCompAllDone(){
+  const allMarked = compMarks.slice(0, compQs.length).every(m => m !== null);
+  if(!allMarked){
+    const unmarked = compMarks.reduce((acc,m,i) => m === null ? [...acc, i+1] : acc, []);
+    alert('还有第 ' + unmarked.join('、') + ' 题未评分，请先完成评分！');
+    return;
+  }
+  showCompDoneBanner();
+}
+
+function showCompDoneBanner(){
+  const banner = document.getElementById('comp-done-banner');
+  const correctCount = compMarks.filter(m => m === true).length;
+  const el1 = document.getElementById('comp-correct-count');
+  const el2 = document.getElementById('comp-total-count');
+  if(el1) el1.textContent = correctCount;
+  if(el2) el2.textContent = compQs.length;
+  if(banner){
+    banner.style.display = 'block';
+    setTimeout(() => banner.scrollIntoView({behavior:'smooth', block:'nearest'}), 100);
+  }
+}
+
+function setCompMode(m,el){
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  ['personal','group','present'].forEach(id=>{ const e=document.getElementById('cm-'+id); if(e)e.style.display='none'; });
+  const target=document.getElementById('cm-'+m); if(target)target.style.display='';
+}
+
+// ── MARKDOWN TABS ──
+function switchMDTab(btn,showId,hideId){
+  btn.parentElement.querySelectorAll('.md-tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  const show=document.getElementById(showId);
+  const hide=document.getElementById(hideId);
+  if(hide)hide.style.display='none';
+  if(show){
+    show.style.display='block';
+    // if preview, render
+    if(show.classList.contains('md-preview')){
+      const ta=document.getElementById(hideId);
+      if(ta&&typeof marked!=='undefined')show.innerHTML=marked.parse(ta.value||'');
+    }
+  }
+}
+function previewFC(){
+  const ta=document.getElementById('fc-write');
+  const prev=document.getElementById('fc-prev');
+  if(typeof marked!=='undefined')prev.innerHTML=marked.parse(ta.value||'');
+}
+
+// ── LESSON TEXT & SLIDES URL ──
+let lessonText = `　　春天来了，大地换上了绿色的新衣。小草从土里钻出来，花儿也开放了，有红的、黄的、紫的，真是五颜六色。小鸟在枝头欢快地唱歌，蜜蜂在花丛中忙碌地采蜜。\n\n　　春天是播种的季节，农民伯伯在田里辛勤地劳作，希望秋天能有好收成。`;
+let lessonTitle = '第三课《春天来了》';
+let slidesUrl = '';
+
+function renderLessonText(){
+  // Update title
+  document.getElementById('reading-lesson-title').textContent = lessonTitle;
+  document.getElementById('lesson-title').textContent = lessonTitle;
+  // Highlight vocab words in text
+  const box = document.getElementById('reading-text');
+  let html = lessonText.replace(/\n/g, '<br>');
+  // Highlight each flashcard word
+  fcCards.forEach(c => {
+    if(c.char){
+      const re = new RegExp(c.char.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g');
+      html = html.replace(re, `<span class="hl">${c.char}</span>`);
+    }
+  });
+  box.innerHTML = html;
+}
+
+function saveSlidesUrl(){
+  const url = document.getElementById('manage-slides-url').value.trim();
+  slidesUrl = url;
+  const preview = document.getElementById('manage-slides-preview');
+  if(url){
+    preview.innerHTML = `✅ 链接已保存：<span style="color:var(--sky)">${url.length>60?url.slice(0,60)+'…':url}</span>`;
+    preview.style.color = 'var(--teal)';
+  } else {
+    preview.textContent = '链接已清除';
+    preview.style.color = 'var(--ink3)';
+  }
+}
+
+function renderSlidesForStudent(){
+  const wrap = document.getElementById('pdf-frame-wrap');
+  if(!slidesUrl){
+    wrap.innerHTML = `<div class="pdf-placeholder"><div class="icon">📑</div><div style="font-size:15px;font-weight:500;margin-bottom:6px;color:var(--ink)">老师还没有上传简报</div><div style="font-size:12px;color:var(--ink3)">请等待老师在课文管理里设置简报链接</div></div>`;
+    return;
+  }
+  let embedUrl = slidesUrl;
+  if(slidesUrl.includes('canva.com')){
+    embedUrl = slidesUrl.includes('?') ? slidesUrl+'&embed' : slidesUrl+'?embed';
+  } else if(slidesUrl.includes('drive.google.com')&&slidesUrl.includes('/view')){
+    embedUrl = slidesUrl.replace('/view','/preview');
+  } else if(slidesUrl.includes('drive.google.com')&&slidesUrl.includes('open?id=')){
+    const id = slidesUrl.split('id=')[1].split('&')[0];
+    embedUrl = 'https://drive.google.com/file/d/'+id+'/preview';
+  } else if(slidesUrl.includes('docs.google.com/presentation')){
+    embedUrl = slidesUrl.replace('/edit','/embed').replace('/pub','/embed');
+    if(!embedUrl.includes('embed')) embedUrl += '?start=false&loop=false';
+  }
+  wrap.innerHTML = `<iframe src="${embedUrl}" allowfullscreen allow="fullscreen" style="width:100%;height:520px;border:none;border-radius:8px"></iframe>`;
+}
+
+// ══════════════════════════════════════
+//  GAME SETTINGS (teacher-controlled)
+// ══════════════════════════════════════
+let gameSettings = {
+  style: 'arcade',   // arcade | rocket | adventure | star
+  mode:  'speed',    // click | speed | diff
+  timer: 15,
+  combo: true,
+  hints: true,
+  fx:    true,
+  leaderboard: true,
+};
+function setGS(key, val){ gameSettings[key]=val; }
+
+// Demo players for leaderboard — empty by default, real students added when they finish
+const qgDemoPlayers = [];
+
+// ══════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════
+let qgState = {
+  name:'', av:'🐯', score:0, qIdx:0, combo:0, maxCombo:0,
+  correct:0, hints:2, answered:false, timer:null, timeLeft:15,
+  results:[],
+};
+const QG_CIRC = 169.6;
+
+// Style labels shown under the game title
+const QG_STYLE_SUBS = {
+  arcade:    '街机积分 · 快答高分 · 连击加成',
+  rocket:    '火箭升空 · 答对飞更高 · 答错下降',
+  adventure: '闯关冒险 · 通过才能前进',
+  star:      '星球探险 · 答对解锁星球',
+};
+
+// ══════════════════════════════════════
+//  STARFIELD (quiz page)
+// ══════════════════════════════════════
+function qgBuildStars(){
+  const c = document.getElementById('qg-stars');
+  if(!c || c.childElementCount > 0) return;
+  for(let i=0;i<100;i++){
+    const s = document.createElement('div');
+    s.className = 'qg-star';
+    const sz = Math.random()*2.4+0.4;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--op:${0.25+Math.random()*0.55};animation-delay:${Math.random()*5}s`;
+    c.appendChild(s);
+  }
+}
+
+// ══════════════════════════════════════
+//  SCREENS
+// ══════════════════════════════════════
+function qgShow(id){
+  ['lobby','game','results'].forEach(s=>{
+    const el = document.getElementById('qgs-'+s);
+    if(!el) return;
+    el.style.display = s===id ? 'flex' : 'none';
+  });
+  document.getElementById('qg-hud').style.display = id==='game' ? 'flex' : 'none';
+}
+
+function qgInitLobby(){
+  qgBuildStars();
+  document.getElementById('qg-sub-mode').textContent = QG_STYLE_SUBS[gameSettings.style] || QG_STYLE_SUBS.arcade;
+  qgRenderLBPreview();
+  // Pre-fill name from entry screen
+  const nameIn = document.getElementById('qg-pname');
+  if(nameIn && qgState.name) nameIn.value = qgState.name;
+  qgShow('lobby');
+  // Enter fullscreen
+  document.getElementById('page-quiz').classList.add('quiz-fullscreen');
+  document.getElementById('part-bar').style.display = 'none';
+}
+
+function qgSelAv(el, av){
+  document.querySelectorAll('.qg-av-btn').forEach(b=>b.classList.remove('qg-av-sel'));
+  el.classList.add('qg-av-sel');
+  qgState.av = av;
+}
+
+// ══════════════════════════════════════
+//  START
+// ══════════════════════════════════════
+function qgStart(){
+  const n = (document.getElementById('qg-pname').value||'').trim();
+  qgState = {
+    name: n||'玩家', av: qgState.av||'🐯',
+    score:0, qIdx:0, combo:0, maxCombo:0,
+    correct:0, hints: gameSettings.hints?2:0,
+    answered:false, timer:null, timeLeft:gameSettings.timer,
+    results:[],
+  };
+  document.getElementById('qg-hud-av').textContent = qgState.av;
+  document.getElementById('qg-hud-name').textContent = qgState.name;
+  qgUpdateHUD();
+  qgBuildDots();
+  qgShow('game');
+  qgLoadQ();
+}
+function qgGoCheckout(){
+  // Exit fullscreen and go to checkout
+  document.getElementById('page-quiz').classList.remove('quiz-fullscreen');
+  document.getElementById('hud-topnav-wrap').style.display = '';
+  nav('checkout');
+}
+
+function qgRestart(){ qgStart(); }
+function qgBackLobby(){
+  // Exit quiz fullscreen and return to main part bar
+  document.getElementById('page-quiz').classList.remove('quiz-fullscreen');
+  document.getElementById('part-bar').style.display = 'block';
+  nav('comp'); // go back to previous step
+}
+
+// ══════════════════════════════════════
+//  DOTS
+// ══════════════════════════════════════
+function qgBuildDots(){
+  const c = document.getElementById('qg-dots');
+  c.innerHTML = '';
+  quizQs.forEach((_,i)=>{
+    const d = document.createElement('div');
+    d.className = 'qg-qdot' + (i===0?' qg-active':'');
+    d.id = 'qgd-'+i;
+    c.appendChild(d);
+  });
+}
+function qgUpdateDot(i, ok){
+  const d = document.getElementById('qgd-'+i);
+  if(d){ d.classList.remove('qg-active'); d.classList.add(ok?'qg-done-ok':'qg-done-no'); }
+  const n = document.getElementById('qgd-'+(i+1));
+  if(n) n.classList.add('qg-active');
+}
+
+// ══════════════════════════════════════
+//  LOAD QUESTION
+// ══════════════════════════════════════
+function qgLoadQ(){
+  if(qgState.qIdx >= quizQs.length){ qgEndGame(); return; }
+  qgState.answered = false;
+  const q = quizQs[qgState.qIdx];
+  const idx = qgState.qIdx;
+  const total = quizQs.length;
+
+  // Level/stars
+  const lvl = idx+1;
+  document.getElementById('qg-lvl').textContent = '关卡 '+lvl;
+  document.getElementById('qg-stars').textContent = lvl<=3?'⭐⭐⭐':lvl<=6?'⭐⭐⭐⭐':'⭐⭐⭐⭐⭐';
+
+  document.getElementById('qg-qnum').textContent = '第 '+(idx+1)+' / '+total+' 题';
+  document.getElementById('qg-qtxt').textContent = q.q;
+
+  // Hint button
+  const hb = document.getElementById('qg-hint-btn');
+  hb.style.display = gameSettings.hints ? '' : 'none';
+  hb.disabled = qgState.hints <= 0;
+  document.getElementById('qg-hints-left').textContent = '× '+qgState.hints;
+
+  // Options
+  const grid = document.getElementById('qg-opts');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = '1fr 1fr';
+  const labels = ['A','B','C','D'];
+  q.opts.forEach((o,i)=>{
+    const b = document.createElement('button');
+    b.className = 'qg-opt';
+    b.innerHTML = `<span class="qg-opt-lbl">${labels[i]}</span>${o}`;
+    b.onclick = ()=>qgAnswer(i,b);
+    grid.appendChild(b);
+  });
+
+  qgStartTimer();
+  qgUpdateHUD();
+}
+
+// ══════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════
+function qgStartTimer(){
+  clearInterval(qgState.timer);
+  qgState.timeLeft = gameSettings.timer;
+  qgUpdateTimerUI();
+  qgState.timer = setInterval(()=>{
+    qgState.timeLeft--;
+    qgUpdateTimerUI();
+    if(qgState.timeLeft<=0){ clearInterval(qgState.timer); qgTimeUp(); }
+  },1000);
+}
+function qgUpdateTimerUI(){
+  const t = qgState.timeLeft, max = gameSettings.timer;
+  const pct = t/max;
+  const col = t>max*.6?'#FFD700':t>max*.3?'#FFA500':'#FF4466';
+  document.getElementById('qg-arc').style.strokeDashoffset = QG_CIRC*(1-pct);
+  document.getElementById('qg-arc').style.stroke = col;
+  const tn = document.getElementById('qg-tnum');
+  tn.textContent = t; tn.style.color = col;
+}
+function qgTimeUp(){
+  if(qgState.answered) return;
+  qgState.answered = true;
+  qgReveal();
+  qgState.combo = 0;
+  qgState.results.push(false);
+  qgUpdateDot(qgState.qIdx, false);
+  if(gameSettings.fx) qgFeedback('⏰','#FF4466');
+  setTimeout(()=>{ qgState.qIdx++; qgLoadQ(); }, 1700);
+}
+
+// ══════════════════════════════════════
+//  ANSWER
+// ══════════════════════════════════════
+function qgAnswer(i, btn){
+  if(qgState.answered) return;
+  qgState.answered = true;
+  clearInterval(qgState.timer);
+
+  const q = quizQs[qgState.qIdx];
+  const ok = i === q.ans;
+
+  if(ok){
+    btn.classList.add('qg-ok');
+    // Scoring
+    const t = qgState.timeLeft, max = gameSettings.timer;
+    let gained = 100;
+    if(gameSettings.mode==='speed'){
+      const ratio = t/max;
+      gained += ratio>.7?50:ratio>.4?25:0;
+    }
+    if(gameSettings.combo){ qgState.combo++; if(qgState.combo>qgState.maxCombo) qgState.maxCombo=qgState.combo; gained += (qgState.combo>1)?(qgState.combo-1)*20:0; }
+    qgState.score += gained;
+    qgState.correct++;
+    qgState.results.push(true);
+    qgUpdateDot(qgState.qIdx, true);
+    if(gameSettings.fx){ qgParticles(btn,'#FFD700'); qgScorePop(btn,'+'+gained+(gained>100?'⚡':'')); }
+    if(gameSettings.combo && qgState.combo>=2) qgShowCombo(qgState.combo);
+    if(gameSettings.fx) qgFeedback(qgState.combo>=4?'🔥超级连击!':qgState.combo>=2?'👏连击!':'✅正确!','#00E676');
+    qgUpdateHUD();
+  } else {
+    btn.classList.add('qg-no');
+    qgReveal();
+    if(gameSettings.combo) qgState.combo = 0;
+    qgState.results.push(false);
+    qgUpdateDot(qgState.qIdx, false);
+    if(gameSettings.fx){ qgParticles(btn,'#FF4466'); qgFeedback('❌答错了','#FF4466'); }
+    document.getElementById('qg-combo-disp').innerHTML='';
+    qgUpdateHUD();
+  }
+  setTimeout(()=>{ qgState.qIdx++; qgLoadQ(); }, 1700);
+}
+
+function qgReveal(){
+  document.querySelectorAll('.qg-opt').forEach(b=>b.disabled=true);
+  const opts = document.querySelectorAll('.qg-opt');
+  if(opts[quizQs[qgState.qIdx].ans]) opts[quizQs[qgState.qIdx].ans].classList.add('qg-reveal');
+}
+
+// ══════════════════════════════════════
+//  HINT
+// ══════════════════════════════════════
+function qgHint(){
+  if(qgState.hints<=0 || qgState.answered) return;
+  qgState.hints--;
+  document.getElementById('qg-hints-left').textContent = '× '+qgState.hints;
+  if(qgState.hints<=0) document.getElementById('qg-hint-btn').disabled=true;
+  const q = quizQs[qgState.qIdx];
+  const btns = Array.from(document.querySelectorAll('.qg-opt'));
+  let hidden=0;
+  btns.forEach((b,i)=>{ if(i!==q.ans&&hidden<2){b.style.opacity='.22';b.disabled=true;hidden++;} });
+  if(gameSettings.fx) qgFeedback('💡','#CE93D8');
+}
+
+// ══════════════════════════════════════
+//  HUD
+// ══════════════════════════════════════
+function qgUpdateHUD(){
+  document.getElementById('qg-hud-score').textContent = qgState.score.toLocaleString();
+  document.getElementById('qg-hud-q').textContent = (qgState.qIdx+1)+'/'+quizQs.length;
+  document.getElementById('qg-hud-combo').textContent = (gameSettings.combo&&qgState.combo>=2)?'🔥 ×'+qgState.combo:'';
+}
+
+// ══════════════════════════════════════
+//  EFFECTS
+// ══════════════════════════════════════
+function qgFeedback(txt,col){
+  const ov = document.getElementById('qg-feedback-ov');
+  ov.innerHTML='';
+  const el=document.createElement('div'); el.className='qg-fb-pop';
+  el.style.color=col; el.textContent=txt; ov.appendChild(el);
+  setTimeout(()=>el.remove(),800);
+}
+function qgShowCombo(n){
+  const c=document.getElementById('qg-combo-disp'); c.innerHTML='';
+  const el=document.createElement('div'); el.className='qg-combo-txt';
+  el.textContent=n>=5?'🔥🔥 MEGA×'+n:n>=3?'🔥 COMBO×'+n:'🔥×'+n;
+  c.appendChild(el); setTimeout(()=>el.remove(),1200);
+}
+function qgParticles(btn,color){
+  const r=btn.getBoundingClientRect(); const cx=r.left+r.width/2, cy=r.top+r.height/2;
+  for(let i=0;i<10;i++){
+    const p=document.createElement('div'); p.className='qg-particle';
+    const sz=3+Math.random()*5, ang=Math.random()*Math.PI*2, dist=35+Math.random()*50;
+    p.style.cssText=`width:${sz}px;height:${sz}px;background:${color};left:${cx}px;top:${cy}px;--tx:${Math.cos(ang)*dist}px;--ty:${Math.sin(ang)*dist-35}px;--dur:${.4+Math.random()*.4}s;animation-delay:${Math.random()*.08}s`;
+    document.body.appendChild(p); setTimeout(()=>p.remove(),700);
+  }
+}
+function qgScorePop(btn,txt){
+  const r=btn.getBoundingClientRect();
+  const el=document.createElement('div'); el.className='qg-score-pop';
+  el.style.left=(r.left+r.width/2-18)+'px'; el.style.top=(r.top-8)+'px'; el.textContent=txt;
+  document.body.appendChild(el); setTimeout(()=>el.remove(),1000);
+}
+
+// ══════════════════════════════════════
+//  END GAME
+// ══════════════════════════════════════
+function qgEndGame(){
+  clearInterval(qgState.timer);
+  document.getElementById('qg-combo-disp').innerHTML='';
+
+  // ── Compute quiz score ──
+  const correctPct = Math.round(qgState.correct / quizQs.length * 100);
+  const maxPossible = quizQs.length * 100;
+  const bonusPct = Math.min(100, Math.round(Math.max(0, qgState.score - qgState.correct * 100) / maxPossible * 100));
+  const quizScore = Math.min(100, Math.round(correctPct * 0.6 + bonusPct * 0.4));
+  setScore('quiz', quizScore);
+  saveProgress(qgState.name || '');
+
+  qgShow('results');
+
+  // ── Quiz performance card ──
+  const pct = qgState.correct / quizQs.length;
+  const grades = pct === 1 ? ['🥇','满分！太厉害了！','全部答对，而且速度很快！'] :
+                 pct >= .8 ? ['🥈','非常优秀！','只差一步就满分！'] :
+                 pct >= .6 ? ['🥉','做得很好！','超过一半了，继续加油！'] :
+                             ['📚','继续练习！','再多看一遍课文，你一定能进步！'];
+  document.getElementById('qg-grade').textContent = grades[0];
+  document.getElementById('qg-rmsg').textContent  = grades[1];
+  document.getElementById('qg-rsub').textContent  = grades[2];
+  document.getElementById('qg-rscore').textContent = qgState.score.toLocaleString();
+  document.getElementById('qg-rcorrect').textContent = qgState.correct + ' / ' + quizQs.length;
+  document.getElementById('qg-rcombo').textContent = qgState.maxCombo + '×';
+
+  // ── Leaderboard ──
+  if(gameSettings.leaderboard){
+    // Build leaderboard from students who've already finished + current player
+    const me = {name:qgState.name||'你', av:qgState.av||'🐯', score:qgState.score, correct:qgState.correct, maxCombo:qgState.maxCombo, isMe:true};
+    // Convert classRoster entries to leaderboard format (use quiz score as proxy for now)
+    const classmates = classRoster
+      .filter(r => r.name !== me.name)
+      .map(r => ({name:r.name, av:r.av, score:r.quiz||0, correct:Math.round((r.quiz||0)/20), maxCombo:0}));
+    qgRenderLB([...classmates, me].sort((a,b) => b.score - a.score));
+    document.getElementById('qg-lb-section').style.display = '';
+  } else {
+    document.getElementById('qg-lb-section').style.display = 'none';
+  }
+
+  // ── Total score report ──
+  qgRenderTotalReport();
+}
+
+function qgRenderTotalReport(){
+  // Calculate weighted total
+  const weights = SCORE_WEIGHTS; // {reading:25,flashcard:25,comp:20,quiz:20,checkout:10}
+  let ws = 0, wt = 0;
+  const sectionInfo = [
+    {k:'reading',   lbl:'🎙 朗读录音', color:'#CE93D8'},
+    {k:'flashcard', lbl:'📖 词语学习', color:'#4FC3F7'},
+    {k:'comp',      lbl:'💬 课文理解', color:'#26C6DA'},
+    {k:'quiz',      lbl:'🏆 Quiz竞赛', color:'#FFD700'},
+  ];
+  sectionInfo.forEach(({k}) => {
+    const v = studentScores[k];
+    if(v !== null && v !== undefined){ ws += v * weights[k]; wt += weights[k]; }
+  });
+  const total = wt > 0 ? Math.round(ws / wt) : 0;
+
+  // Grade
+  let gl, gs, stars;
+  if(total >= 90){ gl='优秀 🌟'; gs='各方面表现出色，继续保持！'; stars='⭐⭐⭐⭐⭐'; }
+  else if(total >= 75){ gl='良好 👍'; gs='做得不错，还有提升空间！'; stars='⭐⭐⭐⭐☆'; }
+  else if(total >= 60){ gl='继续加油 💪'; gs='基础已经有了，多练习会更好！'; stars='⭐⭐⭐☆☆'; }
+  else { gl='需要加油 📚'; gs='没关系，多读几遍课文你一定能进步！'; stars='⭐⭐☆☆☆'; }
+
+  const te = document.getElementById('qg-final-total');
+  const ge = document.getElementById('qg-final-grade');
+  const se = document.getElementById('qg-final-sub');
+  const ste = document.getElementById('qg-final-stars');
+  if(te) te.textContent = total;
+  if(ge) ge.textContent = gl;
+  if(se) se.textContent = gs;
+  if(ste) ste.textContent = stars;
+
+  // Section bars
+  const barsEl = document.getElementById('qg-section-bars');
+  if(barsEl){
+    barsEl.innerHTML = '';
+    sectionInfo.forEach(({k, lbl, color}) => {
+      const v = studentScores[k];
+      const pct = v !== null && v !== undefined ? v : 0;
+      const hasScore = v !== null && v !== undefined;
+      const bar = document.createElement('div');
+      bar.style.cssText = 'display:flex;align-items:center;gap:10px';
+      bar.innerHTML = `
+        <div style="font-size:12px;color:rgba(240,240,255,.65);width:80px;flex-shrink:0">${lbl}</div>
+        <div style="flex:1;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden">
+          <div style="height:100%;border-radius:4px;background:${color};width:${pct}%;transition:width 1s ease"></div>
+        </div>
+        <div style="font-size:13px;font-weight:700;width:34px;text-align:right;color:${hasScore ? color : 'rgba(240,240,255,.3)'}">${hasScore ? pct : '—'}</div>`;
+      barsEl.appendChild(bar);
+    });
+  }
+
+  // Advice
+  const weak = [];
+  if((studentScores.reading   || 0) < 70) weak.push('朗读准确度（多朗读课文）');
+  if((studentScores.flashcard || 0) < 70) weak.push('词语认识（多复习词卡）');
+  if((studentScores.comp      || 0) < 70) weak.push('课文理解（重读课文理解段落）');
+  if((studentScores.quiz      || 0) < 70) weak.push('Quiz答题（复习词义和课文内容）');
+  const advEl = document.getElementById('qg-advice-text');
+  if(advEl){
+    if(weak.length === 0){
+      advEl.textContent = '🎉 各方面都表现很好！继续保持这个学习劲头！';
+    } else {
+      advEl.textContent = '建议课后加强：' + weak.join('、') + '。';
+    }
+  }
+}
+
+function qgRenderLB(players){
+  const lb = document.getElementById('qg-lb'); lb.innerHTML='';
+  const medals=['🥇','🥈','🥉'];
+  players.slice(0,8).forEach((p,i)=>{
+    const row=document.createElement('div');
+    row.className='qg-lb-row'+(p.isMe?' qg-me':'');
+    row.style.animationDelay=(i*.07)+'s';
+    const badges=(p.maxCombo>=5?'🔥':'')+(p.correct===quizQs.length?'💯':'')+(p.score>=900?'⚡':'');
+    row.innerHTML=`<div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:900;width:28px;text-align:center;color:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(240,240,255,.5)'}">${i<3?medals[i]:i+1}</div><div style="font-size:20px">${p.av}</div><div style="flex:1;font-size:13px;font-weight:600;color:#F0F0FF">${p.name}${p.isMe?' <span style="font-size:10px;color:#FFD700;font-weight:400">（你）</span>':''}</div><div style="font-size:13px">${badges}</div><div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:900;color:#FFD700">${p.score.toLocaleString()}</div>`;
+    lb.appendChild(row);
+  });
+}
+
+function qgRenderLBPreview(){
+  const c=document.getElementById('qg-lb-preview'); if(!c)return;
+  const top=[...qgDemoPlayers].sort((a,b)=>b.score-a.score).slice(0,3);
+  c.innerHTML=`<div style="font-size:12px;color:rgba(240,240,255,.4);text-align:center;margin-bottom:8px">🏆 当前排行前三</div>`
+    +top.map((p,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:10px;background:rgba(18,18,42,.8);border:1px solid rgba(255,255,255,.07);margin-bottom:6px"><div style="font-size:15px">${['🥇','🥈','🥉'][i]}</div><div style="font-size:18px">${p.av}</div><div style="font-size:13px;font-weight:600;color:#F0F0FF;flex:1">${p.name}</div><div style="font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900;color:#FFD700">${p.score}</div></div>`).join('');
+}
+
+// Hook into main nav: init quiz game when page-quiz is shown
+const _origNav = nav;
+// (nav is already defined above; we patch qgInitLobby into the nav call)
+
+
+// ── CHECKOUT / WORD CLOUD ──
+const wcColorsList=['#F0C040','#5DCAA5','#E74C3C','#9B59B6','#3498DB','#E67E22','#1ABC9C','#E91E63','#F39C12','#27AE60'];
+// Pre-load some class words for demo
+let allCloudWords=[
+  {w:'春天',size:38,color:wcColorsList[0]},
+  {w:'五颜六色',size:28,color:wcColorsList[1]},
+  {w:'辛勤',size:32,color:wcColorsList[2]},
+  {w:'播种',size:26,color:wcColorsList[3]},
+  {w:'欢快',size:30,color:wcColorsList[4]},
+  {w:'收成',size:24,color:wcColorsList[5]},
+  {w:'忙碌',size:28,color:wcColorsList[6]},
+  {w:'大地',size:22,color:wcColorsList[7]},
+];
+function addWord(){
+  const inp=document.getElementById('co-input');
+  const w=inp.value.trim();
+  if(!w)return;
+  cloudWords.push(w);
+  inp.value='';
+  // Add tag
+  const tags=document.getElementById('sw-tags');
+  const tag=document.createElement('div');
+  tag.className='sw-tag';
+  tag.style.background=wcColorsList[cloudWords.length%wcColorsList.length];
+  tag.textContent=w;
+  tags.appendChild(tag);
+  // Add to cloud pool
+  allCloudWords.push({w,size:20+Math.floor(Math.random()*16),color:wcColorsList[allCloudWords.length%wcColorsList.length]});
+  buildCloud();
+}
+function buildCloud(){
+  const canvas=document.getElementById('wc-canvas');
+  canvas.innerHTML='';
+  const W=canvas.offsetWidth||600, H=320;
+  const placed=[];
+  allCloudWords.forEach((item,idx)=>{
+    const el=document.createElement('div');
+    el.className='wc-word';
+    el.textContent=item.w;
+    el.style.fontSize=item.size+'px';
+    el.style.color=item.color;
+    el.style.animationDelay=(idx*0.08)+'s';
+    // Place randomly, avoid overlap (simple)
+    let x,y,tries=0;
+    do{
+      x=Math.random()*(W-item.size*item.w.length*0.6-20)+10;
+      y=Math.random()*(H-item.size-10)+5;
+      tries++;
+    }while(tries<30&&placed.some(p=>Math.abs(p.x-x)<item.size*item.w.length*0.6+10&&Math.abs(p.y-y)<item.size+6));
+    placed.push({x,y});
+    el.style.left=x+'px';
+    el.style.top=y+'px';
+    canvas.appendChild(el);
+  });
+}
+// ══════════════════════════════════════
+//  SCORE ENGINE
+// ══════════════════════════════════════
+const SCORE_WEIGHTS={reading:25,flashcard:25,comp:20,quiz:20,checkout:10};
+let studentScores={reading:null,flashcard:null,comp:null,quiz:null,checkout:null};
+
+function setScore(section, raw100){
+  studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
+  refreshScoreReport();
+  // Sync score to Firebase in real-time
+  fbUpdateScore(qgState.name || '', section, studentScores[section]);
+}
+function calcTotal(s){
+  let ws=0,wt=0;
+  Object.entries(SCORE_WEIGHTS).forEach(([k,w])=>{if(s[k]!==null&&s[k]!==undefined){ws+=s[k]*w;wt+=w;}});
+  return wt>0?Math.round(ws/wt):0;
+}
+function refreshScoreReport(){
+  const sections=['reading','flashcard','comp','quiz','checkout'];
+  let ws=0,wt=0;
+  sections.forEach(s=>{
+    const raw=studentScores[s];
+    const bar=document.getElementById('cosb-'+s);
+    const val=document.getElementById('cosv-'+s);
+    if(!bar||!val)return;
+    if(raw===null){bar.style.width='0%';val.textContent='—';val.style.color='var(--ink3)';}
+    else{
+      bar.style.width=raw+'%';
+      val.textContent=raw;
+      val.style.color=raw>=85?'var(--teal)':raw>=70?'var(--gold)':raw>=50?'var(--orange)':'var(--red)';
+      ws+=raw*SCORE_WEIGHTS[s];wt+=SCORE_WEIGHTS[s];
+    }
+  });
+  if(!wt)return;
+  const total=Math.round(ws/wt);
+  const el=document.getElementById('co-total-score');if(el)el.textContent=total;
+  let grade,sub,stars;
+  if(total>=90){grade='优秀 🌟';sub='表现出色，继续保持！';stars='⭐⭐⭐⭐⭐';}
+  else if(total>=75){grade='良好 👍';sub='做得不错，还有提升空间！';stars='⭐⭐⭐⭐☆';}
+  else if(total>=60){grade='继续加油 💪';sub='基础已经有了，多练习会更好！';stars='⭐⭐⭐☆☆';}
+  else{grade='需要加油 📚';sub='没关系，多读几遍课文你一定能进步！';stars='⭐⭐☆☆☆';}
+  const gl=document.getElementById('co-grade-label');if(gl)gl.textContent=grade;
+  const gs=document.getElementById('co-grade-sub');if(gs)gs.textContent=sub;
+  const st=document.getElementById('co-stars');if(st)st.textContent=stars;
+  const weak=[];
+  if((studentScores.reading||0)<70)weak.push('朗读准确度');
+  if((studentScores.flashcard||0)<70)weak.push('词语认识');
+  if((studentScores.comp||0)<70)weak.push('课文理解');
+  if((studentScores.quiz||0)<70)weak.push('Quiz答题');
+  const adv=document.getElementById('co-advice-text');
+  if(adv)adv.textContent=weak.length===0?'🎉 各方面表现都很好！继续保持这个学习态度！':'建议多加练习：'+weak.join('、')+'。放学后可以重读课文，加深印象。';
+}
+function updateCheckoutScore(){
+  const txt=(document.getElementById('co-reflection')||{}).value||'';
+  setScore('checkout',txt.trim().length>3?100:0);
+}
+function setCoMood(el){
+  document.querySelectorAll('.co-mood-btn').forEach(b=>b.classList.remove('sel'));
+  el.classList.add('sel');
+  setScore('checkout',100);
+}
+function finishLesson(){
+  setScore('checkout',100);
+  const name=qgState.name||'学生', av=qgState.av||'🐯';
+  const rec={name, av, ...studentScores, total:calcTotal(studentScores),
+    time:new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'})};
+
+  // Push to local classRoster
+  const idx=classRoster.findIndex(r=>r.name===name);
+  if(idx>=0) classRoster[idx]=rec; else classRoster.push(rec);
+
+  // Mark registry as done
+  const reg=studentRegistry.find(s=>s.name===name);
+  if(reg){ reg.done=true; reg.currentPage='checkout'; }
+
+  // 🔥 Sync completion to Firebase
+  fbFinishStudent(name, av, studentScores);
+
+  clearProgress(name);
+
+  const btn=document.querySelector('#co-input-card .btn-gold');
+  if(btn){btn.disabled=true;btn.textContent='✅ 已完成';}
+
+  const report=document.getElementById('score-report-card');
+  if(report){
+    report.style.display='block';
+    report.style.animation='fc-pop .5s ease';
+    setTimeout(()=>report.scrollIntoView({behavior:'smooth',block:'start'}),100);
+  }
+  refreshScoreReport();
+}
+
+function showCompletionBanner(name, total){
+  const grade = total>=90?'🥇优秀':total>=75?'🥈良好':total>=60?'🥉继续加油':'📚需要加油';
+  const el = document.createElement('div');
+  el.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(10,10,26,.88);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px)';
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:1px solid rgba(255,215,0,.25);border-radius:24px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,215,0,.15)">
+    <div style="font-size:56px;margin-bottom:8px">🎉</div>
+    <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#FFD700;margin-bottom:4px">学习完成！</div>
+    <div style="font-size:15px;color:rgba(255,255,255,.65);margin-bottom:20px">${name}，今天做得很棒！</div>
+    <div style="background:rgba(255,255,255,.06);border-radius:14px;padding:16px;margin-bottom:20px">
+      <div style="font-size:42px;font-weight:900;font-family:'Noto Serif SC',serif;color:#FFD700;line-height:1">${total}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:3px">总分 / 100 &nbsp;·&nbsp; ${grade}</div>
+    </div>
+    <button onclick="this.closest('div[style]').remove();showNameOverlay()" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:900;cursor:pointer">明天见 👋</button>
+  </div>`;
+  document.body.appendChild(el);
+}
+
+function showNameOverlay(){
+  // Reset for next student
+  studentScores={reading:null,flashcard:null,comp:null,quiz:null,checkout:null};
+  fcDone=[];
+  completedParts.clear();
+  qgState={...qgState,name:'',score:0,qIdx:0,combo:0,maxCombo:0,correct:0};
+  document.getElementById('name-input').value='';
+  document.getElementById('name-resume').style.display='none';
+  document.getElementById('part-bar').style.display='none';
+  document.getElementById('hud-topnav-wrap').style.display='none';
+  document.getElementById('name-overlay').style.display='flex';
+}
+function rateLesson(el,n){
+  document.querySelectorAll('.g3>div').forEach((d,i)=>{d.style.background=i<n?'var(--gold-pale)':'white';d.style.borderColor=i<n?'var(--gold)':'var(--border)';});
+}
+
+// ══════════════════════════════════════
+//  CLASS ROSTER
+// ══════════════════════════════════════
+// ══════════════════════════════════════
+//  STUDENT REGISTRY
+//  studentRegistry: students who entered name (seen by teacher)
+//  classRoster:     students who finished & submitted scores
+// ══════════════════════════════════════
+let studentRegistry = []; // {name, av, time, currentPage, done:false}
+let classRoster     = []; // {name, av, reading, flashcard, comp, quiz, checkout, total, time}
+
+// Called when a student enters their name
+function registerStudent(name, av){
+  if(!name) return;
+  const time = new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'});
+  const entry = { name, av: av||'🐯', time, currentPage:'checkin', done:false };
+  const existing = studentRegistry.findIndex(s => s.name === name);
+  if(existing >= 0) studentRegistry[existing] = {...studentRegistry[existing], ...entry};
+  else studentRegistry.push(entry);
+  // Sync to Firebase
+  fbRegisterStudent(name, av||'🐯');
+}
+
+// Update which page a student is on
+function updateStudentPage(name, page){
+  const s = studentRegistry.find(s => s.name === name);
+  if(s) s.currentPage = page;
+  // Sync to Firebase
+  fbUpdatePage(name, page);
+}
+
+// ══════════════════════════════════════
+//  CLASS STATUS SYNC (waiting room)
+// ══════════════════════════════════════
+
+// Teacher: broadcast "class started" to all students
+function teacherStartClass(){
+  if(!firebaseReady || !currentSession){
+    alert('请先开课（在课文管理页面点「▶ 开课」）');
+    return;
+  }
+  sessionRef(currentSession).update({ classStatus: 'started' });
+  // Update dashboard UI
+  document.getElementById('dash-start-panel').style.display  = 'none';
+  document.getElementById('dash-active-panel').style.display = 'block';
+  document.getElementById('dash-class-status').textContent   = '🟢 课堂已开始，学生正在学习中';
+}
+
+// Student: listen for class status change
+function listenClassStatus(){
+  if(!firebaseReady || !currentSession) return;
+  sessionRef(currentSession + '/classStatus').on('value', snap => {
+    if(snap.val() === 'started' && curPage === 'waiting'){
+      // Class has started — release to learning
+      ciSubmitAndContinue();
+    }
+  });
+}
+
+// Update dashboard waiting list in real-time
+function updateDashboardWaiting(){
+  const waiting = studentRegistry.filter(s => !s.done);
+  const countEl = document.getElementById('dash-waiting-count');
+  if(countEl) countEl.textContent = studentRegistry.length;
+
+  const listEl = document.getElementById('dash-waiting-list');
+  if(!listEl) return;
+  listEl.innerHTML = studentRegistry.map(s => `
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;background:${s.done?'var(--teal-l)':s.currentPage==='waiting'?'var(--red-l)':'var(--mist)'};border:1px solid ${s.done?'var(--teal)':s.currentPage==='waiting'?'var(--red)':'var(--border)'}">
+      <span style="font-size:15px">${s.av}</span>
+      <span style="font-size:12px;font-weight:600;color:${s.done?'var(--teal)':s.currentPage==='waiting'?'var(--red)':'var(--ink2)'}">${s.name}</span>
+      <span style="font-size:10px;color:var(--ink3)">${s.done?'✅':s.currentPage==='waiting'?'⏳等待':'📖'+s.currentPage}</span>
+    </div>`).join('');
+}
+
+
+let selectedUnitId = null;
+
+function createUnit(){
+  const title = document.getElementById('new-unit-title').value.trim();
+  if(!title){ alert('请输入单元名称'); return; }
+  fbCreateUnit(title, id => {
+    if(!id){ alert('建立失败，请检查网络'); return; }
+    document.getElementById('new-unit-title').value = '';
+    alert('✅ 单元「' + title + '」已建立！');
+    loadUnitList();
+    selectUnit(id, title);
+  });
+}
+
+function loadUnitList(){
+  fbLoadUnits(units => {
+    const el = document.getElementById('unit-list');
+    if(!el) return;
+    if(units.length === 0){
+      el.innerHTML = '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:12px">还没有建立任何单元</div>';
+      return;
+    }
+    el.innerHTML = units.map(u => `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--r);border:1.5px solid ${selectedUnitId===u.id?'var(--red)':'var(--border)'};background:${selectedUnitId===u.id?'var(--red-l)':'var(--white)'};cursor:pointer;transition:all .15s" onclick="selectUnit('${u.id}','${u.title}')">
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:600">${u.title}</div>
+          <div style="font-size:11px;color:var(--ink3)">${u.hasContent?'✅ 内容已准备':'⚠️ 尚未填写内容'}</div>
+        </div>
+        <button class="btn btn-red btn-sm" onclick="event.stopPropagation();startSession('${u.id}','${u.title}')">▶ 开课</button>
+      </div>`).join('');
+  });
+}
+
+function selectUnit(id, title){
+  selectedUnitId = id;
+  // Load content into manage fields
+  fbLoadUnitContent(id, content => {
+    if(!content) return;
+    if(content.lessonTitle) document.getElementById('lesson-title-input') && (document.getElementById('lesson-title-input').value = content.lessonTitle);
+    if(content.lessonText)  document.getElementById('lesson-text-input')  && (document.getElementById('lesson-text-input').value  = content.lessonText);
+    if(content.slidesUrl)   document.getElementById('manage-slides-url')  && (document.getElementById('manage-slides-url').value  = content.slidesUrl);
+    // Refresh markdown fields
+    const fcW = document.getElementById('fc-write');
+    if(fcW && content.fcMarkdown) fcW.value = content.fcMarkdown;
+    const qzW = document.getElementById('qz-write');
+    if(qzW && content.qzMarkdown) qzW.value = content.qzMarkdown;
+    const cpW = document.getElementById('cp-write');
+    if(cpW && content.cpMarkdown) cpW.value = content.cpMarkdown;
+  });
+  loadUnitList(); // refresh highlight
+}
+
+function startSession(unitId, unitTitle){
+  const label = prompt('输入班级名称（例如：6A、6B）', '班级');
+  if(!label) return;
+  fbStartSession(unitId, label, (sid, code) => {
+    if(!sid){ alert('开课失败，请检查网络'); return; }
+    showSessionPanel(unitTitle, code);
+    alert('✅ 课堂已开始！\n\n学生进入码：' + code + '\n\n把这个进入码告诉学生，他们就可以进入系统了。');
+  });
+}
+
+function showSessionPanel(unitTitle, code){
+  const panel = document.getElementById('session-panel');
+  if(panel) panel.style.display = 'block';
+  const nameEl = document.getElementById('session-unit-name');
+  if(nameEl) nameEl.textContent = unitTitle;
+  const codeEl = document.getElementById('session-code');
+  if(codeEl) codeEl.textContent = code;
+}
+
+function copyCode(){
+  const code = document.getElementById('session-code').textContent;
+  navigator.clipboard.writeText(code).then(()=> alert('✅ 进入码「' + code + '」已复制！')).catch(()=>{
+    prompt('请手动复制这个进入码：', code);
+  });
+}
+
+function endSessionAndClear(){
+  if(!currentSession){ alert('目前没有进行中的课堂'); return; }
+  if(!confirm('确定要结束课堂并清除所有学生数据吗？\n\n请确认已经下载了成绩报告！')) return;
+  fbEndSession(currentSession);
+  fbClearSessionStudents(currentSession);
+  // Hide session panel
+  const panel = document.getElementById('session-panel');
+  if(panel) panel.style.display = 'none';
+  studentRegistry = [];
+  classRoster = [];
+  currentSession = null;
+}
+
+// Override saveLessonText to also save to Firebase unit
+const _origSaveLessonText = saveLessonText;
+
+function saveLessonText(){
+  // Run original local save
+  const t  = document.getElementById('lesson-text-input').value.trim();
+  const ti = document.getElementById('lesson-title-input').value.trim();
+  if(!t){ alert('请输入课文内容'); return; }
+  lessonText  = t;
+  lessonTitle = ti || lessonTitle;
+  renderLessonText();
+
+  // Also save to Firebase unit if one is selected
+  if(selectedUnitId) saveUnitToFirebase();
+  else alert('✅ 课文已保存（本地）！如需同步到云端，请先选择或建立一个单元。');
+}
+
+function saveUnitToFirebase(){
+  if(!selectedUnitId){ alert('请先选择一个单元'); return; }
+  const content = {
+    lessonTitle: document.getElementById('lesson-title-input')?.value||lessonTitle,
+    lessonText:  document.getElementById('lesson-text-input')?.value||lessonText,
+    slidesUrl:   document.getElementById('manage-slides-url')?.value||slidesUrl,
+    fcMarkdown:  document.getElementById('fc-write')?.value||'',
+    qzMarkdown:  document.getElementById('qz-write')?.value||'',
+    cpMarkdown:  document.getElementById('cp-write')?.value||'',
+    flashcards:  fcCards,
+    quizQs:      quizQs,
+    compQs:      compQs,
+  };
+  fbSaveUnit(selectedUnitId, content);
+  alert('✅ 全部内容已保存到云端！学生进入时会自动加载。');
+  loadUnitList();
+}
+
+function checkActiveSession(){
+  if(!firebaseReady) return;
+  activeRef().once('value', snap => {
+    const meta = snap.val();
+    if(meta && meta.code){
+      currentSession  = meta.sessionId;
+      currentUnitId   = meta.unitId;
+      activeClassCode = meta.code;
+      // Find unit title
+      db.ref('units/' + meta.unitId + '/info/title').once('value', s => {
+        showSessionPanel(s.val()||'课文', meta.code);
+      });
+    }
+  });
+}
+
+function renderDashboard(){
+  // Live stats
+  const total = studentRegistry.length;
+  const done  = classRoster.length;
+  const low   = classRoster.filter(s=>s.total<60).length;
+  const d1=document.getElementById('dash-total'); if(d1) d1.textContent=total||0;
+  const d2=document.getElementById('dash-done');  if(d2) d2.textContent=done||0;
+  const d3=document.getElementById('dash-low');   if(d3) d3.textContent=low||0;
+
+  // Needs attention list
+  const attn=document.getElementById('t-needs-attention');
+  if(!attn) return;
+  attn.innerHTML='';
+  const needsHelp = classRoster.filter(s=>s.total<60);
+  if(needsHelp.length===0){
+    attn.innerHTML='<div style="font-size:13px;color:var(--ink3);padding:10px 0">暂时没有需要特别跟进的学生 🎉</div>';
+  } else {
+    needsHelp.forEach(s=>{
+      const dc=s.total>=50?'var(--orange)':'var(--red)';
+      attn.innerHTML+=`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--red-l);border-radius:var(--r);margin-bottom:8px">
+        <div style="width:34px;height:34px;border-radius:50%;background:${dc};display:flex;align-items:center;justify-content:center;font-size:18px">${s.av}</div>
+        <div><div style="font-size:13px;font-weight:500">${s.name}</div>
+        <div style="font-size:11px;color:var(--ink3)">总分 ${s.total} · 朗读 ${s.reading||'—'} · 词语 ${s.flashcard||'—'} · 理解 ${s.comp||'—'} · Quiz ${s.quiz||'—'}</div></div>
+        <span class="tag tno" style="margin-left:auto">需跟进</span>
+      </div>`;
+    });
+  }
+}
+
+function renderStudents(){
+  const list = document.getElementById('t-score-list');
+  if(!list) return;
+  list.innerHTML = '';
+
+  // Show empty state if no one has entered yet
+  if(studentRegistry.length === 0){
+    list.innerHTML = `<div style="text-align:center;padding:32px;color:var(--ink3)">
+      <div style="font-size:36px;margin-bottom:10px">👥</div>
+      <div style="font-size:14px;font-weight:500">还没有学生进入系统</div>
+      <div style="font-size:12px;margin-top:6px">学生输入名字后会显示在这里</div>
+    </div>`;
+    // Clear summary stats
+    const e1=document.getElementById('ts-avg');if(e1)e1.textContent='—';
+    const e2=document.getElementById('ts-top');if(e2)e2.textContent='—';
+    const e3=document.getElementById('ts-low');if(e3)e3.textContent='—';
+    const wa=document.getElementById('t-weak-analysis');if(wa)wa.innerHTML='';
+    return;
+  }
+
+  // Build combined view: all registered students, scores only if done
+  const rows = studentRegistry.map(reg => {
+    const scores = classRoster.find(r => r.name === reg.name);
+    return { ...reg, scores }; // scores may be undefined if not finished
+  });
+
+  // Sort: finished first (by total desc), then in-progress by time
+  rows.sort((a,b) => {
+    if(a.scores && !b.scores) return -1;
+    if(!a.scores && b.scores) return 1;
+    if(a.scores && b.scores) return b.scores.total - a.scores.total;
+    return 0;
+  });
+
+  // Page label map
+  const pageLabels = {
+    checkin:'Check In', reading:'朗读中', flashcard:'学词语中',
+    slides:'看简报中', comp:'理解问答', quiz:'Quiz竞赛', checkout:'Check Out',
+  };
+
+  rows.forEach((s, rank) => {
+    const sc = s.scores;
+    const row = document.createElement('div');
+    row.className = 'ts-row';
+
+    if(sc){
+      // Student has finished — show full scores
+      const dc = sc.total>=85?'var(--teal)':sc.total>=70?'var(--gold)':sc.total>=50?'var(--orange)':'var(--red)';
+      const medal = rank===0?'🥇':rank===1?'🥈':rank===2?'🥉':'';
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:17px">${s.av}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">${s.name}${medal}</div>
+            <div style="font-size:10px;color:var(--teal)">✅ 已完成 · ${sc.time}</div>
+          </div>
+        </div>
+        <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'}">${sc.comp??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
+        <div class="ts-cell" style="color:var(--teal)">✓</div>
+        <div class="ts-total" style="color:${dc}">${sc.total}</div>
+        <div style="text-align:center"><span class="ts-dot" style="background:${dc};display:inline-block"></span></div>`;
+    } else {
+      // Student entered but hasn't finished — show name + current page, no scores
+      const pageNow = pageLabels[s.currentPage] || s.currentPage;
+      row.innerHTML = `
+        <div style="display:flex;align-items:center;gap:7px">
+          <span style="font-size:17px">${s.av}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">${s.name}</div>
+            <div style="font-size:10px;color:var(--orange)">⏳ 进行中 · ${pageNow}</div>
+          </div>
+        </div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-total" style="color:var(--ink3)">—</div>
+        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2);display:inline-block"></span></div>`;
+    }
+    list.appendChild(row);
+  });
+
+  // Summary stats — only from finished students
+  const finished = classRoster.filter(s => s.total > 0);
+  const totals = finished.map(s => s.total);
+  const avg = totals.length ? Math.round(totals.reduce((a,b)=>a+b,0)/totals.length) : 0;
+  const e1=document.getElementById('ts-avg'); if(e1) e1.textContent = avg || '—';
+  const e2=document.getElementById('ts-top'); if(e2) e2.textContent = totals.length ? Math.max(...totals) : '—';
+  const e3=document.getElementById('ts-low'); if(e3) e3.textContent = finished.filter(s=>s.total<60).length + '人';
+
+  // Weak area analysis — only from finished students
+  const wa = document.getElementById('t-weak-analysis');
+  if(!wa) return;
+  wa.innerHTML = '';
+  if(finished.length === 0){
+    wa.innerHTML = '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:12px">学生完成学习后会显示薄弱环节分析</div>';
+    return;
+  }
+  [{k:'reading',lbl:'朗读录音'},{k:'flashcard',lbl:'词语学习'},{k:'comp',lbl:'课文理解'},{k:'quiz',lbl:'Quiz竞赛'}].forEach(({k,lbl})=>{
+    const vals = finished.map(s=>s[k]||0);
+    const avg2 = Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
+    const below = finished.filter(s=>(s[k]||0)<70).length;
+    const bar = document.createElement('div'); bar.className='weak-bar';
+    bar.innerHTML=`<div style="font-size:13px;width:68px;flex-shrink:0;color:var(--ink2)">${lbl}</div><div style="flex:1;height:7px;background:var(--mist2);border-radius:4px;overflow:hidden"><div class="weak-bar-fill" style="width:${avg2}%;background:${avg2>=75?'var(--teal)':avg2>=60?'var(--gold)':'var(--red)'}"></div></div><div style="font-size:12px;font-weight:700;width:36px;text-align:right;color:${avg2>=75?'var(--teal)':avg2>=60?'var(--gold)':'var(--red)'}">${avg2}</div><div style="font-size:11px;color:var(--ink3);min-width:60px;text-align:right">${below>0?below+'人需加强':''}</div>`;
+    wa.appendChild(bar);
+  });
+}
+
+// ══════════════════════════════════════
+//  DOWNLOAD CSV
+// ══════════════════════════════════════
+function downloadCSV(){
+  const h=['姓名','朗读','词语','理解','Quiz','签到','总分','时间'];
+  const rows=classRoster.map(s=>[s.name,s.reading||0,s.flashcard||0,s.comp||0,s.quiz||0,s.checkout?100:0,s.total,s.time]);
+  const csv=[h,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='华文成绩_'+new Date().toLocaleDateString('zh')+'.csv';a.click();
+}
+
+// ══════════════════════════════════════
+//  DOWNLOAD PDF
+// ══════════════════════════════════════
+function downloadPDF(){
+  const date=new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+  const sorted=[...classRoster].sort((a,b)=>b.total-a.total);
+  const rows=sorted.map((s,i)=>`<tr style="background:${i%2===0?'#fafaf8':'white'}"><td style="padding:7px 10px">${i+1}</td><td style="padding:7px 10px;font-weight:600">${s.name}</td><td style="padding:7px 10px;text-align:center">${s.reading||'—'}</td><td style="padding:7px 10px;text-align:center">${s.flashcard||'—'}</td><td style="padding:7px 10px;text-align:center">${s.comp||'—'}</td><td style="padding:7px 10px;text-align:center">${s.quiz||'—'}</td><td style="padding:7px 10px;text-align:center">${s.checkout?100:'—'}</td><td style="padding:7px 10px;text-align:center;font-weight:900;font-size:15px;color:${s.total>=85?'#16A085':s.total>=70?'#D4A017':s.total>=50?'#E67E22':'#C0392B'}">${s.total}</td></tr>`).join('');
+  const totals=classRoster.map(s=>s.total).filter(t=>t>0);
+  const avg=totals.length?Math.round(totals.reduce((a,b)=>a+b,0)/totals.length):0;
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:"Noto Sans SC",sans-serif;padding:32px;color:#1A1A2E;font-size:13px}h1{font-size:20px;margin-bottom:4px}.sub{color:#888;margin-bottom:20px;font-size:12px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#1A1A2E;color:white;padding:8px 10px;font-size:12px;text-align:left}th:not(:first-child):not(:nth-child(2)){text-align:center}.footer{font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}.stat{display:inline-block;margin-right:24px}.stat strong{font-size:18px;font-weight:900}</style></head><body>
+  <h1>🏮 ${lessonTitle||'华文课'} — 学生成绩报告</h1><div class="sub">日期：${date} | 共 ${classRoster.length} 位学生</div>
+  <div style="margin-bottom:18px"><span class="stat">班级平均 <strong style="color:#16A085">${avg}</strong></span><span class="stat">最高分 <strong style="color:#D4A017">${totals.length?Math.max(...totals):0}</strong></span><span class="stat">需跟进 <strong style="color:#C0392B">${classRoster.filter(s=>s.total<60).length}人</strong></span></div>
+  <table><thead><tr><th>#</th><th>姓名</th><th>朗读(25%)</th><th>词语(25%)</th><th>理解(20%)</th><th>Quiz(20%)</th><th>签到(10%)</th><th>总分</th></tr></thead><tbody>${rows}</tbody></table>
+  <div class="footer">由华文学习系统自动生成 · ${date}</div></body></html>`;
+  const w=window.open('','_blank');w.document.write(html);w.document.close();setTimeout(()=>w.print(),600);
+}
+
+// ── PASSWORD ──
+const TEACHER_PW='5504';
+let pwInput='';
+
+function promptTeacher(){
+  pwInput='';
+  updatePWdots();
+  document.getElementById('pw-err').textContent='';
+  const ov=document.getElementById('pw-overlay');
+  ov.style.display='flex';
+}
+function closePW(){
+  document.getElementById('pw-overlay').style.display='none';
+  pwInput='';
+  updatePWdots();
+}
+function pwKey(d){
+  if(pwInput.length>=4)return;
+  pwInput+=d;
+  updatePWdots();
+  if(pwInput.length===4) setTimeout(checkPW,120);
+}
+function pwDel(){
+  pwInput=pwInput.slice(0,-1);
+  updatePWdots();
+  document.getElementById('pw-err').textContent='';
+}
+function pwClear(){
+  pwInput='';
+  updatePWdots();
+  document.getElementById('pw-err').textContent='';
+}
+function updatePWdots(){
+  for(let i=0;i<4;i++){
+    const d=document.getElementById('pd'+i);
+    d.style.background=i<pwInput.length?'var(--ink)':'white';
+    d.style.borderColor=i<pwInput.length?'var(--ink)':'var(--border)';
+  }
+}
+function checkPW(){
+  if(pwInput===TEACHER_PW){
+    closePW();
+    setRole('teacher');
+    // Update button label
+    document.querySelectorAll('.rbtn').forEach(b=>{
+      if(b.textContent.includes('老师'))b.textContent='老师 🔓';
+    });
+  } else {
+    document.getElementById('pw-err').textContent='密码错误，请再试一次';
+    // Shake animation
+    const dots=document.getElementById('pw-dots');
+    dots.style.animation='shake .35s ease';
+    setTimeout(()=>dots.style.animation='',400);
+    pwInput='';
+    updatePWdots();
+  }
+}
+
+// ══════════════════════════════════════
+//  STUDENT PROGRESS STORAGE (localStorage)
+// ══════════════════════════════════════
+const STUDENT_PARTS = ['checkin','reading','flashcard','slides','comp','quiz','checkout'];
+const PART_LABELS   = {checkin:'Check In',reading:'朗读录音',flashcard:'词语学习',slides:'课文简报',comp:'课文理解',quiz:'Quiz竞赛',checkout:'Check Out'};
+
+function saveProgress(name){
+  if(!name) return;
+  const data = {
+    name,
+    currentPage: curPage,
+    completedParts: [...completedParts],
+    scores: {...studentScores},
+    fcDone: [...fcDone],
+    ts: Date.now(),
+  };
+  try{ localStorage.setItem('hw_progress_'+name, JSON.stringify(data)); }catch(e){}
+}
+
+function loadProgress(name){
+  if(!name) return null;
+  try{
+    const raw = localStorage.getItem('hw_progress_'+name);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+
+function clearProgress(name){
+  if(!name) return;
+  try{ localStorage.removeItem('hw_progress_'+name); }catch(e){}
+}
+
+// ══════════════════════════════════════
+//  NAME ENTRY
+// ══════════════════════════════════════
+function checkNameResume(){
+  const n = document.getElementById('name-input').value.trim();
+  const saved = loadProgress(n);
+  const resumeEl = document.getElementById('name-resume');
+  const resumePart = document.getElementById('resume-part');
+  if(saved && saved.currentPage && saved.currentPage !== 'checkin'){
+    resumeEl.style.display = 'block';
+    resumePart.textContent = PART_LABELS[saved.currentPage] || saved.currentPage;
+  } else {
+    resumeEl.style.display = 'none';
+  }
+}
+
+function enterByName(){
+  const code = (document.getElementById('code-input').value||'').trim().toUpperCase();
+  const n    = (document.getElementById('name-input').value||'').trim();
+  const errEl = document.getElementById('name-error');
+
+  if(!code){ document.getElementById('code-input').focus(); return; }
+  if(!n)   { document.getElementById('name-input').focus(); return; }
+
+  errEl.style.display = 'none';
+
+  // Verify class code against Firebase active session
+  fbFindSessionByCode(code, meta => {
+    if(!meta){
+      // Code not found
+      errEl.style.display = 'block';
+      return;
+    }
+
+    qgState.name = n;
+    qgState.av   = qgState.av || '🐯';
+
+    // Load this unit's content into the app
+    fbLoadUnitContent(meta.unitId, content => {
+      if(content){
+        applyUnitContent(content);
+      }
+      // Register student and enter
+      registerStudent(n, qgState.av);
+
+      document.getElementById('name-overlay').style.display = 'none';
+      document.getElementById('hud-topnav-wrap').style.display = '';
+      document.getElementById('part-bar').style.display = 'block';
+
+      // Update lesson subtitle in topnav
+      const titleEl = document.getElementById('lesson-title');
+      if(titleEl && content && content.lessonTitle)
+        titleEl.textContent = content.lessonTitle;
+
+      // Restore saved progress
+      const saved = loadProgress(n + '_' + meta.unitId);
+      if(saved){
+        if(saved.scores) studentScores = {...saved.scores};
+        if(saved.fcDone) fcDone = [...saved.fcDone];
+        if(saved.completedParts) saved.completedParts.forEach(p => completedParts.add(p));
+        refreshScoreReport();
+      }
+
+      // Show resume banner if applicable
+      const resumable = ['reading','flashcard','slides','comp','quiz'];
+      if(saved && resumable.includes(saved.currentPage)){
+        const banner  = document.getElementById('ci-resume-banner');
+        const partLbl = document.getElementById('ci-resume-part');
+        if(banner) banner.style.display = 'block';
+        if(partLbl) partLbl.textContent = PART_LABELS[saved.currentPage] || saved.currentPage;
+      }
+
+      // Personalise greeting
+      const greetEl = document.getElementById('ci-greeting');
+      if(greetEl) greetEl.textContent = n + '，你好！上课前先签个到吧。';
+
+      // Reset check-in
+      ciStep = 1;
+      document.getElementById('ci-step1').style.display = '';
+      document.getElementById('ci-step2').style.display = 'none';
+      document.getElementById('ci-step3').style.display = 'none';
+      document.querySelectorAll('.sdot').forEach((d,i)=>{ d.classList.toggle('on',i===0); d.classList.remove('done'); });
+      document.getElementById('ci1-btn').setAttribute('disabled','');
+
+      nav('checkin');
+    });
+  });
+}
+
+// Apply unit content loaded from Firebase into all student-facing sections
+function applyUnitContent(content){
+  if(content.lessonTitle) lessonTitle = content.lessonTitle;
+  if(content.lessonText)  { lessonText = content.lessonText; renderLessonText(); }
+  if(content.flashcards && content.flashcards.length){
+    fcCards = content.flashcards; fcIdx=0; fcDone=[];
+  }
+  if(content.quizQs && content.quizQs.length){
+    quizQs = content.quizQs; qIdx=0; myScore=0;
+  }
+  if(content.compQs && content.compQs.length){
+    compQs = content.compQs; compIdx=0; compMarks=[];
+  }
+  if(content.slidesUrl) slidesUrl = content.slidesUrl;
+  if(content.ciQuestion) document.getElementById('ci-q2') && (document.getElementById('ci-q2').textContent = content.ciQuestion);
+}
+
+// After check-in: go to waiting room (unless resuming mid-lesson)
+function ciSubmitAndContinue(){
+  const n = qgState.name || '';
+  const saved = loadProgress(n + '_' + (currentUnitId||''));
+  const resumable = ['reading','flashcard','slides','comp','quiz'];
+
+  if(saved && resumable.includes(saved.currentPage)){
+    // Resuming — skip waiting room, go directly to saved page
+    nav(saved.currentPage);
+    return;
+  }
+
+  // Check if class already started
+  if(firebaseReady && currentSession){
+    sessionRef(currentSession + '/classStatus').once('value', snap => {
+      if(snap.val() === 'started'){
+        nav('reading'); // Already started, go straight in
+      } else {
+        // Go to waiting room and listen for start signal
+        nav('waiting');
+        updateWaitingRoom();
+        listenClassStatus();
+      }
+    });
+  } else {
+    nav('reading'); // Offline mode
+  }
+}
+
+// Update student-facing waiting room with classmates list
+function updateWaitingRoom(){
+  const nameEl = document.getElementById('wr-name');
+  const avEl   = document.getElementById('wr-av');
+  if(nameEl) nameEl.textContent = qgState.name || '—';
+  if(avEl)   avEl.textContent   = qgState.av   || '🐯';
+
+  const countEl = document.getElementById('wr-count');
+  const listEl  = document.getElementById('wr-students');
+  if(countEl) countEl.textContent = studentRegistry.length;
+  if(listEl){
+    listEl.innerHTML = studentRegistry.map(s =>
+      `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div style="font-size:22px">${s.av}</div>
+        <div style="font-size:10px;color:var(--ink3);max-width:52px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
+       </div>`
+    ).join('');
+  }
+}
+
+// Hook: when student registry changes, update waiting room if student is there
+const _origAttach = attachStudentListener;
+function attachStudentListener(sid){
+  if(!firebaseReady || !sid) return;
+  if(sessionListener) sessionListener.off();
+  sessionListener = sessionRef(sid + '/students');
+  sessionListener.on('value', snap => {
+    const data = snap.val() || {};
+    studentRegistry = [];
+    classRoster = [];
+    Object.values(data).forEach(s => {
+      studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false });
+      if(s.done && s.scores) classRoster.push({ name:s.name, av:s.av||'🐯', ...s.scores, total:s.scores.total||0, time:s.doneTime||s.time||'--:--' });
+    });
+    // Update teacher views
+    if(role === 'teacher'){
+      if(curPage === 'progress')  renderStudents();
+      if(curPage === 'dashboard'){ renderDashboard(); updateDashboardWaiting(); }
+    }
+    // Update student waiting room
+    if(role === 'student' && curPage === 'waiting') updateWaitingRoom();
+  });
+}
+function enterQuizFullscreen(){
+  const qp = document.getElementById('page-quiz');
+  qp.classList.add('quiz-fullscreen');
+  document.getElementById('part-bar').style.display = 'none';
+  document.getElementById('hud-topnav-wrap').style.display = 'none';
+}
+function exitQuizFullscreen(){
+  const qp = document.getElementById('page-quiz');
+  qp.classList.remove('quiz-fullscreen');
+  document.getElementById('part-bar').style.display = 'block';
+  document.getElementById('hud-topnav-wrap').style.display = '';
+}
+
+// ── INIT ──
+initFirebase();
+buildPartBar();
+// Hide part bar, sidebar, and topnav until name is entered
+document.getElementById('part-bar').style.display = 'none';
+document.getElementById('hud-topnav-wrap').style.display = 'none';
+// Update name overlay lesson subtitle
+const nameSubEl = document.getElementById('name-lesson-sub');
+if(nameSubEl) nameSubEl.textContent = lessonTitle || '第三课《春天来了》';
+renderFC();
+renderStudents();
+renderCompQ();
+renderLessonText();
+setTimeout(buildCloud,400);
+
+</script>
+<!-- ══ NAME ENTRY OVERLAY ══ -->
+<div id="name-overlay">
+  <div class="name-card">
+    <div style="font-size:44px;margin-bottom:10px">🏮</div>
+    <div class="name-title">华文学习系统</div>
+    <div class="name-sub" id="name-lesson-sub">请输入进入码和名字</div>
+
+    <!-- Class code -->
+    <div style="margin-bottom:6px;text-align:left;font-size:12px;color:rgba(255,255,255,.5)">班级进入码（老师提供）</div>
+    <input class="name-input" id="code-input" placeholder="例如：BC2025" maxlength="12"
+      style="margin-bottom:10px;letter-spacing:.1em;font-weight:700;text-transform:uppercase"
+      oninput="this.value=this.value.toUpperCase()">
+
+    <!-- Name -->
+    <div style="margin-bottom:6px;text-align:left;font-size:12px;color:rgba(255,255,255,.5)">你的名字</div>
+    <input class="name-input" id="name-input" placeholder="请输入你的名字…" maxlength="10"
+      onkeydown="if(event.key==='Enter')enterByName()" oninput="checkNameResume()">
+
+    <div class="name-resume" id="name-resume">📖 找到你上次的进度，将从 <strong id="resume-part">—</strong> 继续</div>
+    <div id="name-error" style="font-size:12px;color:#FF4466;margin-bottom:8px;display:none">❌ 进入码不正确，请向老师确认</div>
+    <button class="name-submit" onclick="enterByName()">进入学习 →</button>
+  </div>
+</div>
+
+<!-- ══ PASSWORD MODAL ══ -->
+<div id="pw-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,26,46,0.55);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+  <div style="background:var(--white);border-radius:var(--rl);padding:32px 28px;width:320px;box-shadow:var(--shadow-lg);text-align:center;position:relative;">
+    <div style="font-size:36px;margin-bottom:10px">🔒</div>
+    <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700;margin-bottom:6px;color:var(--ink)">老师专用</div>
+    <div style="font-size:13px;color:var(--ink3);margin-bottom:20px">请输入密码进入老师端</div>
+    <div style="display:flex;gap:10px;justify-content:center;margin-bottom:16px" id="pw-dots">
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:white;transition:background .15s" id="pd0"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:white;transition:background .15s" id="pd1"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:white;transition:background .15s" id="pd2"></div>
+      <div style="width:14px;height:14px;border-radius:50%;border:2px solid var(--border);background:white;transition:background .15s" id="pd3"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px" id="pw-keypad">
+      <button class="pw-key" onclick="pwKey('1')">1</button>
+      <button class="pw-key" onclick="pwKey('2')">2</button>
+      <button class="pw-key" onclick="pwKey('3')">3</button>
+      <button class="pw-key" onclick="pwKey('4')">4</button>
+      <button class="pw-key" onclick="pwKey('5')">5</button>
+      <button class="pw-key" onclick="pwKey('6')">6</button>
+      <button class="pw-key" onclick="pwKey('7')">7</button>
+      <button class="pw-key" onclick="pwKey('8')">8</button>
+      <button class="pw-key" onclick="pwKey('9')">9</button>
+      <button class="pw-key pw-clear" onclick="pwClear()">清除</button>
+      <button class="pw-key" onclick="pwKey('0')">0</button>
+      <button class="pw-key pw-del" onclick="pwDel()">⌫</button>
+    </div>
+    <div id="pw-err" style="font-size:12px;color:var(--red);min-height:18px;margin-bottom:8px"></div>
+    <button class="btn btn-ghost btn-sm" onclick="closePW()" style="width:100%">取消</button>
+  </div>
+</div>
+
+</body>
+</html>
