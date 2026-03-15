@@ -181,16 +181,17 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div class="stat"><div class="sticon" style="background:var(--orange-l)">⚠️</div><div><div class="stv" id="dash-low">0</div><div class="stl">需要关注</div></div></div>
       </div>
 
-      <!-- Waiting room control -->
+      <!-- Live student count (replaces old waiting-control) -->
       <div class="card" id="waiting-control" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:14px">
           <div>
-            <div class="ctitle" style="margin:0">🚦 等待室</div>
-            <div style="font-size:12px;color:var(--ink3);margin-top:4px">确认所有学生进入后，点「开始上课」</div>
+            <div class="ctitle" style="margin:0">🟢 课堂进行中</div>
+            <div style="font-size:12px;color:var(--ink3);margin-top:4px">学生输入进入码后，完成签到便可开始学习</div>
           </div>
-          <button class="btn btn-red btn-lg" onclick="startClass()" id="start-class-btn">
-            ▶ 开始上课（<span id="waiting-count">0</span> 人）
-          </button>
+          <div style="text-align:center">
+            <div style="font-size:28px;font-weight:900;color:var(--teal)" id="waiting-count">0</div>
+            <div style="font-size:11px;color:var(--ink3)">已进入学生</div>
+          </div>
         </div>
         <div id="waiting-list" style="display:flex;flex-wrap:wrap;gap:4px;min-height:44px"></div>
       </div>
@@ -522,17 +523,7 @@ function showSessionBanner(meta){
     document.getElementById('sb-class-label').textContent = meta.classLabel || '';
     document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
   });
-  // Sync start button with current classStatus
-  const startBtn = document.getElementById('start-class-btn');
-  if(meta.classStatus === 'started'){
-    startBtn.innerHTML = '🟢 课堂已开始';
-    startBtn.disabled = true;
-    startBtn.style.background = 'var(--teal)';
-  } else {
-    startBtn.innerHTML = '▶ 开始上课（<span id="waiting-count">0</span> 人）';
-    startBtn.disabled = false;
-    startBtn.style.background = '';
-  }
+  // No start-class button needed — students enter freely after code is shared
 }
 
 function hideBanner(){

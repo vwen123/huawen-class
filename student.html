@@ -3068,16 +3068,8 @@ function enterByName(){
       document.getElementById('ci1-btn').setAttribute('disabled','');
       updateCiDots();
 
-      if(meta.classStatus === 'started'){
-        // Class already running → go straight to check-in
-        nav('checkin');
-      } else {
-        // Class not started yet → wait for teacher
-        updateWaitingRoom();
-        listenClassStatus();
-        startWaitingPoll();
-        nav('waiting');
-      }
+      // Always go to check-in — no waiting room gate
+      nav('checkin');
     });
   });
 }
