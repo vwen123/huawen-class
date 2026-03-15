@@ -522,11 +522,16 @@ function showSessionBanner(meta){
     document.getElementById('sb-class-label').textContent = meta.classLabel || '';
     document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
   });
-  // Update start button if already started
+  // Sync start button with current classStatus
+  const startBtn = document.getElementById('start-class-btn');
   if(meta.classStatus === 'started'){
-    document.getElementById('start-class-btn').textContent = '🟢 课堂已开始';
-    document.getElementById('start-class-btn').disabled = true;
-    document.getElementById('start-class-btn').style.background = 'var(--teal)';
+    startBtn.innerHTML = '🟢 课堂已开始';
+    startBtn.disabled = true;
+    startBtn.style.background = 'var(--teal)';
+  } else {
+    startBtn.innerHTML = '▶ 开始上课（<span id="waiting-count">0</span> 人）';
+    startBtn.disabled = false;
+    startBtn.style.background = '';
   }
 }
 
