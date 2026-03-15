@@ -487,7 +487,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div class="ci-q">你见过哪些春天的景色或动植物？分享一下！</div>
       <textarea class="ci-input" rows="3" placeholder="例如：我见过樱花、青蛙、燕子……" id="ci-open"></textarea>
       <div style="margin-top:12px">
-        <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始上课！</button>
+        <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始学习！</button>
       </div>
     </div>
   </div>
@@ -1261,7 +1261,7 @@ function setRole(r){
 }
 
 // ── CHECK IN ──
-let ciStep=1;
+let ciStep=1, ciMaxStep=1; // ciMaxStep set by applyUnitContent: 1=mood only, 2=+Q1, 3=+Q2
 function selMood(el,m){
   document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
@@ -1272,12 +1272,19 @@ function selCiOpt(el){
   el.classList.add('sel');
 }
 function ciNext(step){
+  // If teacher hasn't defined this step's question, skip straight to submit
+  if(step > ciMaxStep){ ciSubmit(); return; }
   document.getElementById('ci-step'+ciStep).style.display='none';
   ciStep=step;
   document.getElementById('ci-step'+step).style.display='';
   document.querySelectorAll('.sdot').forEach((d,i)=>{
     d.classList.toggle('done',i<step-1);
     d.classList.toggle('on',i===step-1);
+  });
+}
+function updateCiDots(){
+  document.querySelectorAll('.sdot').forEach((d,i)=>{
+    d.style.display = i < ciMaxStep ? '' : 'none';
   });
 }
 function ciSubmit(){
@@ -2361,13 +2368,65 @@ function refreshScoreReport(){
   const gl=document.getElementById('co-grade-label');if(gl)gl.textContent=grade;
   const gs=document.getElementById('co-grade-sub');if(gs)gs.textContent=sub;
   const st=document.getElementById('co-stars');if(st)st.textContent=stars;
-  const weak=[];
-  if((studentScores.reading||0)<70)weak.push('朗读准确度');
-  if((studentScores.flashcard||0)<70)weak.push('词语认识');
-  if((studentScores.comp||0)<70)weak.push('课文理解');
-  if((studentScores.quiz||0)<70)weak.push('Quiz答题');
-  const adv=document.getElementById('co-advice-text');
-  if(adv)adv.textContent=weak.length===0?'🎉 各方面表现都很好！继续保持这个学习态度！':'建议多加练习：'+weak.join('、')+'。放学后可以重读课文，加深印象。';
+  buildLearningAnalysis(total);
+}
+
+function buildLearningAnalysis(total){
+  const s = studentScores;
+  const name = qgState.name || '同学';
+  const adv = document.getElementById('co-advice-text');
+  if(!adv) return;
+
+  // ── Per-section analysis ──
+  const sectionDefs = [
+    { key:'reading',   icon:'🎙', label:'朗读录音',
+      tips: ['发音准确、朗读流利，表现非常棒！', '朗读基本流利，可多注意语气和停顿。', '朗读还需加强，建议放学后大声朗读课文2~3遍，注意生字发音。'] },
+    { key:'flashcard', icon:'📖', label:'词语学习',
+      tips: ['词语掌握非常扎实，认识了所有新词！', '大部分词语已掌握，可以把陌生的词再写一遍加深记忆。', '词语还需多练习，建议用词卡反复复习，每天认几个新字。'] },
+    { key:'comp',      icon:'💬', label:'课文理解',
+      tips: ['理解能力很强，答题准确，读懂了课文内容！', '理解题表现不错，注意审题，别漏掉关键细节。', '课文理解需加强，建议重新读一遍课文，圈出重要句子再作答。'] },
+    { key:'quiz',      icon:'🏆', label:'Quiz竞赛',
+      tips: ['Quiz答题迅速又准确，课文内容掌握得很好！', 'Quiz表现不错，再熟悉一下课文知识点会更稳。', 'Quiz得分偏低，建议温习课文后再挑战，提高反应速度。'] },
+  ];
+
+  const rows = sectionDefs.map(def => {
+    const v = s[def.key];
+    if(v === null || v === undefined) return '';
+    const tier = v >= 85 ? 0 : v >= 65 ? 1 : 2;
+    const colors = ['#4CAF50','#2196F3','#FF7043'];
+    const badges = ['★ 优秀','✓ 良好','▲ 需加强'];
+    return `<div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;padding:10px 12px;background:rgba(255,255,255,.55);border-radius:10px;border-left:3px solid ${colors[tier]}">
+      <span style="font-size:18px;margin-top:1px">${def.icon}</span>
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:12px;font-weight:700;color:var(--ink)">${def.label}</span>
+          <span style="font-size:10px;font-weight:700;color:${colors[tier]};background:${colors[tier]}18;padding:1px 7px;border-radius:20px">${badges[tier]}</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink2);line-height:1.6">${def.tips[tier]}</div>
+      </div>
+      <span style="font-size:16px;font-weight:900;color:${colors[tier]};align-self:center">${v}</span>
+    </div>`;
+  }).join('');
+
+  // ── Overall journey summary ──
+  const completedSections = sectionDefs.filter(d => s[d.key] !== null && s[d.key] !== undefined);
+  const strongCount  = completedSections.filter(d => s[d.key] >= 85).length;
+  const weakSections = completedSections.filter(d => s[d.key] < 65).map(d => d.label);
+
+  let headline, headlineColor;
+  if(total >= 90){ headline = `🌟 ${name}，今天各方面都表现得非常出色！这种学习劲头要继续保持哦！`; headlineColor='#4CAF50'; }
+  else if(total >= 75){ headline = `👍 ${name}，今天学得很认真！有 ${strongCount} 个环节特别出色，再多练练薄弱的地方就更完美了。`; headlineColor='#2196F3'; }
+  else if(total >= 60){ headline = `💪 ${name}，今天有努力！学习是一步一步来的，${weakSections.length>0?'「'+weakSections.join('、')+'」需要多加练习，':''}课后别忘了复习哦。`; headlineColor='#FF9800'; }
+  else { headline = `📚 ${name}，今天的内容有点挑战，但不要气馁！每天坚持多读几遍课文，认识几个新词，慢慢就会进步的！`; headlineColor='#FF7043'; }
+
+  adv.innerHTML = `
+    <div style="padding:12px 14px;background:${headlineColor}15;border-radius:10px;margin-bottom:12px;font-size:13px;color:var(--ink);line-height:1.7;font-weight:500">${headline}</div>
+    <div style="font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.5px;margin-bottom:8px;text-transform:uppercase">各环节学习分析</div>
+    ${rows}
+    ${weakSections.length > 0 ? `<div style="margin-top:10px;padding:10px 12px;background:#FF704315;border-radius:10px;font-size:12px;color:var(--ink2);line-height:1.7">
+      📌 <strong>课后重点复习：</strong>${weakSections.join('、')}。放学后花10分钟重读课文，效果会很好！
+    </div>` : `<div style="margin-top:10px;padding:10px 12px;background:#4CAF5015;border-radius:10px;font-size:12px;color:var(--ink2)">🎉 今天没有特别需要补救的地方，表现很全面！</div>`}
+  `;
 }
 function updateCheckoutScore(){
   const txt=(document.getElementById('co-reflection')||{}).value||'';
@@ -3010,6 +3069,7 @@ function enterByName(){
       document.getElementById('ci-step3').style.display = 'none';
       document.querySelectorAll('.sdot').forEach((d,i)=>{ d.classList.toggle('on',i===0); d.classList.remove('done'); });
       document.getElementById('ci1-btn').setAttribute('disabled','');
+      updateCiDots();
 
       nav('checkin');
     });
@@ -3030,33 +3090,41 @@ function applyUnitContent(content){
     compQs = content.compQs; compIdx=0; compMarks=[];
   }
   if(content.slidesUrl) slidesUrl = content.slidesUrl;
-  if(content.ciQuestions && content.ciQuestions.length) applyCiQuestions(content.ciQuestions);
+  if(content.ciQuestions && content.ciQuestions.length){
+    applyCiQuestions(content.ciQuestions);
+  } else {
+    ciMaxStep = 1; // No teacher questions → mood only
+    updateCiDots();
+  }
 }
 
 function applyCiQuestions(qs){
-  // Q1 → Step 2
   const q0 = qs[0];
-  if(q0 && q0.text){
+  const q1 = qs[1];
+  const hasQ0 = q0 && q0.text && q0.opts && q0.opts.some(o=>o);
+  const hasQ1 = q1 && q1.text && q1.opts && q1.opts.some(o=>o);
+  ciMaxStep = hasQ0 ? (hasQ1 ? 3 : 2) : 1;
+  updateCiDots();
+
+  // Q1 → Step 2
+  if(hasQ0){
     const qEl = document.getElementById('ci-q2');
     const optsEl = document.getElementById('ci-opts2');
     if(qEl) qEl.textContent = q0.text;
-    if(optsEl){
-      optsEl.innerHTML = q0.opts.map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('');
-    }
+    if(optsEl) optsEl.innerHTML = q0.opts.filter(o=>o).map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('');
   }
-  // Q2 → Step 3 (replace open textarea with option buttons)
-  const q1 = qs[1];
+
+  // Q2 → Step 3
   const step3 = document.getElementById('ci-step3');
   if(step3){
-    if(q1 && q1.text){
+    if(hasQ1){
       step3.innerHTML = `
         <div class="ci-q">${q1.text}</div>
-        <div class="ci-opts" id="ci-opts3">${q1.opts.map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('')}</div>
+        <div class="ci-opts" id="ci-opts3">${q1.opts.filter(o=>o).map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('')}</div>
         <div style="margin-top:12px">
-          <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始上课！</button>
+          <button class="btn btn-gold btn-lg" onclick="ciSubmit()">✅ 完成签到，开始学习！</button>
         </div>`;
     }
-    // if no Q2, keep original open-textarea as-is
   }
 }
 
