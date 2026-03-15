@@ -517,6 +517,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div id="wr-students" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;min-height:36px"></div>
     </div>
     <div style="margin-top:20px;font-size:12px;color:var(--ink3)">请保持页面开启，等待老师开启课堂…</div>
+    <button onclick="manualEnter()" style="margin-top:16px;padding:10px 20px;border-radius:8px;border:1.5px solid var(--border);background:white;font-family:'Noto Sans SC',sans-serif;font-size:13px;color:var(--ink3);cursor:pointer">已经开始了？点这里进入 →</button>
   </div>
 </div>
 
@@ -2494,10 +2495,17 @@ function listenClassStatus(){
   if(!firebaseReady || !currentSession) return;
   sessionRef(currentSession + '/classStatus').on('value', snap => {
     if(snap.val() === 'started' && curPage === 'waiting'){
-      // Class has started — release to learning
-      ciSubmitAndContinue();
+      clearInterval(_waitPoll);
+      nav('reading');
     }
   });
+}
+
+function manualEnter(){
+  if(!firebaseReady || !currentSession){ nav('reading'); return; }
+  sessionRef(currentSession + '/classStatus').once('value', snap => {
+    nav('reading');
+  }, () => nav('reading'));
 }
 
 // Update dashboard waiting list in real-time
@@ -3032,26 +3040,42 @@ function ciSubmitAndContinue(){
   const resumable = ['reading','flashcard','slides','comp','quiz'];
 
   if(saved && resumable.includes(saved.currentPage)){
-    // Resuming — skip waiting room, go directly to saved page
     nav(saved.currentPage);
     return;
   }
 
-  // Check if class already started
-  if(firebaseReady && currentSession){
-    sessionRef(currentSession + '/classStatus').once('value', snap => {
-      if(snap.val() === 'started'){
-        nav('reading'); // Already started, go straight in
-      } else {
-        // Go to waiting room and listen for start signal
-        nav('waiting');
-        updateWaitingRoom();
-        listenClassStatus();
-      }
-    });
-  } else {
-    nav('reading'); // Offline mode
+  // No active session → go straight to learning
+  if(!firebaseReady || !currentSession){
+    nav('reading');
+    return;
   }
+
+  // Timeout fallback: if Firebase hangs for 4s, go to reading anyway
+  const fallback = setTimeout(() => nav('reading'), 4000);
+
+  sessionRef(currentSession + '/classStatus').once('value', snap => {
+    clearTimeout(fallback);
+    if(snap.val() === 'started'){
+      nav('reading');
+    } else {
+      nav('waiting');
+      updateWaitingRoom();
+      listenClassStatus();
+      startWaitingPoll();
+    }
+  }, () => { clearTimeout(fallback); nav('reading'); });
+}
+
+let _waitPoll = null;
+function startWaitingPoll(){
+  clearInterval(_waitPoll);
+  _waitPoll = setInterval(() => {
+    if(curPage !== 'waiting'){ clearInterval(_waitPoll); return; }
+    if(!currentSession){ clearInterval(_waitPoll); nav('reading'); return; }
+    sessionRef(currentSession + '/classStatus').once('value', snap => {
+      if(snap.val() === 'started'){ clearInterval(_waitPoll); nav('reading'); }
+    });
+  }, 5000);
 }
 
 // Update student-facing waiting room with classmates list
