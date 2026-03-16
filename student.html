@@ -1331,7 +1331,7 @@ function fbUpdatePage(name, page){
   if(!firebaseReady || !currentSession) return;
   const update = { currentPage: page };
   // Track lastPage for resuming — only overwrite with real learning pages
-  const learningPages = ['reading','flashcard','slides','comp','quiz','checkout'];
+  const learningPages = ['reading','flashcard','slides','mindmap','comp','quiz','checkout'];
   if(learningPages.includes(page)) update.lastPage = page;
   sessionRef(currentSession + '/students/' + safeKey(name)).update(update);
 }
@@ -3987,7 +3987,7 @@ function enterByName(){
       }
 
       // Load full student record from Firebase (cross-device restore)
-      const resumable = ['reading','flashcard','slides','comp','quiz','checkout'];
+      const resumable = ['reading','flashcard','slides','mindmap','comp','quiz','checkout'];
       fbLoadStudentData(n, fbData => {
         const isNew = !fbData; // first time ever
         // Merge scores — take the higher value
