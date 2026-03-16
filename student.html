@@ -1116,13 +1116,19 @@ function fbFindSessionByCode(code, cb){
 //  STUDENT SYNC (实时同步)
 // ══════════════════════════════════════
 
-function fbRegisterStudent(name, av){
+function fbRegisterStudent(name, av, isNew){
   if(!firebaseReady || !currentSession) return;
   const time = new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'});
-  // Use update (not set) so existing scores are preserved on re-entry
-  sessionRef(currentSession + '/students/' + safeKey(name)).update({
-    name, av, time, currentPage:'checkin', done:false
-  });
+  const update = { name, av, time };
+  // Only reset currentPage on first entry, not on re-entry
+  if(isNew) update.currentPage = 'checkin';
+  sessionRef(currentSession + '/students/' + safeKey(name)).update(update);
+}
+
+function fbLoadStudentData(name, cb){
+  if(!firebaseReady || !currentSession){ cb(null); return; }
+  sessionRef(currentSession + '/students/' + safeKey(name))
+    .once('value', snap => cb(snap.val()));
 }
 
 function fbLoadStudentScores(name, cb){
@@ -1133,11 +1139,11 @@ function fbLoadStudentScores(name, cb){
 
 function fbUpdatePage(name, page){
   if(!firebaseReady || !currentSession) return;
-  sessionRef(currentSession + '/students/' + safeKey(name)).update({
-    currentPage: page,
-    lastPage: page,  // persists for resume even after session ends
-    fcDoneCount: fcDone.length
-  });
+  const update = { currentPage: page };
+  // Track lastPage for resuming — only overwrite with real learning pages
+  const learningPages = ['reading','flashcard','slides','comp','quiz','checkout'];
+  if(learningPages.includes(page)) update.lastPage = page;
+  sessionRef(currentSession + '/students/' + safeKey(name)).update(update);
 }
 
 function fbUpdateScore(name, section, value){
@@ -3193,8 +3199,11 @@ function enterByName(){
       if(content){
         applyUnitContent(content);
       }
-      // Register student and enter
-      registerStudent(n, qgState.av);
+      // Register to local registry (Firebase registration is done after loading Firebase data below)
+      const _regEntry = { name:n, av:qgState.av||'🐯' };
+      const _existing = studentRegistry.findIndex(s=>s.name===n);
+      if(_existing>=0) studentRegistry[_existing]={...studentRegistry[_existing],..._regEntry};
+      else studentRegistry.push(_regEntry);
 
       document.getElementById('name-overlay').style.display = 'none';
       document.getElementById('hud-topnav-wrap').style.display = '';
@@ -3215,31 +3224,32 @@ function enterByName(){
         refreshScoreReport();
       }
 
-      // Also load scores from Firebase (cross-device restore) and merge
-      fbLoadStudentScores(n, fbScores => {
-        if(fbScores){
-          Object.entries(fbScores).forEach(([k,v])=>{
-            if(v !== null && v !== undefined){
-              // Take whichever is higher (student's best result)
-              if(studentScores[k] === null || studentScores[k] === undefined || v > studentScores[k]){
-                studentScores[k] = v;
-              }
-            }
+      // Load full student record from Firebase (cross-device restore)
+      const resumable = ['reading','flashcard','slides','comp','quiz','checkout'];
+      fbLoadStudentData(n, fbData => {
+        const isNew = !fbData; // first time ever
+        // Merge scores — take the higher value
+        if(fbData && fbData.scores){
+          Object.entries(fbData.scores).forEach(([k,v])=>{
+            if(v != null && (studentScores[k] == null || v > studentScores[k]))
+              studentScores[k] = v;
           });
           refreshScoreReport();
-          saveProgress(n + '_' + meta.unitId); // sync back to localStorage
+        }
+        // Register (only reset currentPage if brand new student)
+        fbRegisterStudent(n, qgState.av, isNew);
+        // Determine resume page: Firebase lastPage > localStorage currentPage
+        const fbPage = fbData && fbData.lastPage;
+        const localPage = saved && saved.currentPage;
+        const resumePage = resumable.includes(fbPage) ? fbPage
+                         : resumable.includes(localPage) ? localPage : null;
+        if(resumePage){
+          savedResumePage = resumePage;
+          saveProgress(n + '_' + meta.unitId);
+          // Skip check-in and go directly to last page
+          nav(resumePage);
         }
       });
-
-      // Show resume banner if applicable
-      const resumable = ['reading','flashcard','slides','comp','quiz'];
-      if(saved && resumable.includes(saved.currentPage)){
-        savedResumePage = saved.currentPage;
-        const banner  = document.getElementById('ci-resume-banner');
-        const partLbl = document.getElementById('ci-resume-part');
-        if(banner) banner.style.display = 'block';
-        if(partLbl) partLbl.textContent = PART_LABELS[saved.currentPage] || saved.currentPage;
-      }
 
       // Personalise greeting
       const greetEl = document.getElementById('ci-greeting');
@@ -3254,7 +3264,7 @@ function enterByName(){
       document.getElementById('ci1-btn').setAttribute('disabled','');
       updateCiDots();
 
-      // Always go to check-in — no waiting room gate
+      // Go to checkin by default; fbLoadStudentData callback will redirect if resume page found
       nav('checkin');
     });
   });

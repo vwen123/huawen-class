@@ -576,7 +576,14 @@ function attachListener(sid){
     classRoster = [];
     Object.values(data).forEach(s => {
       studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false });
-      if(s.done && s.scores) classRoster.push({ name:s.name, av:s.av||'🐯', ...s.scores, total:s.scores.total||0, time:s.doneTime||s.time||'--:--' });
+      if(s.scores){
+        const sc = s.scores;
+        const w={reading:.25,flashcard:.25,comp:.2,quiz:.2,checkout:.1};
+        let ws=0,wt=0;
+        Object.entries(w).forEach(([k,v])=>{if(sc[k]!=null){ws+=sc[k]*v;wt+=v;}});
+        const tot = s.done && sc.total ? sc.total : (wt>0?Math.round(ws/wt):0);
+        classRoster.push({ name:s.name, av:s.av||'🐯', ...sc, total:tot, time:s.doneTime||s.time||'--:--', done:s.done||false });
+      }
     });
     refreshAllViews();
   });
@@ -674,14 +681,18 @@ function renderStudents(){
     const row = document.createElement('div'); row.className = 'ts-row';
     if(sc){
       const dc = sc.total>=85?'var(--teal)':sc.total>=70?'var(--gold)':sc.total>=50?'var(--orange)':'var(--red)';
+      const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
+      const statusBadge = sc.done
+        ? `<div style="font-size:10px;color:var(--teal)">✅ 完成 ${sc.time}</div>`
+        : `<div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>`;
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div><div style="font-size:10px;color:var(--teal)">✅ ${sc.time}</div></div></div>
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}</div></div>
         <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
         <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
         <div class="ts-cell" style="color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'}">${sc.comp??'—'}</div>
         <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
-        <div class="ts-cell" style="color:var(--teal)">✓</div>
-        <div class="ts-total" style="color:${dc}">${sc.total}</div>
+        <div class="ts-cell" style="color:var(--teal)">${sc.done?'✓':'…'}</div>
+        <div class="ts-total" style="color:${dc}">${sc.total||'—'}</div>
         <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
     } else {
       const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
