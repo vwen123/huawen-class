@@ -364,12 +364,16 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
   .smets{gap:8px;}
 }
 
-/* ── Blast game ── */
-@keyframes blast-drift{0%{transform:translateY(0) rotate(-3deg)}100%{transform:translateY(-8px) rotate(3deg)}}
-@keyframes blast-explode{0%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.7}100%{transform:scale(0);opacity:0}}
-.blast-asteroid{background:linear-gradient(135deg,#3A1060,#6B2FAD);border:2px solid #9F6FFF;border-radius:40% 55% 45% 60%/55% 40% 60% 45%;color:white;font-size:14px;font-weight:700;padding:14px 10px;cursor:pointer;animation:blast-drift 2.5s ease-in-out infinite alternate;font-family:'Noto Serif SC',serif;transition:all .15s;min-height:64px}
-.blast-asteroid:hover{transform:scale(1.08);}
-.blast-asteroid.exploded{animation:blast-explode .4s ease forwards!important;}
+/* ── Speed Sort game ── */
+.ss-item{padding:10px 16px;background:var(--white);border:2px solid var(--border);border-radius:10px;cursor:grab;font-size:15px;font-weight:700;font-family:'Noto Serif SC',serif;text-align:center;user-select:none;transition:box-shadow .15s,transform .15s;touch-action:none;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.ss-item:active,.ss-item.dragging{cursor:grabbing;transform:scale(1.06);box-shadow:0 6px 20px rgba(0,0,0,.18);opacity:.75}
+.ss-item.placed{opacity:.35;pointer-events:none;cursor:default}
+.ss-box{min-height:80px;border:2.5px dashed var(--border);border-radius:12px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;background:var(--mist)}
+.ss-box.drag-over{border-color:var(--teal);background:var(--teal-l);transform:scale(1.03)}
+.ss-box.correct{border-color:var(--teal);background:#D4FAE6;border-style:solid}
+.ss-box.wrong-ss{border-color:var(--red);background:#FFE0E0;animation:ss-shake .4s ease}
+@keyframes ss-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}
+@keyframes ss-drop-in{0%{transform:scale(.7);opacity:0}100%{transform:scale(1);opacity:1}}
 /* ── Hangman ── */
 .hm-blank{display:inline-flex;align-items:center;justify-content:center;width:36px;height:42px;border-bottom:3px solid var(--ink2);margin:4px;font-size:22px;font-family:'Noto Serif SC',serif;font-weight:700;transition:all .3s}
 .hm-blank.filled{color:var(--teal);border-color:var(--teal)}
@@ -647,28 +651,23 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
   <!-- 🚀 Blast 小行星 game -->
   <div class="card" id="fc-blast-card" style="display:none;margin-top:14px">
-    <div class="ctitle">🚀 Blast 小行星</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">看含义，击中对应词语的小行星！</div>
-    <div style="background:linear-gradient(160deg,#070720,#1A1040);border-radius:var(--rl);padding:16px;overflow:hidden;position:relative">
-      <!-- HUD -->
-      <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:13px">
-        <span style="color:#FFD700">⭐ <b id="blast-score">0</b></span>
-        <span style="color:#FF88AA">❤️ <span id="blast-lives">3</span></span>
-        <span style="color:#88DDFF">题 <span id="blast-qnum">1</span>/10</span>
-      </div>
-      <!-- Definition question -->
-      <div id="blast-question" style="color:white;text-align:center;font-size:14px;line-height:1.6;padding:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:12px;margin-bottom:20px;min-height:60px;display:flex;align-items:center;justify-content:center"></div>
-      <!-- Asteroid buttons grid -->
-      <div id="blast-asteroids" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
-      <!-- Timer bar -->
-      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:16px;overflow:hidden"><div id="blast-timer-bar" style="height:100%;background:linear-gradient(90deg,#FF4466,#FF8800);border-radius:2px;transition:width .1s linear;width:100%"></div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <div class="ctitle" style="margin:0">📦 速配排序</div>
+      <div style="font-size:12px;color:var(--ink3)">⭐ <b id="ss-score">0</b> &nbsp; 轮 <span id="ss-round">1</span>/3</div>
     </div>
-    <div id="blast-result" style="display:none;margin-top:14px;text-align:center;padding:16px;background:linear-gradient(135deg,#1A1040,#2D0A5A);border-radius:var(--rl)">
-      <div style="font-size:32px;margin-bottom:8px">🚀</div>
-      <div id="blast-result-text" style="color:white;font-weight:700;font-size:15px;margin-bottom:6px"></div>
-      <div id="blast-result-sub" style="color:#AAAACC;font-size:13px;margin-bottom:14px"></div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">将下方词语拖入对应的含义框中</div>
+    <!-- Drop target boxes -->
+    <div id="ss-boxes" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
+    <!-- Draggable word items -->
+    <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-align:center">☝️ 拖动词语到上方含义框</div>
+    <div id="ss-items" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:52px;padding:4px"></div>
+    <!-- Result -->
+    <div id="ss-result" style="display:none;margin-top:14px;text-align:center;padding:16px;background:linear-gradient(135deg,var(--teal-l),#D4FAE6);border-radius:var(--rl)">
+      <div style="font-size:28px;margin-bottom:6px">🎉</div>
+      <div id="ss-result-text" style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:4px"></div>
+      <div id="ss-result-sub" style="font-size:12px;color:var(--ink3);margin-bottom:14px"></div>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:1;color:white" onclick="buildBlastGame()">🔄 再玩</button>
+        <button class="btn btn-ghost" style="flex:1" onclick="buildSortGame()">🔄 再玩</button>
         <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
       </div>
     </div>
@@ -1786,7 +1785,7 @@ function fcGameNext(){
     const mc=document.getElementById('fc-match-card');
     if(mc){mc.style.display='block';buildMatchGame();setTimeout(()=>mc.scrollIntoView({behavior:'smooth',block:'nearest'}),50);}
   } else if(game==='blast'){
-    buildBlastGame();
+    buildSortGame();
   } else if(game==='hangman'){
     buildHangmanGame();
   } else if(game==='balloon'){
@@ -1796,106 +1795,126 @@ function fcGameNext(){
   }
 }
 
-// ── 🚀 BLAST GAME ─────────────────────────
-let blastState = {};
-let blastTimer = null;
-const BLAST_TIME = 12; // seconds per question
-const BLAST_TOTAL = 10;
+// ── 📦 SPEED SORT GAME ────────────────────
+let ssState = {};
+let ssDragItem = null;
+let ssTouchEl = null, ssTouchClone = null;
+const SS_PAIRS = 4; // words per round
+const SS_ROUNDS = 3;
 
-function buildBlastGame(){
-  if(blastTimer) clearInterval(blastTimer);
+function buildSortGame(){
   const card = document.getElementById('fc-blast-card');
   card.style.display = 'block';
-  document.getElementById('blast-result').style.display = 'none';
+  document.getElementById('ss-result').style.display = 'none';
   const pool = fcCards.slice();
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  blastState = { pool, qIdx:0, maxQ:Math.min(BLAST_TOTAL, fcCards.length), score:0, lives:3, done:false };
+  ssState = { pool, round:1, score:0, correct:0, total:0 };
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
-  showBlastQ();
+  renderSortRound();
 }
 
-function showBlastQ(){
-  if(blastTimer) clearInterval(blastTimer);
-  const { pool, qIdx, maxQ, lives } = blastState;
-  if(qIdx >= maxQ || lives <= 0){ endBlastGame(); return; }
-  const correct = pool[qIdx % pool.length];
-  const wrong = pool.filter(c=>c.char!==correct.char);
-  for(let i=wrong.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[wrong[i],wrong[j]]=[wrong[j],wrong[i]];}
-  const opts = [correct, ...wrong.slice(0,3)];
-  for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
-  document.getElementById('blast-question').textContent = correct.mean + (correct.ex ? '\n' + correct.ex : '');
-  document.getElementById('blast-score').textContent = blastState.score;
-  document.getElementById('blast-lives').textContent = blastState.lives;
-  document.getElementById('blast-qnum').textContent = (qIdx+1)+'/'+maxQ;
-  const colors = ['#4A1580,#8B35D6','#1A3A80,#3567D6','#2A5020,#45A035','#6A2010,#C04020'];
-  const container = document.getElementById('blast-asteroids');
-  container.innerHTML = opts.map((opt,i)=>{
-    const [c1,c2]=colors[i%colors.length].split(',');
-    return `<button class="blast-asteroid" data-char="${opt.char}" data-correct="${opt.char===correct.char}"
-      onclick="blastTap(this)"
-      style="background:linear-gradient(135deg,${c1},${c2});
-      animation-delay:${i*0.2}s;animation-duration:${2.2+i*0.3}s"
-      >${opt.char}</button>`;
-  }).join('');
-  // Timer
-  let t = BLAST_TIME;
-  document.getElementById('blast-timer-bar').style.width = '100%';
-  blastTimer = setInterval(()=>{
-    t--;
-    document.getElementById('blast-timer-bar').style.width = Math.max(0,(t/BLAST_TIME)*100)+'%';
-    if(t <= 0){
-      clearInterval(blastTimer);
-      blastState.lives--;
-      blastState.qIdx++;
-      // Flash correct asteroid
-      document.querySelectorAll('.blast-asteroid').forEach(b=>{
-        if(b.dataset.correct==='true') b.style.background='linear-gradient(135deg,#006644,#00CC77)';
-        b.disabled = true;
-      });
-      setTimeout(showBlastQ, 1000);
-    }
-  }, 1000);
+function renderSortRound(){
+  const { pool, round } = ssState;
+  document.getElementById('ss-score').textContent = ssState.score;
+  document.getElementById('ss-round').textContent = round;
+  // Pick pairs for this round (cycle through pool)
+  const offset = ((round-1) * SS_PAIRS) % pool.length;
+  const pairs = [];
+  for(let i=0;i<Math.min(SS_PAIRS, pool.length);i++) pairs.push(pool[(offset+i)%pool.length]);
+  ssState.pairs = pairs;
+  // Shuffled items
+  const items = pairs.slice().sort(()=>Math.random()-.5);
+  // Render boxes (drop targets = definitions)
+  document.getElementById('ss-boxes').innerHTML = pairs.map((p,i)=>`
+    <div class="ss-box" id="ss-box-${i}" data-idx="${i}" data-char="${p.char}"
+      ondragover="ssDragOver(event,this)" ondrop="ssDrop(event,this)"
+      ondragleave="this.classList.remove('drag-over')">
+      <div style="font-size:11px;color:var(--ink3);text-align:center;line-height:1.5;margin-bottom:4px">${p.mean}</div>
+    </div>`).join('');
+  // Render draggable items
+  document.getElementById('ss-items').innerHTML = items.map(p=>`
+    <div class="ss-item" id="ss-item-${p.char}" draggable="true" data-char="${p.char}"
+      ondragstart="ssDragStart(event,this)" ondragend="ssDragEnd(event,this)"
+      ontouchstart="ssTouchStart(event,this)" ontouchmove="ssTouchMove(event)" ontouchend="ssTouchEnd(event)"
+      >${p.char}</div>`).join('');
 }
 
-function blastTap(btn){
-  if(btn.disabled || blastState.done) return;
-  clearInterval(blastTimer);
-  document.querySelectorAll('.blast-asteroid').forEach(b=>b.disabled=true);
-  if(btn.dataset.correct==='true'){
-    btn.classList.add('exploded');
-    btn.style.background = 'linear-gradient(135deg,#006644,#00EE88)';
-    btn.textContent = '💥';
-    blastState.score += 10;
-    blastState.qIdx++;
-    setTimeout(showBlastQ, 700);
+function ssDragStart(e,el){ ssDragItem=el; el.classList.add('dragging'); e.dataTransfer.setData('char',el.dataset.char); e.dataTransfer.effectAllowed='move'; }
+function ssDragEnd(e,el){ el.classList.remove('dragging'); document.querySelectorAll('.ss-box').forEach(b=>b.classList.remove('drag-over')); }
+function ssDragOver(e,box){ e.preventDefault(); e.dataTransfer.dropEffect='move'; box.classList.add('drag-over'); }
+function ssDrop(e,box){ e.preventDefault(); box.classList.remove('drag-over'); const char=e.dataTransfer.getData('char')||(ssDragItem&&ssDragItem.dataset.char); if(char) ssDropChar(char,box); }
+
+function ssTouchStart(e,el){
+  ssTouchEl=el; ssDragItem=el; el.classList.add('dragging');
+  ssTouchClone=el.cloneNode(true);
+  Object.assign(ssTouchClone.style,{position:'fixed',zIndex:9999,opacity:'.85',pointerEvents:'none',
+    width:el.offsetWidth+'px',borderRadius:'10px',border:'2px solid var(--teal)',background:'var(--teal-l)'});
+  document.body.appendChild(ssTouchClone);
+  const t=e.touches[0];
+  ssTouchClone.style.left=(t.clientX-el.offsetWidth/2)+'px';
+  ssTouchClone.style.top=(t.clientY-30)+'px';
+}
+function ssTouchMove(e){
+  e.preventDefault();
+  if(!ssTouchClone) return;
+  const t=e.touches[0];
+  ssTouchClone.style.left=(t.clientX-ssTouchClone.offsetWidth/2)+'px';
+  ssTouchClone.style.top=(t.clientY-30)+'px';
+  document.querySelectorAll('.ss-box').forEach(b=>b.classList.remove('drag-over'));
+  const hit=document.elementFromPoint(t.clientX,t.clientY);
+  const box=hit&&hit.closest('.ss-box');
+  if(box) box.classList.add('drag-over');
+}
+function ssTouchEnd(e){
+  if(ssTouchClone){ssTouchClone.remove();ssTouchClone=null;}
+  document.querySelectorAll('.ss-box').forEach(b=>b.classList.remove('drag-over'));
+  if(!ssTouchEl) return;
+  ssTouchEl.classList.remove('dragging');
+  const t=e.changedTouches[0];
+  const hit=document.elementFromPoint(t.clientX,t.clientY);
+  const box=hit&&hit.closest('.ss-box');
+  if(box) ssDropChar(ssTouchEl.dataset.char,box);
+  ssTouchEl=null; ssDragItem=null;
+}
+
+function ssDropChar(char,box){
+  if(box.classList.contains('correct')) return;
+  const item=document.getElementById('ss-item-'+char);
+  if(!item||item.classList.contains('placed')) return;
+  ssState.total++;
+  if(char===box.dataset.char){
+    ssState.score+=20; ssState.correct++;
+    item.classList.add('placed');
+    box.classList.add('correct');
+    const badge=document.createElement('div');
+    badge.style.cssText='font-family:\'Noto Serif SC\',serif;font-size:15px;font-weight:700;padding:3px 10px;background:white;border-radius:6px;color:var(--teal);animation:ss-drop-in .3s ease';
+    badge.textContent=char;
+    box.appendChild(badge);
+    document.getElementById('ss-score').textContent=ssState.score;
+    // Check all placed
+    const allDone=ssState.pairs.every(p=>document.getElementById('ss-item-'+p.char)?.classList.contains('placed'));
+    if(allDone) setTimeout(ssAdvance,700);
   } else {
-    btn.style.background = 'linear-gradient(135deg,#660000,#EE2222)';
-    btn.style.transform = 'scale(.9)';
-    blastState.lives--;
-    blastState.qIdx++;
-    document.querySelectorAll('.blast-asteroid').forEach(b=>{
-      if(b.dataset.correct==='true'){
-        b.style.background='linear-gradient(135deg,#006644,#00CC77)';
-        b.textContent = '✓ '+b.textContent;
-      }
-    });
-    setTimeout(showBlastQ, 1200);
+    box.classList.add('wrong-ss');
+    setTimeout(()=>box.classList.remove('wrong-ss'),500);
   }
 }
 
-function endBlastGame(){
-  if(blastTimer) clearInterval(blastTimer);
-  blastState.done = true;
-  document.getElementById('blast-asteroids').innerHTML = '';
-  document.getElementById('blast-timer-bar').style.width = '0%';
-  const result = document.getElementById('blast-result');
-  const score = blastState.score;
-  const max = blastState.maxQ * 10;
-  document.getElementById('blast-result-text').textContent =
-    score >= max*0.8 ? '🌟 太厉害了！' : score >= max*0.5 ? '👍 不错！' : '💪 继续努力！';
-  document.getElementById('blast-result-sub').textContent =
-    `得分：${score} / ${max}  答对 ${score/10} 题`;
-  result.style.display = 'block';
+function ssAdvance(){
+  if(ssState.round >= SS_ROUNDS){ endSortGame(); return; }
+  ssState.round++;
+  renderSortRound();
+}
+
+function endSortGame(){
+  document.getElementById('ss-items').innerHTML='';
+  document.getElementById('ss-boxes').innerHTML='';
+  const pct=ssState.total>0?ssState.correct/ssState.total:0;
+  document.getElementById('ss-result-text').textContent=
+    pct>=.9?'🌟 完美！全部配对正确！':pct>=.6?'👍 做得不错！':'💪 再练练！';
+  document.getElementById('ss-result-sub').textContent=
+    `共配对 ${ssState.correct} / ${ssState.total} 次正确`;
+  document.getElementById('ss-result').style.display='block';
 }
 
 // ── 🎯 HANGMAN GAME ────────────────────────
