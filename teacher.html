@@ -299,6 +299,16 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <textarea id="fc-import-raw" class="md-textarea" placeholder="**Q:** 信函 (xìn hán)&#10;**A:** 书信（多用于比较正式的场合）。&#10;&#10;---&#10;&#10;**Q:** 稚气 (zhì qì)&#10;**A:** 孩子气；幼稚的气味。" style="min-height:100px;font-size:12px;background:#F8F8F8"></textarea>
             <button class="btn btn-ghost btn-sm" style="margin-top:6px" onclick="importFcMarkdown()">↩ 转换并填入</button>
           </div>
+          <!-- Vocabulary games selector -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--border)">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">🎮 词语练习游戏（学生完成词卡后进行）</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+              <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-match" checked> 🔤 词语配对</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-blast" checked> 🚀 Blast小行星</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-hangman" checked> 🎯 猜词Hangman</label>
+              <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-balloon" checked> 🎈 气球爆破</label>
+            </div>
+          </div>
         </div>
 
         <!-- Comprehension questions -->
@@ -862,6 +872,12 @@ function selectUnit(id, title){
     if(el('quiz-combo')) el('quiz-combo').checked = gs.combo!==false;
     if(el('quiz-hints')) el('quiz-hints').checked = gs.hints!==false;
     if(el('quiz-fx'))    el('quiz-fx').checked    = gs.fx!==false;
+    if(c.gameSettings.fcGames){
+      ['match','blast','hangman','balloon'].forEach(g=>{
+        const el2 = document.getElementById('fcg-'+g);
+        if(el2) el2.checked = c.gameSettings.fcGames.includes(g);
+      });
+    }
     // Load check-in questions
     const qs = c.ciQuestions || [];
     for(let qi=0;qi<2;qi++){
@@ -939,12 +955,18 @@ function saveAllContent(){
 
   // Read quiz game settings
   const qstChecked = document.querySelector('input[name="qst"]:checked');
+  const fcGames = [];
+  if(document.getElementById('fcg-match')?.checked) fcGames.push('match');
+  if(document.getElementById('fcg-blast')?.checked) fcGames.push('blast');
+  if(document.getElementById('fcg-hangman')?.checked) fcGames.push('hangman');
+  if(document.getElementById('fcg-balloon')?.checked) fcGames.push('balloon');
   const gameSettings = {
     style:  qstChecked ? qstChecked.value : 'arcade',
     timer:  parseInt(document.getElementById('quiz-timer')?.value)||15,
     combo:  document.getElementById('quiz-combo')?.checked !== false,
     hints:  document.getElementById('quiz-hints')?.checked !== false,
     fx:     document.getElementById('quiz-fx')?.checked !== false,
+    fcGames: fcGames.length ? fcGames : ['match','blast','hangman','balloon'],
   };
 
   const content = {

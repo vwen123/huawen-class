@@ -363,6 +363,26 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
   .g2,.g3,.q-opts{grid-template-columns:1fr;}
   .smets{gap:8px;}
 }
+
+/* ── Blast game ── */
+@keyframes blast-drift{0%{transform:translateY(0) rotate(-3deg)}100%{transform:translateY(-8px) rotate(3deg)}}
+@keyframes blast-explode{0%{transform:scale(1);opacity:1}50%{transform:scale(1.6);opacity:.7}100%{transform:scale(0);opacity:0}}
+.blast-asteroid{background:linear-gradient(135deg,#3A1060,#6B2FAD);border:2px solid #9F6FFF;border-radius:40% 55% 45% 60%/55% 40% 60% 45%;color:white;font-size:14px;font-weight:700;padding:14px 10px;cursor:pointer;animation:blast-drift 2.5s ease-in-out infinite alternate;font-family:'Noto Serif SC',serif;transition:all .15s;min-height:64px}
+.blast-asteroid:hover{transform:scale(1.08);}
+.blast-asteroid.exploded{animation:blast-explode .4s ease forwards!important;}
+/* ── Hangman ── */
+.hm-blank{display:inline-flex;align-items:center;justify-content:center;width:36px;height:42px;border-bottom:3px solid var(--ink2);margin:4px;font-size:22px;font-family:'Noto Serif SC',serif;font-weight:700;transition:all .3s}
+.hm-blank.filled{color:var(--teal);border-color:var(--teal)}
+.hm-blank.wrong-blink{color:var(--red);border-color:var(--red)}
+.hm-choice{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;background:var(--white);border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-family:'Noto Serif SC',serif;cursor:pointer;transition:all .2s;margin:3px}
+.hm-choice:hover{background:var(--teal-l);border-color:var(--teal)}
+.hm-choice.used{opacity:.3;pointer-events:none}
+/* ── Balloon pop ── */
+@keyframes balloon-rise{0%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-15px) rotate(2deg)}50%{transform:translateY(-28px) rotate(-2deg)}75%{transform:translateY(-15px) rotate(1deg)}100%{transform:translateY(0) rotate(0deg)}}
+@keyframes balloon-pop{0%{transform:scale(1);opacity:1}30%{transform:scale(1.4)}100%{transform:scale(0);opacity:0}}
+.balloon-btn{width:90px;height:110px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;border:none;cursor:pointer;font-size:12px;font-weight:700;color:white;font-family:'Noto Serif SC',serif;animation:balloon-rise 3s ease-in-out infinite;position:relative;text-shadow:0 1px 2px rgba(0,0,0,.4);transition:filter .15s;padding:8px 4px;display:flex;align-items:center;justify-content:center}
+.balloon-btn:hover{filter:brightness(1.15)}
+.balloon-btn.popped{animation:balloon-pop .35s ease forwards!important}
 </style>
 </head>
 <body>
@@ -585,10 +605,8 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     <div class="fc-wrap" onclick="flipFC()">
       <div class="fc-inner" id="fc-inner">
         <div class="fc-face fc-front">
-          <div style="display:flex;align-items:center;gap:10px">
-            <div class="fc-char" id="fc-char">五颜六色</div>
-            <button onclick="event.stopPropagation();speakFC()" title="读出来" style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .2s;align-self:flex-start;margin-top:6px" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.18)'">🔊</button>
-          </div>
+          <button onclick="event.stopPropagation();speakFC()" title="读出来" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.18)'">🔊</button>
+          <div class="fc-char" id="fc-char">五颜六色</div>
           <div class="fc-pin" id="fc-pin">wǔ yán liù sè</div>
           <div class="fc-hint" style="margin-top:10px">👆 点击翻面看含义</div>
         </div>
@@ -625,6 +643,93 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     </div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">点选左边词语，再点选右边对应的含义</div>
     <div id="match-game-body"></div>
+  </div>
+
+  <!-- 🚀 Blast 小行星 game -->
+  <div class="card" id="fc-blast-card" style="display:none;margin-top:14px">
+    <div class="ctitle">🚀 Blast 小行星</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">看含义，击中对应词语的小行星！</div>
+    <div style="background:linear-gradient(160deg,#070720,#1A1040);border-radius:var(--rl);padding:16px;overflow:hidden;position:relative">
+      <!-- HUD -->
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:13px">
+        <span style="color:#FFD700">⭐ <b id="blast-score">0</b></span>
+        <span style="color:#FF88AA">❤️ <span id="blast-lives">3</span></span>
+        <span style="color:#88DDFF">题 <span id="blast-qnum">1</span>/10</span>
+      </div>
+      <!-- Definition question -->
+      <div id="blast-question" style="color:white;text-align:center;font-size:14px;line-height:1.6;padding:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.15);border-radius:12px;margin-bottom:20px;min-height:60px;display:flex;align-items:center;justify-content:center"></div>
+      <!-- Asteroid buttons grid -->
+      <div id="blast-asteroids" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"></div>
+      <!-- Timer bar -->
+      <div style="height:4px;background:rgba(255,255,255,.1);border-radius:2px;margin-top:16px;overflow:hidden"><div id="blast-timer-bar" style="height:100%;background:linear-gradient(90deg,#FF4466,#FF8800);border-radius:2px;transition:width .1s linear;width:100%"></div></div>
+    </div>
+    <div id="blast-result" style="display:none;margin-top:14px;text-align:center;padding:16px;background:linear-gradient(135deg,#1A1040,#2D0A5A);border-radius:var(--rl)">
+      <div style="font-size:32px;margin-bottom:8px">🚀</div>
+      <div id="blast-result-text" style="color:white;font-weight:700;font-size:15px;margin-bottom:6px"></div>
+      <div id="blast-result-sub" style="color:#AAAACC;font-size:13px;margin-bottom:14px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" style="flex:1;color:white" onclick="buildBlastGame()">🔄 再玩</button>
+        <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🎯 Hangman 猜词 game -->
+  <div class="card" id="fc-hangman-card" style="display:none;margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ctitle" style="margin:0">🎯 猜词游戏</div>
+      <div style="font-size:12px;color:var(--ink3)">题 <span id="hm-qnum">1</span>/<span id="hm-qtotal">8</span></div>
+    </div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">根据含义，拼出词语</div>
+    <!-- Clue (definition + pinyin) -->
+    <div id="hm-clue" style="background:var(--gold-pale);border-radius:10px;padding:12px;text-align:center;margin-bottom:16px;font-size:14px;color:var(--ink2);line-height:1.7"></div>
+    <!-- Blanks -->
+    <div id="hm-blanks" style="text-align:center;margin-bottom:20px;min-height:52px"></div>
+    <!-- Hangman figure -->
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+      <svg id="hm-figure" width="80" height="100" viewBox="0 0 80 100" style="flex-shrink:0">
+        <line x1="10" y1="95" x2="70" y2="95" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="95" x2="20" y2="10" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+        <line x1="20" y1="10" x2="45" y2="10" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+        <line x1="45" y1="10" x2="45" y2="22" stroke="#888" stroke-width="3" stroke-linecap="round"/>
+        <!-- Parts shown on wrong guesses: head, body, L-arm, R-arm, L-leg, R-leg -->
+        <circle id="hm-head" cx="45" cy="30" r="8" stroke="#E74C3C" stroke-width="2.5" fill="none" style="display:none"/>
+        <line id="hm-body" x1="45" y1="38" x2="45" y2="65" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round" style="display:none"/>
+        <line id="hm-larm" x1="45" y1="45" x2="32" y2="56" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round" style="display:none"/>
+        <line id="hm-rarm" x1="45" y1="45" x2="58" y2="56" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round" style="display:none"/>
+        <line id="hm-lleg" x1="45" y1="65" x2="34" y2="80" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round" style="display:none"/>
+        <line id="hm-rleg" x1="45" y1="65" x2="56" y2="80" stroke="#E74C3C" stroke-width="2.5" stroke-linecap="round" style="display:none"/>
+      </svg>
+      <div>
+        <div style="font-size:12px;color:var(--ink3)">错误次数</div>
+        <div id="hm-wrong-count" style="font-size:24px;font-weight:900;color:var(--red)">0</div>
+        <div style="font-size:11px;color:var(--ink3)">最多 6 次</div>
+      </div>
+    </div>
+    <!-- Character choices -->
+    <div id="hm-choices" style="text-align:center;line-height:1"></div>
+    <!-- Result -->
+    <div id="hm-result" style="display:none;margin-top:14px;text-align:center;padding:14px;border-radius:10px"></div>
+  </div>
+
+  <!-- 🎈 Balloon Pop game -->
+  <div class="card" id="fc-balloon-card" style="display:none;margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="ctitle" style="margin:0">🎈 气球爆破</div>
+      <div style="font-size:13px;color:var(--ink3)">⭐ <b id="bp-score">0</b> &nbsp; ❤️ <span id="bp-lives">3</span></div>
+    </div>
+    <div id="bp-definition" style="background:linear-gradient(135deg,#EAF3FF,#D8ECFF);border-radius:12px;padding:14px;text-align:center;font-size:14px;color:var(--ink2);font-weight:600;margin-bottom:16px;min-height:52px;display:flex;align-items:center;justify-content:center"></div>
+    <div style="font-size:11px;color:var(--ink3);text-align:center;margin-bottom:12px">击破含有正确词语的气球！</div>
+    <!-- Balloon stage -->
+    <div id="bp-stage" style="display:flex;justify-content:space-around;align-items:flex-end;min-height:160px;padding:10px 0;flex-wrap:wrap;gap:8px"></div>
+    <div id="bp-result" style="display:none;margin-top:14px;text-align:center;padding:14px">
+      <div style="font-size:28px;margin-bottom:6px">🎉</div>
+      <div id="bp-result-text" style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost" style="flex:1" onclick="buildBalloonGame()">🔄 再玩</button>
+        <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1604,13 +1709,12 @@ function updateFCcompleteBanner(){
   const allDone=fcDone.length>=fcCards.length && fcCards.length>0;
   if(allDone && banner.style.display==='none'){
     banner.style.display='block';
-    const mc = document.getElementById('fc-match-card');
-    if(mc){ mc.style.display='block'; buildMatchGame(); }
+    startFcGames();
     setTimeout(()=>banner.scrollIntoView({behavior:'smooth',block:'nearest'}),120);
   } else if(!allDone){
     banner.style.display='none';
-    const mc = document.getElementById('fc-match-card');
-    if(mc) mc.style.display='none';
+    ['fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
+      .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   }
 }
 
@@ -1661,6 +1765,338 @@ function speakFC(){
   window.speechSynthesis.speak(utter);
 }
 
+// ── FC Game queue ──────────────────────────
+let fcGameQueue = [];
+let fcGameIdx = -1;
+
+function startFcGames(){
+  const enabled = (gameSettings.fcGames && gameSettings.fcGames.length)
+    ? gameSettings.fcGames : ['match','blast','hangman','balloon'];
+  fcGameQueue = enabled;
+  fcGameIdx = -1;
+  fcGameNext();
+}
+function fcGameNext(){
+  ['fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
+  fcGameIdx++;
+  if(fcGameIdx >= fcGameQueue.length){ nav('slides'); return; }
+  const game = fcGameQueue[fcGameIdx];
+  if(game==='match'){
+    const mc=document.getElementById('fc-match-card');
+    if(mc){mc.style.display='block';buildMatchGame();setTimeout(()=>mc.scrollIntoView({behavior:'smooth',block:'nearest'}),50);}
+  } else if(game==='blast'){
+    buildBlastGame();
+  } else if(game==='hangman'){
+    buildHangmanGame();
+  } else if(game==='balloon'){
+    buildBalloonGame();
+  } else {
+    fcGameNext();
+  }
+}
+
+// ── 🚀 BLAST GAME ─────────────────────────
+let blastState = {};
+let blastTimer = null;
+const BLAST_TIME = 12; // seconds per question
+const BLAST_TOTAL = 10;
+
+function buildBlastGame(){
+  if(blastTimer) clearInterval(blastTimer);
+  const card = document.getElementById('fc-blast-card');
+  card.style.display = 'block';
+  document.getElementById('blast-result').style.display = 'none';
+  const pool = fcCards.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  blastState = { pool, qIdx:0, maxQ:Math.min(BLAST_TOTAL, fcCards.length), score:0, lives:3, done:false };
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  showBlastQ();
+}
+
+function showBlastQ(){
+  if(blastTimer) clearInterval(blastTimer);
+  const { pool, qIdx, maxQ, lives } = blastState;
+  if(qIdx >= maxQ || lives <= 0){ endBlastGame(); return; }
+  const correct = pool[qIdx % pool.length];
+  const wrong = pool.filter(c=>c.char!==correct.char);
+  for(let i=wrong.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[wrong[i],wrong[j]]=[wrong[j],wrong[i]];}
+  const opts = [correct, ...wrong.slice(0,3)];
+  for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+  document.getElementById('blast-question').textContent = correct.mean + (correct.ex ? '\n' + correct.ex : '');
+  document.getElementById('blast-score').textContent = blastState.score;
+  document.getElementById('blast-lives').textContent = blastState.lives;
+  document.getElementById('blast-qnum').textContent = (qIdx+1)+'/'+maxQ;
+  const colors = ['#4A1580,#8B35D6','#1A3A80,#3567D6','#2A5020,#45A035','#6A2010,#C04020'];
+  const container = document.getElementById('blast-asteroids');
+  container.innerHTML = opts.map((opt,i)=>{
+    const [c1,c2]=colors[i%colors.length].split(',');
+    return `<button class="blast-asteroid" data-char="${opt.char}" data-correct="${opt.char===correct.char}"
+      onclick="blastTap(this)"
+      style="background:linear-gradient(135deg,${c1},${c2});
+      animation-delay:${i*0.2}s;animation-duration:${2.2+i*0.3}s"
+      >${opt.char}</button>`;
+  }).join('');
+  // Timer
+  let t = BLAST_TIME;
+  document.getElementById('blast-timer-bar').style.width = '100%';
+  blastTimer = setInterval(()=>{
+    t--;
+    document.getElementById('blast-timer-bar').style.width = Math.max(0,(t/BLAST_TIME)*100)+'%';
+    if(t <= 0){
+      clearInterval(blastTimer);
+      blastState.lives--;
+      blastState.qIdx++;
+      // Flash correct asteroid
+      document.querySelectorAll('.blast-asteroid').forEach(b=>{
+        if(b.dataset.correct==='true') b.style.background='linear-gradient(135deg,#006644,#00CC77)';
+        b.disabled = true;
+      });
+      setTimeout(showBlastQ, 1000);
+    }
+  }, 1000);
+}
+
+function blastTap(btn){
+  if(btn.disabled || blastState.done) return;
+  clearInterval(blastTimer);
+  document.querySelectorAll('.blast-asteroid').forEach(b=>b.disabled=true);
+  if(btn.dataset.correct==='true'){
+    btn.classList.add('exploded');
+    btn.style.background = 'linear-gradient(135deg,#006644,#00EE88)';
+    btn.textContent = '💥';
+    blastState.score += 10;
+    blastState.qIdx++;
+    setTimeout(showBlastQ, 700);
+  } else {
+    btn.style.background = 'linear-gradient(135deg,#660000,#EE2222)';
+    btn.style.transform = 'scale(.9)';
+    blastState.lives--;
+    blastState.qIdx++;
+    document.querySelectorAll('.blast-asteroid').forEach(b=>{
+      if(b.dataset.correct==='true'){
+        b.style.background='linear-gradient(135deg,#006644,#00CC77)';
+        b.textContent = '✓ '+b.textContent;
+      }
+    });
+    setTimeout(showBlastQ, 1200);
+  }
+}
+
+function endBlastGame(){
+  if(blastTimer) clearInterval(blastTimer);
+  blastState.done = true;
+  document.getElementById('blast-asteroids').innerHTML = '';
+  document.getElementById('blast-timer-bar').style.width = '0%';
+  const result = document.getElementById('blast-result');
+  const score = blastState.score;
+  const max = blastState.maxQ * 10;
+  document.getElementById('blast-result-text').textContent =
+    score >= max*0.8 ? '🌟 太厉害了！' : score >= max*0.5 ? '👍 不错！' : '💪 继续努力！';
+  document.getElementById('blast-result-sub').textContent =
+    `得分：${score} / ${max}  答对 ${score/10} 题`;
+  result.style.display = 'block';
+}
+
+// ── 🎯 HANGMAN GAME ────────────────────────
+let hmState = {};
+const HM_PARTS = ['hm-head','hm-body','hm-larm','hm-rarm','hm-lleg','hm-rleg'];
+
+function buildHangmanGame(){
+  const card = document.getElementById('fc-hangman-card');
+  card.style.display = 'block';
+  const pool = fcCards.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  hmState = { pool, qIdx:0, maxQ:Math.min(8, pool.length), score:0, wrongCount:0, guessed:[], currentWord:'' };
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  showHangmanQ();
+}
+
+function showHangmanQ(){
+  const { pool, qIdx, maxQ } = hmState;
+  if(qIdx >= maxQ){ endHangmanGame(); return; }
+  const card = pool[qIdx];
+  hmState.currentWord = card.char;
+  hmState.guessed = [];
+  hmState.wrongCount = 0;
+  document.getElementById('hm-qnum').textContent = qIdx+1;
+  document.getElementById('hm-qtotal').textContent = maxQ;
+  document.getElementById('hm-clue').innerHTML =
+    `<div style="font-weight:700;font-size:15px;margin-bottom:4px">${card.mean}</div>
+    ${card.pin ? '<div style="font-size:12px;color:var(--ink3)">拼音提示：'+card.pin+'</div>' : ''}`;
+  // Reset hangman figure
+  HM_PARTS.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  document.getElementById('hm-wrong-count').textContent = '0';
+  document.getElementById('hm-result').style.display = 'none';
+  renderHangmanBlanks();
+  renderHangmanChoices(card.char);
+}
+
+function renderHangmanBlanks(){
+  const word = hmState.currentWord;
+  const guessed = hmState.guessed;
+  document.getElementById('hm-blanks').innerHTML = word.split('').map(ch=>{
+    const revealed = guessed.includes(ch);
+    return `<span class="hm-blank ${revealed?'filled':''}">${revealed?ch:''}</span>`;
+  }).join('');
+}
+
+function renderHangmanChoices(correctWord){
+  // Build choices: all chars from the word + random chars from other words
+  const wordChars = [...new Set(correctWord.split(''))];
+  const allChars = [...new Set(fcCards.flatMap(c=>c.char.split('')))];
+  const wrong = allChars.filter(c=>!wordChars.includes(c));
+  for(let i=wrong.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[wrong[i],wrong[j]]=[wrong[j],wrong[i]];}
+  // Show up to 12 choices total
+  const choices = [...wordChars, ...wrong.slice(0, Math.max(0, 12 - wordChars.length))];
+  for(let i=choices.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[choices[i],choices[j]]=[choices[j],choices[i]];}
+  document.getElementById('hm-choices').innerHTML = choices.map(ch=>
+    `<button class="hm-choice ${hmState.guessed.includes(ch)?'used':''}" onclick="hmGuess('${ch}')">${ch}</button>`
+  ).join('');
+}
+
+function hmGuess(ch){
+  if(hmState.guessed.includes(ch)) return;
+  hmState.guessed.push(ch);
+  const word = hmState.currentWord;
+  const inWord = word.includes(ch);
+  if(!inWord){
+    hmState.wrongCount++;
+    const part = document.getElementById(HM_PARTS[Math.min(hmState.wrongCount-1, HM_PARTS.length-1)]);
+    if(part) part.style.display = '';
+    document.getElementById('hm-wrong-count').textContent = hmState.wrongCount;
+  }
+  renderHangmanBlanks();
+  // Mark choice as used
+  document.querySelectorAll('.hm-choice').forEach(btn=>{
+    if(btn.textContent===ch) btn.classList.add('used');
+  });
+  // Check win
+  const allRevealed = word.split('').every(c=>hmState.guessed.includes(c));
+  if(allRevealed){
+    hmState.score += Math.max(1, 6 - hmState.wrongCount) * 10;
+    showHangmanResult(true);
+  } else if(hmState.wrongCount >= 6){
+    showHangmanResult(false);
+  }
+}
+
+function showHangmanResult(won){
+  const res = document.getElementById('hm-result');
+  const word = hmState.currentWord;
+  res.style.background = won ? '#D4FAE6' : '#FFE0E0';
+  res.style.borderRadius = '10px';
+  res.style.padding = '12px';
+  res.innerHTML = `
+    <div style="font-size:20px;margin-bottom:4px">${won?'🎉':'😢'}</div>
+    <div style="font-weight:700;color:${won?'var(--teal)':'var(--red)'};margin-bottom:8px">
+      ${won?'答对了！':'答案是：'} <span style="font-family:'Noto Serif SC',serif;font-size:18px">${word}</span>
+    </div>
+    <button class="btn btn-teal btn-sm" onclick="hmNextQ()">下一题 →</button>
+  `;
+  res.style.display = 'block';
+}
+
+function hmNextQ(){
+  hmState.qIdx++;
+  if(hmState.qIdx >= hmState.maxQ){ endHangmanGame(); return; }
+  showHangmanQ();
+}
+
+function endHangmanGame(){
+  const score = hmState.score;
+  const max = hmState.maxQ * 60;
+  document.getElementById('hm-result').style.display = 'block';
+  document.getElementById('hm-result').style.background = 'linear-gradient(135deg,var(--teal-l),#D4FAE6)';
+  document.getElementById('hm-result').innerHTML = `
+    <div style="font-size:28px;margin-bottom:6px">🎯</div>
+    <div style="font-weight:700;color:var(--teal);font-size:15px;margin-bottom:4px">游戏完成！得分 ${score}</div>
+    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">答对 ${Math.round(score/50)} 题（满分 ${hmState.maxQ} 题）</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="buildHangmanGame()">🔄 再玩</button>
+      <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+    </div>`;
+  document.getElementById('hm-choices').innerHTML = '';
+}
+
+// ── 🎈 BALLOON POP GAME ────────────────────
+let bpState = {};
+
+const BALLOON_COLORS = [
+  '#FF4466','#FF8800','#33BB55','#4488FF','#AA44FF','#FF44AA','#00BBCC','#FFCC00'
+];
+
+function buildBalloonGame(){
+  const card = document.getElementById('fc-balloon-card');
+  card.style.display = 'block';
+  const pool = fcCards.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  bpState = { pool, qIdx:0, maxQ:Math.min(10, pool.length), score:0, lives:3, done:false };
+  document.getElementById('bp-result').style.display = 'none';
+  card.scrollIntoView({behavior:'smooth',block:'nearest'});
+  showBalloonQ();
+}
+
+function showBalloonQ(){
+  const { pool, qIdx, maxQ, lives } = bpState;
+  if(qIdx >= maxQ || lives <= 0){ endBalloonGame(); return; }
+  const correct = pool[qIdx % pool.length];
+  const wrong = pool.filter(c=>c.char!==correct.char);
+  for(let i=wrong.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[wrong[i],wrong[j]]=[wrong[j],wrong[i]];}
+  const opts = [correct, ...wrong.slice(0,3)];
+  for(let i=opts.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[opts[i],opts[j]]=[opts[j],opts[i]];}
+  document.getElementById('bp-definition').textContent = correct.mean;
+  document.getElementById('bp-score').textContent = bpState.score;
+  document.getElementById('bp-lives').textContent = bpState.lives;
+  const stage = document.getElementById('bp-stage');
+  stage.innerHTML = opts.map((opt,i)=>{
+    const col = BALLOON_COLORS[i % BALLOON_COLORS.length];
+    const delay = (i * 0.4).toFixed(1);
+    const dur = (2.5 + i*0.3).toFixed(1);
+    return `<button class="balloon-btn" data-char="${opt.char}" data-correct="${opt.char===correct.char}"
+      onclick="bpPop(this)"
+      style="background:radial-gradient(circle at 35% 35%, ${col}CC, ${col});
+      animation-delay:${delay}s;animation-duration:${dur}s;
+      box-shadow:0 4px 12px ${col}66"
+      ><span style="font-family:'Noto Serif SC',serif">${opt.char}</span></button>`;
+  }).join('');
+}
+
+function bpPop(btn){
+  if(btn.disabled || bpState.done) return;
+  document.querySelectorAll('.balloon-btn').forEach(b=>b.disabled=true);
+  btn.classList.add('popped');
+  if(btn.dataset.correct==='true'){
+    bpState.score += 10;
+    bpState.qIdx++;
+    setTimeout(showBalloonQ, 600);
+  } else {
+    btn.style.background = '#888';
+    bpState.lives--;
+    document.getElementById('bp-lives').textContent = bpState.lives;
+    // Show correct
+    document.querySelectorAll('.balloon-btn').forEach(b=>{
+      if(b.dataset.correct==='true'){
+        b.style.border = '3px solid var(--teal)';
+        b.style.animation = 'none';
+      }
+    });
+    bpState.qIdx++;
+    setTimeout(showBalloonQ, 1200);
+  }
+}
+
+function endBalloonGame(){
+  bpState.done = true;
+  document.getElementById('bp-stage').innerHTML = '';
+  const score = bpState.score;
+  const max = bpState.maxQ * 10;
+  const res = document.getElementById('bp-result');
+  document.getElementById('bp-result-text').textContent =
+    score >= max*0.8 ? '🌟 太棒了！全部答对！' : score >= max*0.5 ? '👍 答得不错！' : '💪 再接再厉！';
+  res.style.display = 'block';
+}
+
 // ── 词语配配看 matching game ──
 let matchState = { pairs:[], selWord:null, selMean:null, matched:[], wrong:[] };
 
@@ -1705,7 +2141,7 @@ function renderMatchGame(){
       <div style="font-weight:700;color:var(--teal);margin-bottom:12px">配对完成！全部正确！</div>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost" style="flex:1" onclick="buildMatchGame()">🔄 再来一局</button>
-        <button class="btn btn-teal" style="flex:2" onclick="nav('slides')">继续：观看课文简报 →</button>
+        <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
       </div>
     </div>`;
   }
