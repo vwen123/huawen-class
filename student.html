@@ -396,6 +396,32 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .mm-ans-tile{padding:5px 12px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;transition:all .2s;user-select:none;font-family:'Noto Serif SC',serif}
 .mm-ans-tile.sel-ans{background:#FFF9E0;border-color:var(--gold);font-weight:700;box-shadow:0 0 0 2px var(--gold)}
 .mm-ans-tile.used{opacity:.3;pointer-events:none;text-decoration:line-through}
+/* Mind map radial layout */
+.mm-canvas{position:relative;overflow:visible;padding:20px 0;min-height:280px;}
+.mm-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:0;}
+.mm-layout{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;position:relative;z-index:1;}
+.mm-left-col{display:flex;flex-direction:column;gap:20px;align-items:flex-end;padding:16px 50px 16px 8px;}
+.mm-center-col{display:flex;align-items:center;justify-content:center;padding:0 8px;}
+.mm-right-col{display:flex;flex-direction:column;gap:20px;align-items:flex-start;padding:16px 8px 16px 50px;}
+.mm-root-node{background:linear-gradient(135deg,var(--ink),var(--ink2));color:white;padding:10px 20px;border-radius:24px;font-weight:700;font-size:15px;font-family:'Noto Serif SC',serif;box-shadow:0 4px 16px rgba(0,0,0,.22);white-space:nowrap;text-align:center;}
+.mm-br-group{display:flex;align-items:center;gap:12px;}
+.mm-br-group.left{flex-direction:row;}
+.mm-br-group.right{flex-direction:row;}
+.mm-br-label{padding:6px 12px;border-radius:16px;font-weight:700;font-size:12px;font-family:'Noto Serif SC',serif;text-align:center;min-width:60px;white-space:normal;line-height:1.4;border:2px solid transparent;}
+.mm-items-col{display:flex;flex-direction:column;gap:6px;}
+.mm-item-node{padding:5px 10px;border-radius:8px;font-size:12px;font-family:'Noto Serif SC',serif;text-align:center;background:white;border:1.5px solid rgba(0,0,0,.1);line-height:1.4;min-width:72px;}
+.mm-item-node.mm-blank{border:2px dashed #C8C8D0;cursor:pointer;color:var(--ink3);transition:all .2s;}
+.mm-item-node.mm-blank.sel-blank{border-color:var(--gold);background:#FFF9E0;box-shadow:0 0 0 2px var(--gold);}
+.mm-item-node.mm-blank.filled{border-style:solid;border-color:#AAB;color:var(--ink);cursor:pointer;background:#F8F8FC;}
+.mm-item-node.mm-blank.correct-mm{border-color:var(--teal)!important;background:#D4FAE6!important;color:var(--teal)!important;border-style:solid!important;}
+.mm-item-node.mm-blank.wrong-mm{border-color:var(--red)!important;background:#FFE0E0!important;color:var(--red)!important;}
+@media(max-width:600px){
+  .mm-left-col{padding:12px 32px 12px 4px;}
+  .mm-right-col{padding:12px 4px 12px 32px;}
+  .mm-br-label{font-size:11px;min-width:50px;padding:5px 8px;}
+  .mm-item-node{font-size:11px;min-width:58px;padding:4px 8px;}
+  .mm-root-node{font-size:13px;padding:8px 14px;}
+}
 </style>
 </head>
 <body>
@@ -446,14 +472,14 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
     <div class="pstep" id="ps-comp" onclick="navPart('comp')">
       <div class="ps-ic">💬</div>
-      <div class="ps-label"><span class="ps-num">Part 5</span><span class="ps-name">课文理解</span></div>
+      <div class="ps-label"><span class="ps-num">Part 6</span><span class="ps-name">课文理解</span></div>
       <div class="ps-tick">✓</div>
     </div>
     <div class="ps-sep">›</div>
 
     <div class="pstep" id="ps-quiz" onclick="navPart('quiz')">
       <div class="ps-ic">🏆</div>
-      <div class="ps-label"><span class="ps-num">Part 6</span><span class="ps-name">Quiz 竞赛</span></div>
+      <div class="ps-label"><span class="ps-num">Part 7</span><span class="ps-name">Quiz 竞赛</span></div>
       <div class="ps-tick">✓</div>
     </div>
     <div class="ps-sep">›</div>
@@ -769,20 +795,25 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
 <!-- ══ MIND MAP ══ -->
 <div class="page" id="page-mindmap">
-  <div class="ph"><h1>🧠 心智图</h1><p>根据课文内容，将答案拖入心智图的空格中。</p></div>
-  <div class="card">
+  <div class="ph"><h1>🧠 心智图</h1><p>根据课文内容，点选答案再点选空格填入。</p></div>
+  <div class="card" style="overflow:visible">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div id="mm-progress-text" style="font-size:12px;color:var(--ink3)">已填 0 / 0 格</div>
       <div style="font-size:12px;color:var(--ink3)">⭐ <b id="mm-score-disp">0</b></div>
     </div>
-    <!-- Root node -->
-    <div style="text-align:center;margin-bottom:14px">
-      <div id="mm-root-node" style="background:linear-gradient(135deg,var(--ink),var(--ink2));color:white;padding:10px 24px;border-radius:24px;display:inline-block;font-weight:700;font-size:16px;font-family:'Noto Serif SC',serif;box-shadow:0 4px 16px rgba(0,0,0,.18)">—</div>
+    <!-- Radial mind map canvas -->
+    <div id="mm-canvas" class="mm-canvas">
+      <svg id="mm-svg" class="mm-svg"></svg>
+      <div class="mm-layout">
+        <div id="mm-left-col" class="mm-left-col"></div>
+        <div class="mm-center-col">
+          <div id="mm-root-node" class="mm-root-node">—</div>
+        </div>
+        <div id="mm-right-col" class="mm-right-col"></div>
+      </div>
     </div>
-    <!-- Branch grid -->
-    <div id="mm-branches-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
     <!-- Answer bank -->
-    <div id="mm-bank-wrap" style="padding:12px;background:var(--mist);border-radius:12px;border:1.5px dashed var(--border)">
+    <div id="mm-bank-wrap" style="padding:12px;background:var(--mist);border-radius:12px;border:1.5px dashed var(--border);margin-top:16px">
       <div style="font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:8px">💡 点选答案 → 再点选空格填入</div>
       <div id="mm-bank-pool" style="display:flex;flex-wrap:wrap;gap:7px;min-height:34px"></div>
     </div>
@@ -1860,7 +1891,7 @@ function initMindMap(){
     {bg:'#FFE8EE',br:'#F43F5E',tx:'#9B1232'},
     {bg:'#F0FDF4',br:'#22C55E',tx:'#116530'},
   ];
-  // Collect all leaf texts
+  // Collect all leaf/item texts for blanking
   const allLeafs=[];
   mmData.branches.forEach(b=>{
     b.items.forEach(item=>{
@@ -1875,50 +1906,49 @@ function initMindMap(){
   mmBlanks=[]; let bid=0;
   mmSelBlank=null; mmSelAns=null;
 
+  // Set root node
   document.getElementById('mm-root-node').textContent=mmData.title;
-  const grid=document.getElementById('mm-branches-grid');
-  grid.innerHTML='';
-  mmData.branches.forEach((branch,bi)=>{
+
+  // Split branches: first half → right column, second half → left column
+  const total=mmData.branches.length;
+  const rightCount=Math.ceil(total/2);
+  const rightBranches=mmData.branches.slice(0,rightCount);
+  const leftBranches=mmData.branches.slice(rightCount);
+
+  function buildItemHtml(text, brId, col){
+    const isBlank=blankSet.has(text);
+    if(isBlank){
+      const id='mmb'+(bid++);
+      mmBlanks.push({id,answer:text,filledWith:null});
+      const safe=id.replace(/'/g,"\\'");
+      return `<div class="mm-item-node mm-blank" id="${id}" data-br="${brId}" onclick="mmClickBlank('${safe}')" style="border-color:${col.br}88">？</div>`;
+    }
+    return `<div class="mm-item-node" data-br="${brId}" style="border-color:${col.br}44;color:var(--ink2)">${text}</div>`;
+  }
+
+  function buildBranchGroup(branch, bi, side){
     const col=COLS[bi%COLS.length];
-    const card=document.createElement('div');
-    if(bi===mmData.branches.length-1&&mmData.branches.length%2===1) card.style.gridColumn='span 2';
-    card.style.cssText=`background:${col.bg};border:2px solid ${col.br};border-radius:12px;padding:10px;`;
-    let html=`<div style="font-weight:700;color:${col.tx};font-size:12px;margin-bottom:8px;font-family:'Noto Serif SC',serif">${branch.name}</div><div style="display:flex;flex-direction:column;gap:5px">`;
+    const brId='mm-br-'+bi;
+    let itemsHtml='';
     branch.items.forEach(item=>{
-      if(!item.children||!item.children.length){
-        if(blankSet.has(item.text)){
-          const id='mmb'+(bid++);
-          mmBlanks.push({id,answer:item.text,filledWith:null});
-          html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')">？</div>`;
-        } else {
-          html+=`<div style="font-size:11px;padding:5px 8px;background:white;border-radius:6px;color:var(--ink2);line-height:1.5">${item.text}</div>`;
-        }
-      } else {
-        if(blankSet.has(item.text)){
-          const id='mmb'+(bid++);
-          mmBlanks.push({id,answer:item.text,filledWith:null});
-          html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')" style="font-weight:700">？</div>`;
-        } else {
-          html+=`<div style="font-size:11px;font-weight:700;padding:5px 8px;background:white;border-radius:6px;color:var(--ink2)">${item.text}</div>`;
-        }
-        html+=`<div style="margin-left:10px;border-left:2px solid ${col.br};padding-left:7px;display:flex;flex-direction:column;gap:4px">`;
-        item.children.forEach(child=>{
-          if(blankSet.has(child.text)){
-            const id='mmb'+(bid++);
-            mmBlanks.push({id,answer:child.text,filledWith:null});
-            html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')">？</div>`;
-          } else {
-            html+=`<div style="font-size:11px;padding:4px 8px;background:white;border-radius:6px;color:var(--ink2);line-height:1.4">${child.text}</div>`;
-          }
-        });
-        html+='</div>';
+      itemsHtml+=buildItemHtml(item.text,brId,col);
+      if(item.children&&item.children.length){
+        item.children.forEach(child=>{ itemsHtml+=buildItemHtml(child.text,brId,col); });
       }
     });
-    html+='</div>';
-    card.innerHTML=html;
-    grid.appendChild(card);
-  });
-  // Answer bank - use blank index as tile ID to handle duplicate answers
+    const label=`<div class="mm-br-label" id="${brId}" data-color="${col.br}" style="background:${col.bg};color:${col.tx};border-color:${col.br}66">${branch.name}</div>`;
+    const items=`<div class="mm-items-col">${itemsHtml}</div>`;
+    // left side: items on left, label closer to center (on right of items)
+    // right side: label closer to center (on left of items), items on right
+    return `<div class="mm-br-group ${side}">${side==='left'?items+label:label+items}</div>`;
+  }
+
+  const leftCol=document.getElementById('mm-left-col');
+  const rightCol=document.getElementById('mm-right-col');
+  leftCol.innerHTML=leftBranches.map((b,i)=>buildBranchGroup(b,rightCount+i,'left')).join('');
+  rightCol.innerHTML=rightBranches.map((b,i)=>buildBranchGroup(b,i,'right')).join('');
+
+  // Answer bank
   const pool=document.getElementById('mm-bank-pool');
   const bankItems=mmBlanks.map((b,i)=>({ans:b.answer,idx:i})).sort(()=>Math.random()-.5);
   pool.innerHTML=bankItems.map(({ans,idx})=>{
@@ -1928,6 +1958,39 @@ function initMindMap(){
   document.getElementById('mm-result-section').style.display='none';
   document.getElementById('mm-submit-row').style.display='';
   updateMMProgress();
+  // Draw SVG bezier curves after layout renders
+  setTimeout(drawMMLines, 120);
+}
+
+function drawMMLines(){
+  const canvas=document.getElementById('mm-canvas');
+  const svg=document.getElementById('mm-svg');
+  if(!canvas||!svg) return;
+  const cr=canvas.getBoundingClientRect();
+  function mid(el){
+    const r=el.getBoundingClientRect();
+    return {x:r.left-cr.left+r.width/2, y:r.top-cr.top+r.height/2};
+  }
+  const rootEl=document.getElementById('mm-root-node');
+  if(!rootEl) return;
+  const rp=mid(rootEl);
+  let paths='';
+  document.querySelectorAll('.mm-br-label').forEach(br=>{
+    const bp=mid(br);
+    const color=br.dataset.color||'#aaa';
+    const isLeft=bp.x<rp.x;
+    const dx=Math.abs(bp.x-rp.x)*0.55;
+    const c1x=isLeft?rp.x-dx:rp.x+dx;
+    paths+=`<path d="M${rp.x},${rp.y} C${c1x},${rp.y} ${c1x},${bp.y} ${bp.x},${bp.y}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linecap="round" opacity="0.75"/>`;
+    const brId=br.id;
+    document.querySelectorAll(`[data-br="${brId}"].mm-item-node`).forEach(item=>{
+      const ip=mid(item);
+      const dx2=Math.abs(ip.x-bp.x)*0.55;
+      const c2x=isLeft?bp.x-dx2:bp.x+dx2;
+      paths+=`<path d="M${bp.x},${bp.y} C${c2x},${bp.y} ${c2x},${ip.y} ${ip.x},${ip.y}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>`;
+    });
+  });
+  svg.innerHTML=paths;
 }
 
 function mmClickAns(el,ans,idx){
@@ -1946,7 +2009,7 @@ function mmClickBlank(bid){
     if(tile) tile.classList.remove('used');
     b.filledWith=null;
     const el=document.getElementById(bid);
-    if(el){el.textContent='？';el.className='mm-blank';}
+    if(el){el.textContent='？';el.className='mm-item-node mm-blank';}
     mmSelBlank=null; updateMMProgress(); return;
   }
   document.querySelectorAll('.mm-blank').forEach(b=>b.classList.remove('sel-blank'));
@@ -1961,7 +2024,7 @@ function mmDoFill(bid,ansIdx){
   const tile=document.getElementById('mma-'+ansIdx); if(tile) tile.classList.add('used');
   b.filledWith=ansIdx;
   const el=document.getElementById(bid);
-  if(el){el.textContent=srcBlank.answer;el.classList.remove('sel-blank');el.classList.add('filled');}
+  if(el){el.textContent=srcBlank.answer;el.classList.remove('sel-blank');el.classList.add('filled');el.style.borderColor='';}
   mmSelBlank=null; mmSelAns=null;
   document.querySelectorAll('.mm-ans-tile').forEach(t=>t.classList.remove('sel-ans'));
   updateMMProgress();
@@ -4134,6 +4197,7 @@ renderStudents();
 renderCompQ();
 renderLessonText();
 setTimeout(buildCloud,400);
+window.addEventListener('resize',()=>{ if(document.getElementById('page-mindmap').classList.contains('on')) drawMMLines(); });
 
 </script>
 <!-- ══ NAME ENTRY OVERLAY ══ -->
