@@ -817,7 +817,10 @@ function loadUnitList(){
             ${u.gradeName?`<span style="background:var(--teal-l);color:var(--teal);padding:1px 7px;border-radius:10px;font-weight:600;margin-right:4px">${u.gradeName}</span>`:''}${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}
           </div>
         </div>
-        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
+          <button class="btn btn-ghost btn-sm" title="删除单元" onclick="event.stopPropagation();deleteUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}\')" style="color:var(--red);border-color:var(--red);background:transparent;padding:6px 10px;font-size:15px;line-height:1">🗑️</button>
+        </div>
       </div>`).join('');
   });
 }
@@ -838,6 +841,24 @@ function createUnit(){
     showTab('content');
     alert('✅ 单元「'+title+'」建立成功！请填写内容后保存。');
   });
+}
+
+function deleteUnit(id, title){
+  if(!confirm(`确认删除单元「${title}」？\n\n此操作将永久删除该单元的所有内容，无法恢复。`)) return;
+  db.ref('units/' + id).remove().then(() => {
+    // If the deleted unit was selected, clear the selection
+    if(selectedUnitId === id){
+      selectedUnitId = null;
+      selectedUnitTitle = null;
+      document.getElementById('selected-unit-name').textContent = '（未选择）';
+      // Clear content fields
+      ['fc-write','cp-write','qz-write','mm-write','sl-write'].forEach(fid => {
+        const el = document.getElementById(fid);
+        if(el) el.value = '';
+      });
+    }
+    loadUnitList();
+  }).catch(err => alert('删除失败：' + err.message));
 }
 
 // ── Import flashcard Markdown (Q/A format) ──
