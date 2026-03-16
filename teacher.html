@@ -819,7 +819,7 @@ function loadUnitList(){
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
-          <button class="btn btn-ghost btn-sm" title="删除单元" onclick="event.stopPropagation();deleteUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}\')" style="color:var(--red);border-color:var(--red);background:transparent;padding:6px 10px;font-size:15px;line-height:1">🗑️</button>
+          <button title="删除单元" onclick="event.stopPropagation();deleteUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}\')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:14px;padding:4px 6px;opacity:.45;transition:opacity .2s,color .2s" onmouseover="this.style.opacity=1;this.style.color='var(--red)'" onmouseout="this.style.opacity=.45;this.style.color='var(--ink3)'">🗑️</button>
         </div>
       </div>`).join('');
   });
