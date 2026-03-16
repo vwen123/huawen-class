@@ -582,12 +582,13 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div id="fc-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--teal),var(--gold-l));border-radius:3px;width:0%;transition:width .5s ease"></div>
     </div>
 
-    <div style="position:relative">
-      <button onclick="speakFC()" title="读出来" style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(255,255,255,.22);border:1.5px solid rgba(255,255,255,.5);border-radius:50%;width:36px;height:36px;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.38)'" onmouseout="this.style.background='rgba(255,255,255,.22)'">🔊</button>
     <div class="fc-wrap" onclick="flipFC()">
       <div class="fc-inner" id="fc-inner">
         <div class="fc-face fc-front">
-          <div class="fc-char" id="fc-char">五颜六色</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div class="fc-char" id="fc-char">五颜六色</div>
+            <button onclick="event.stopPropagation();speakFC()" title="读出来" style="background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:background .2s;align-self:flex-start;margin-top:6px" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.18)'">🔊</button>
+          </div>
           <div class="fc-pin" id="fc-pin">wǔ yán liù sè</div>
           <div class="fc-hint" style="margin-top:10px">👆 点击翻面看含义</div>
         </div>
@@ -598,7 +599,6 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
         </div>
       </div>
     </div>
-    </div><!-- end position:relative wrapper -->
     <div class="fc-nav">
       <button class="btn btn-ghost btn-sm" onclick="prevFC()">← 上一个</button>
       <div class="fcdots" id="fcdots"></div>
