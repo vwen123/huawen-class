@@ -90,6 +90,9 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 .unit-card{padding:12px 16px;border:1.5px solid var(--border);border-radius:var(--r);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:12px;margin-bottom:8px}
 .unit-card:hover{border-color:var(--red);background:var(--red-l)}
 .unit-card.selected{border-color:var(--red);background:var(--red-l)}
+.unit-card.checked{border-color:var(--red);background:var(--red-l)}
+.uc-cb{width:17px;height:17px;accent-color:var(--red);cursor:pointer;flex-shrink:0;margin:0}
+#bulk-delete-bar{display:none;align-items:center;gap:10px;background:var(--red-l);border:1.5px solid var(--red);border-radius:var(--r);padding:8px 14px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--red)}
 
 /* ── SESSION BANNER ── */
 .session-banner{background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border:1.5px solid var(--teal);border-radius:var(--rl);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -250,11 +253,16 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Unit management -->
       <div class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
-          <div class="ctitle" style="margin-bottom:0">📚 单元列表</div>
-          <button id="delete-unit-btn" onclick="deleteSelectedUnit()" title="删除已选单元"
-            style="display:none;background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:4px 6px;opacity:.5;transition:opacity .2s,color .2s"
-            onmouseover="this.style.opacity=1;this.style.color='var(--red)'" onmouseout="this.style.opacity=.5;this.style.color='var(--ink3)'">🗑️ 删除</button>
+        <div class="ctitle">📚 单元列表</div>
+        <!-- Bulk delete bar — shown when ≥1 checkbox ticked -->
+        <div id="bulk-delete-bar">
+          <span id="bulk-count">已选 0 个单元</span>
+          <label style="margin-left:4px;font-weight:400;color:var(--ink3);cursor:pointer">
+            <input type="checkbox" id="select-all-cb" style="accent-color:var(--red);margin-right:4px" onchange="unitSelectAll(this.checked)">全选
+          </label>
+          <div style="flex:1"></div>
+          <button class="btn btn-red btn-sm" onclick="deleteBulkUnits()">🗑️ 删除所选</button>
+          <button class="btn btn-ghost btn-sm" onclick="unitClearAll()">取消</button>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <select class="wi" id="unit-grade-select" style="flex:1;min-width:130px;max-width:180px">
@@ -815,7 +823,8 @@ function loadUnitList(){
     if(currentGradeFilter) units = units.filter(u => u.gradeId === currentGradeFilter);
     if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>'; return; }
     ul.innerHTML = units.map(u=>`
-      <div class="unit-card ${selectedUnitId===u.id?'selected':''}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
+      <div class="unit-card ${selectedUnitId===u.id?'selected':''}" id="uc-${u.id}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
+        <input type="checkbox" class="uc-cb" data-id="${u.id}" onclick="event.stopPropagation();unitCbChange(this)" title="勾选以批量删除">
         <div style="flex:1">
           <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
           <div style="font-size:11px;color:var(--ink3);margin-top:3px">
@@ -911,18 +920,44 @@ function importQzMarkdown(){
   alert('✅ 已转换 ' + questions.length + ' 道题目');
 }
 
-function deleteSelectedUnit(){
-  if(!selectedUnitId){ return; }
-  if(!confirm(`确认删除单元「${selectedUnitTitle}」？\n\n此操作将永久删除该单元的所有内容，无法恢复。`)) return;
-  const idToDelete = selectedUnitId;
-  db.ref('units/' + idToDelete).remove().then(() => {
-    selectedUnitId = null; selectedUnitTitle = null;
-    const btn = document.getElementById('delete-unit-btn');
-    if(btn) btn.style.display = 'none';
-    document.getElementById('selected-unit-name').textContent = '（未选择）';
-    ['fc-write','cp-write','qz-write','mm-write','sl-write'].forEach(fid => {
-      const el = document.getElementById(fid); if(el) el.value = '';
-    });
+function unitCbChange(cb){
+  const card = document.getElementById('uc-' + cb.dataset.id);
+  if(card) card.classList.toggle('checked', cb.checked);
+  const all = [...document.querySelectorAll('.uc-cb')];
+  const checked = all.filter(c=>c.checked);
+  const bar = document.getElementById('bulk-delete-bar');
+  const sacb = document.getElementById('select-all-cb');
+  if(bar) bar.style.display = checked.length ? 'flex' : 'none';
+  if(sacb){ sacb.checked = checked.length === all.length; sacb.indeterminate = checked.length > 0 && checked.length < all.length; }
+  const cnt = document.getElementById('bulk-count');
+  if(cnt) cnt.textContent = `已选 ${checked.length} 个单元`;
+}
+function unitSelectAll(on){
+  document.querySelectorAll('.uc-cb').forEach(cb=>{ cb.checked = on; unitCbChange(cb); });
+}
+function unitClearAll(){
+  document.querySelectorAll('.uc-cb').forEach(cb=>{ cb.checked = false; const card=document.getElementById('uc-'+cb.dataset.id); if(card) card.classList.remove('checked'); });
+  const bar = document.getElementById('bulk-delete-bar');
+  if(bar) bar.style.display = 'none';
+  const sabc = document.getElementById('select-all-cb');
+  if(sabc){ sabc.checked = false; sabc.indeterminate = false; }
+}
+function deleteBulkUnits(){
+  const checked = [...document.querySelectorAll('.uc-cb:checked')];
+  if(!checked.length) return;
+  const names = checked.map(cb => {
+    const card = document.getElementById('uc-' + cb.dataset.id);
+    return card ? card.querySelector('[style*="font-weight:600"]')?.textContent || cb.dataset.id : cb.dataset.id;
+  });
+  if(!confirm(`确认删除以下 ${checked.length} 个单元？\n\n${names.join('\n')}\n\n此操作无法恢复。`)) return;
+  const deletes = checked.map(cb => db.ref('units/' + cb.dataset.id).remove());
+  Promise.all(deletes).then(() => {
+    const deletedIds = checked.map(cb => cb.dataset.id);
+    if(deletedIds.includes(selectedUnitId)){
+      selectedUnitId = null; selectedUnitTitle = null;
+      document.getElementById('selected-unit-name').textContent = '（未选择）';
+      ['fc-write','cp-write','qz-write','mm-write','sl-write'].forEach(fid => { const el=document.getElementById(fid); if(el) el.value=''; });
+    }
     loadUnitList();
   }).catch(err => alert('删除失败：' + err.message));
 }
@@ -930,8 +965,6 @@ function deleteSelectedUnit(){
 function selectUnit(id, title){
   selectedUnitId    = id;
   selectedUnitTitle = title;
-  const btn = document.getElementById('delete-unit-btn');
-  if(btn) btn.style.display = '';
   // Load content into editor
   db.ref('units/'+id+'/content').once('value', snap=>{
     const c = snap.val() || {};
