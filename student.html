@@ -387,6 +387,15 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .balloon-btn{width:90px;height:110px;border-radius:50% 50% 50% 50%/60% 60% 40% 40%;border:none;cursor:pointer;font-size:12px;font-weight:700;color:white;font-family:'Noto Serif SC',serif;animation:balloon-rise 3s ease-in-out infinite;position:relative;text-shadow:0 1px 2px rgba(0,0,0,.4);transition:filter .15s;padding:8px 4px;display:flex;align-items:center;justify-content:center}
 .balloon-btn:hover{filter:brightness(1.15)}
 .balloon-btn.popped{animation:balloon-pop .35s ease forwards!important}
+/* ── Mind Map ── */
+.mm-blank{border:2px dashed #C8C8D0;border-radius:8px;padding:5px 10px;font-size:12px;min-height:32px;cursor:pointer;transition:all .2s;background:white;color:var(--ink3);text-align:center;display:flex;align-items:center;justify-content:center;line-height:1.4}
+.mm-blank.sel-blank{border-color:var(--gold);background:#FFF9E0;box-shadow:0 0 0 2px var(--gold)}
+.mm-blank.filled{border-style:solid;border-color:#AAB;color:var(--ink);cursor:pointer;background:#F8F8FC}
+.mm-blank.correct-mm{border-color:var(--teal)!important;background:#D4FAE6!important;color:var(--teal)!important;border-style:solid!important}
+.mm-blank.wrong-mm{border-color:var(--red)!important;background:#FFE0E0!important;color:var(--red)!important}
+.mm-ans-tile{padding:5px 12px;background:white;border:1.5px solid var(--border);border-radius:8px;font-size:12px;cursor:pointer;transition:all .2s;user-select:none;font-family:'Noto Serif SC',serif}
+.mm-ans-tile.sel-ans{background:#FFF9E0;border-color:var(--gold);font-weight:700;box-shadow:0 0 0 2px var(--gold)}
+.mm-ans-tile.used{opacity:.3;pointer-events:none;text-decoration:line-through}
 </style>
 </head>
 <body>
@@ -427,6 +436,13 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div class="ps-tick">✓</div>
     </div>
     <div class="ps-sep">›</div>
+
+    <div class="pstep" id="ps-mindmap" onclick="navPart('mindmap')" style="display:none">
+      <div class="ps-ic">🧠</div>
+      <div class="ps-label"><span class="ps-num">Part 5</span><span class="ps-name">心智图</span></div>
+      <div class="ps-tick">✓</div>
+    </div>
+    <div class="ps-sep" id="ps-sep-mindmap" style="display:none">›</div>
 
     <div class="pstep" id="ps-comp" onclick="navPart('comp')">
       <div class="ps-ic">💬</div>
@@ -746,8 +762,36 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       </div>
     </div>
     <div style="margin-top:12px;display:flex;gap:9px">
-      <button class="btn btn-red" onclick="nav('comp')">看完了，开始理解问答 →</button>
+      <button class="btn btn-red" onclick="navAfterSlides()">看完了，继续 →</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ MIND MAP ══ -->
+<div class="page" id="page-mindmap">
+  <div class="ph"><h1>🧠 心智图</h1><p>根据课文内容，将答案拖入心智图的空格中。</p></div>
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <div id="mm-progress-text" style="font-size:12px;color:var(--ink3)">已填 0 / 0 格</div>
+      <div style="font-size:12px;color:var(--ink3)">⭐ <b id="mm-score-disp">0</b></div>
+    </div>
+    <!-- Root node -->
+    <div style="text-align:center;margin-bottom:14px">
+      <div id="mm-root-node" style="background:linear-gradient(135deg,var(--ink),var(--ink2));color:white;padding:10px 24px;border-radius:24px;display:inline-block;font-weight:700;font-size:16px;font-family:'Noto Serif SC',serif;box-shadow:0 4px 16px rgba(0,0,0,.18)">—</div>
+    </div>
+    <!-- Branch grid -->
+    <div id="mm-branches-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"></div>
+    <!-- Answer bank -->
+    <div id="mm-bank-wrap" style="padding:12px;background:var(--mist);border-radius:12px;border:1.5px dashed var(--border)">
+      <div style="font-size:11px;font-weight:600;color:var(--ink3);margin-bottom:8px">💡 点选答案 → 再点选空格填入</div>
+      <div id="mm-bank-pool" style="display:flex;flex-wrap:wrap;gap:7px;min-height:34px"></div>
+    </div>
+    <!-- Submit -->
+    <div id="mm-submit-row" style="margin-top:14px">
+      <button class="btn btn-teal btn-lg" style="width:100%" onclick="submitMindMap()">✅ 提交答案</button>
+    </div>
+    <!-- Result -->
+    <div id="mm-result-section" style="display:none;margin-top:16px"></div>
   </div>
 </div>
 
@@ -1002,6 +1046,12 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
         <div class="co-sect-val" id="cosv-flashcard">—</div>
       </div>
       <div class="co-sect-row">
+        <div class="co-sect-icon">🧠</div>
+        <div class="co-sect-name">心智图</div>
+        <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-mindmap" style="background:#9B5CF6"></div></div>
+        <div class="co-sect-val" id="cosv-mindmap">—</div>
+      </div>
+      <div class="co-sect-row">
         <div class="co-sect-icon">💬</div>
         <div class="co-sect-name">课文理解</div>
         <div class="co-sect-bar-wrap"><div class="co-sect-bar" id="cosb-comp" style="background:var(--teal)"></div></div>
@@ -1054,6 +1104,11 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div style="font-size:32px;margin-bottom:8px">📑</div>
       <div style="font-size:14px;font-weight:700;color:var(--teal)">课文简报</div>
       <div style="font-size:11px;color:var(--ink3);margin-top:4px">重温课文内容</div>
+    </div>
+    <div onclick="nav('mindmap')" id="review-mindmap-tile" style="display:none;background:linear-gradient(135deg,#F5EEFF,#EDE0FF);border:1.5px solid #9B5CF6;border-radius:var(--rl);padding:22px 12px;text-align:center;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
+      <div style="font-size:32px;margin-bottom:8px">🧠</div>
+      <div style="font-size:14px;font-weight:700;color:#6027A8">心智图</div>
+      <div style="font-size:11px;color:var(--ink3);margin-top:4px">复习心智图</div>
     </div>
     <div onclick="nav('comp')" style="background:linear-gradient(135deg,#FFF8E1,#FFF3CB);border:1.5px solid #E8A800;border-radius:var(--rl);padding:22px 12px;text-align:center;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.03)'" onmouseout="this.style.transform=''">
       <div style="font-size:32px;margin-bottom:8px">💬</div>
@@ -1336,6 +1391,7 @@ const PARTS=[
   {id:'reading', icon:'🎙', label:'朗读'},
   {id:'flashcard',icon:'📖', label:'词语'},
   {id:'slides',  icon:'📑', label:'简报'},
+  {id:'mindmap', icon:'🧠', label:'心智图'},
   {id:'comp',    icon:'💬', label:'理解'},
   {id:'quiz',    icon:'🏆', label:'Quiz'},
   {id:'checkout',icon:'☁️', label:'Check Out'},
@@ -1394,6 +1450,7 @@ function nav(id){
     if(btn){btn.disabled=false;btn.textContent='完成今天的学习，查看成绩 🎉';}
   }
   if(id==='slides')renderSlidesForStudent();
+  if(id==='mindmap') initMindMap();
 
   const isStudentPage=PARTS.some(p=>p.id===id) || id==='review';
   const teacherPages=['dashboard','progress','manage'];
@@ -1417,6 +1474,10 @@ function nav(id){
 }
 
 function navPart(id){ nav(id); }
+
+function navAfterSlides(){
+  if(mmData){ nav('mindmap'); } else { nav('comp'); }
+}
 
 function setRole(r){
   role=r;
@@ -1762,6 +1823,182 @@ function speakFC(){
   utter.lang = 'zh-CN';
   utter.rate = 0.9;
   window.speechSynthesis.speak(utter);
+}
+
+// ── 🧠 MIND MAP ──────────────────────────────
+function parseMindmapMd(md){
+  if(!md||!md.trim()) return null;
+  const lines=md.split('\n');
+  const root={title:'',branches:[]};
+  let curBranch=null,curItem=null;
+  for(const line of lines){
+    if(!line.trim()) continue;
+    if(/^#\s/.test(line)&&!/^##/.test(line)){
+      root.title=line.replace(/^#\s+/,'').trim();
+    } else if(/^##\s/.test(line)){
+      curBranch={name:line.replace(/^##\s+/,'').trim(),items:[]};
+      root.branches.push(curBranch); curItem=null;
+    } else if(/^- /.test(line)&&!/^\s+- /.test(line)){
+      curItem={text:line.replace(/^- /,'').trim(),children:[]};
+      if(curBranch) curBranch.items.push(curItem);
+    } else if(/^\s+- /.test(line)){
+      const t=line.replace(/^\s+- /,'').trim();
+      if(curItem) curItem.children.push({text:t});
+      else if(curBranch) curBranch.items.push({text:t,children:[]});
+    }
+  }
+  return root.title?root:null;
+}
+
+function initMindMap(){
+  if(!mmData){ setTimeout(()=>nav('comp'),100); return; }
+  const COLS=[
+    {bg:'#EAF3FF',br:'#4488FF',tx:'#1A4FAA'},
+    {bg:'#F5EEFF',br:'#9B5CF6',tx:'#6027A8'},
+    {bg:'#FFF4E0',br:'#F59E0B',tx:'#92580A'},
+    {bg:'#E0FAF4',br:'#14B8A6',tx:'#0C6E64'},
+    {bg:'#FFE8EE',br:'#F43F5E',tx:'#9B1232'},
+    {bg:'#F0FDF4',br:'#22C55E',tx:'#116530'},
+  ];
+  // Collect all leaf texts
+  const allLeafs=[];
+  mmData.branches.forEach(b=>{
+    b.items.forEach(item=>{
+      if(!item.children||!item.children.length) allLeafs.push(item.text);
+      else item.children.forEach(c=>allLeafs.push(c.text));
+    });
+  });
+  // Pick blanks (45%, min 3, max 12)
+  const n=Math.max(3,Math.min(12,Math.round(allLeafs.length*.45)));
+  const shuffled=allLeafs.slice().sort(()=>Math.random()-.5);
+  const blankSet=new Set(shuffled.slice(0,n));
+  mmBlanks=[]; let bid=0;
+  mmSelBlank=null; mmSelAns=null;
+
+  document.getElementById('mm-root-node').textContent=mmData.title;
+  const grid=document.getElementById('mm-branches-grid');
+  grid.innerHTML='';
+  mmData.branches.forEach((branch,bi)=>{
+    const col=COLS[bi%COLS.length];
+    const card=document.createElement('div');
+    if(bi===mmData.branches.length-1&&mmData.branches.length%2===1) card.style.gridColumn='span 2';
+    card.style.cssText=`background:${col.bg};border:2px solid ${col.br};border-radius:12px;padding:10px;`;
+    let html=`<div style="font-weight:700;color:${col.tx};font-size:12px;margin-bottom:8px;font-family:'Noto Serif SC',serif">${branch.name}</div><div style="display:flex;flex-direction:column;gap:5px">`;
+    branch.items.forEach(item=>{
+      if(!item.children||!item.children.length){
+        if(blankSet.has(item.text)){
+          const id='mmb'+(bid++);
+          mmBlanks.push({id,answer:item.text,filledWith:null});
+          html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')">？</div>`;
+        } else {
+          html+=`<div style="font-size:11px;padding:5px 8px;background:white;border-radius:6px;color:var(--ink2);line-height:1.5">${item.text}</div>`;
+        }
+      } else {
+        if(blankSet.has(item.text)){
+          const id='mmb'+(bid++);
+          mmBlanks.push({id,answer:item.text,filledWith:null});
+          html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')" style="font-weight:700">？</div>`;
+        } else {
+          html+=`<div style="font-size:11px;font-weight:700;padding:5px 8px;background:white;border-radius:6px;color:var(--ink2)">${item.text}</div>`;
+        }
+        html+=`<div style="margin-left:10px;border-left:2px solid ${col.br};padding-left:7px;display:flex;flex-direction:column;gap:4px">`;
+        item.children.forEach(child=>{
+          if(blankSet.has(child.text)){
+            const id='mmb'+(bid++);
+            mmBlanks.push({id,answer:child.text,filledWith:null});
+            html+=`<div class="mm-blank" id="${id}" onclick="mmClickBlank('${id}')">？</div>`;
+          } else {
+            html+=`<div style="font-size:11px;padding:4px 8px;background:white;border-radius:6px;color:var(--ink2);line-height:1.4">${child.text}</div>`;
+          }
+        });
+        html+='</div>';
+      }
+    });
+    html+='</div>';
+    card.innerHTML=html;
+    grid.appendChild(card);
+  });
+  // Answer bank - use blank index as tile ID to handle duplicate answers
+  const pool=document.getElementById('mm-bank-pool');
+  const bankItems=mmBlanks.map((b,i)=>({ans:b.answer,idx:i})).sort(()=>Math.random()-.5);
+  pool.innerHTML=bankItems.map(({ans,idx})=>{
+    const safe=ans.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    return `<div class="mm-ans-tile" id="mma-${idx}" onclick="mmClickAns(this,'${safe}',${idx})">${ans}</div>`;
+  }).join('');
+  document.getElementById('mm-result-section').style.display='none';
+  document.getElementById('mm-submit-row').style.display='';
+  updateMMProgress();
+}
+
+function mmClickAns(el,ans,idx){
+  document.querySelectorAll('.mm-ans-tile').forEach(t=>t.classList.remove('sel-ans'));
+  if(mmSelAns===idx){ mmSelAns=null; return; }
+  mmSelAns=idx; el.classList.add('sel-ans');
+  if(mmSelBlank!==null) mmDoFill(mmSelBlank,idx);
+}
+
+function mmClickBlank(bid){
+  const b=mmBlanks.find(x=>x.id===bid);
+  if(!b) return;
+  if(b.filledWith!==null){
+    // Return answer to bank
+    const tile=document.getElementById('mma-'+b.filledWith);
+    if(tile) tile.classList.remove('used');
+    b.filledWith=null;
+    const el=document.getElementById(bid);
+    if(el){el.textContent='？';el.className='mm-blank';}
+    mmSelBlank=null; updateMMProgress(); return;
+  }
+  document.querySelectorAll('.mm-blank').forEach(b=>b.classList.remove('sel-blank'));
+  const el=document.getElementById(bid); if(el) el.classList.add('sel-blank');
+  mmSelBlank=bid;
+  if(mmSelAns!==null) mmDoFill(bid,mmSelAns);
+}
+
+function mmDoFill(bid,ansIdx){
+  const b=mmBlanks.find(x=>x.id===bid); if(!b) return;
+  const srcBlank=mmBlanks[ansIdx]; if(!srcBlank) return;
+  const tile=document.getElementById('mma-'+ansIdx); if(tile) tile.classList.add('used');
+  b.filledWith=ansIdx;
+  const el=document.getElementById(bid);
+  if(el){el.textContent=srcBlank.answer;el.classList.remove('sel-blank');el.classList.add('filled');}
+  mmSelBlank=null; mmSelAns=null;
+  document.querySelectorAll('.mm-ans-tile').forEach(t=>t.classList.remove('sel-ans'));
+  updateMMProgress();
+  if(mmBlanks.every(x=>x.filledWith!==null)) setTimeout(submitMindMap,400);
+}
+
+function updateMMProgress(){
+  const done=mmBlanks.filter(b=>b.filledWith!==null).length;
+  document.getElementById('mm-progress-text').textContent=`已填 ${done} / ${mmBlanks.length} 格`;
+}
+
+function submitMindMap(){
+  let correct=0;
+  mmBlanks.forEach(b=>{
+    const el=document.getElementById(b.id);
+    const filledAns=b.filledWith!==null?mmBlanks[b.filledWith].answer:null;
+    const right=filledAns===b.answer;
+    if(right) correct++;
+    if(el) el.classList.add(right?'correct-mm':'wrong-mm');
+  });
+  const score=mmBlanks.length>0?Math.round(correct/mmBlanks.length*100):0;
+  setScore('mindmap',score);
+  document.getElementById('mm-submit-row').style.display='none';
+  const res=document.getElementById('mm-result-section');
+  res.innerHTML=`
+    <div style="background:linear-gradient(135deg,var(--teal-l),#D4FAE6);border-radius:12px;padding:16px;text-align:center;margin-bottom:14px">
+      <div style="font-size:24px;margin-bottom:6px">${score>=80?'🌟':score>=60?'👍':'💪'}</div>
+      <div style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:2px">答对 ${correct} / ${mmBlanks.length} 格</div>
+      <div style="font-size:12px;color:var(--ink3)">得分：${score}</div>
+    </div>
+    <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">✅ 正确答案</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
+      ${mmBlanks.map(b=>{const fa=b.filledWith!==null?mmBlanks[b.filledWith].answer:null;return `<div style="padding:4px 12px;background:${fa===b.answer?'#D4FAE6':'#FFE0E0'};border:1px solid ${fa===b.answer?'var(--teal)':'var(--red)'};border-radius:8px;font-size:12px;font-family:'Noto Serif SC',serif">${b.answer}</div>`}).join('')}
+    </div>
+    <button class="btn btn-teal btn-lg" style="width:100%" onclick="nav('comp')">继续：课文理解 →</button>`;
+  res.style.display='block';
+  res.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 // ── FC Game queue ──────────────────────────
@@ -2956,8 +3193,12 @@ function buildCloud(){
 // ══════════════════════════════════════
 //  SCORE ENGINE
 // ══════════════════════════════════════
-const SCORE_WEIGHTS={reading:25,flashcard:25,comp:20,quiz:20,checkout:10};
-let studentScores={reading:null,flashcard:null,comp:null,quiz:null,checkout:null};
+const SCORE_WEIGHTS={reading:25,flashcard:25,mindmap:15,comp:15,quiz:20,checkout:10};
+let studentScores={reading:null,flashcard:null,mindmap:null,comp:null,quiz:null,checkout:null};
+let mmData = null; // parsed mind map tree
+let mmBlanks = []; // [{id, answer, filledWith}]
+let mmSelBlank = null; // currently selected blank id
+let mmSelAns = null;   // currently selected answer string
 
 function setScore(section, raw100){
   studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
@@ -2971,7 +3212,7 @@ function calcTotal(s){
   return wt>0?Math.round(ws/wt):0;
 }
 function refreshScoreReport(){
-  const sections=['reading','flashcard','comp','quiz','checkout'];
+  const sections=['reading','flashcard','mindmap','comp','quiz','checkout'];
   let ws=0,wt=0;
   sections.forEach(s=>{
     const raw=studentScores[s];
@@ -3012,6 +3253,8 @@ function buildLearningAnalysis(total){
       tips: ['发音准确、朗读流利，表现非常棒！', '朗读基本流利，可多注意语气和停顿。', '朗读还需加强，建议放学后大声朗读课文2~3遍，注意生字发音。'] },
     { key:'flashcard', icon:'📖', label:'词语学习',
       tips: ['词语掌握非常扎实，认识了所有新词！', '大部分词语已掌握，可以把陌生的词再写一遍加深记忆。', '词语还需多练习，建议用词卡反复复习，每天认几个新字。'] },
+    { key:'mindmap',   icon:'🧠', label:'心智图',
+      tips: ['心智图填写非常准确，课文结构掌握得很好！', '大部分空格填对了，可以再复习一下课文的关键词。', '心智图需要多练习，建议重读课文，梳理各段的主要内容。'] },
     { key:'comp',      icon:'💬', label:'课文理解',
       tips: ['理解能力很强，答题准确，读懂了课文内容！', '理解题表现不错，注意审题，别漏掉关键细节。', '课文理解需加强，建议重新读一遍课文，圈出重要句子再作答。'] },
     { key:'quiz',      icon:'🏆', label:'Quiz竞赛',
@@ -3116,7 +3359,8 @@ function showCompletionBanner(name, total){
 
 function showNameOverlay(){
   // Reset for next student
-  studentScores={reading:null,flashcard:null,comp:null,quiz:null,checkout:null};
+  studentScores={reading:null,flashcard:null,mindmap:null,comp:null,quiz:null,checkout:null};
+  mmData=null; mmBlanks=[]; mmSelBlank=null; mmSelAns=null;
   fcDone=[];
   completedParts.clear();
   qgState={...qgState,name:'',score:0,qIdx:0,combo:0,maxCombo:0,correct:0};
@@ -3739,6 +3983,24 @@ function applyUnitContent(content){
     compQs = content.compQs; compIdx=0; compMarks=[];
   }
   if(content.slidesUrl) slidesUrl = content.slidesUrl;
+  if(content.mmMarkdown && content.mmMarkdown.trim()){
+    mmData = parseMindmapMd(content.mmMarkdown);
+    // Show mindmap step in part-bar if mm data exists
+    const mmStep = document.getElementById('ps-mindmap');
+    const mmSep  = document.getElementById('ps-sep-mindmap');
+    if(mmStep) mmStep.style.display = '';
+    if(mmSep)  mmSep.style.display  = '';
+    // Renumber comp step
+    const compStep = document.getElementById('ps-comp');
+    if(compStep){
+      const num = compStep.querySelector('.ps-num');
+      if(num) num.textContent = mmData ? 'Part 6' : 'Part 5';
+    }
+    const reviewTile = document.getElementById('review-mindmap-tile');
+    if(reviewTile) reviewTile.style.display = '';
+  } else {
+    mmData = null;
+  }
   if(content.gameSettings){
     Object.assign(gameSettings, content.gameSettings);
   }
