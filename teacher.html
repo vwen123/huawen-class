@@ -250,7 +250,12 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Unit management -->
       <div class="card">
-        <div class="ctitle">📚 单元列表</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0">
+          <div class="ctitle" style="margin-bottom:0">📚 单元列表</div>
+          <button id="delete-unit-btn" onclick="deleteSelectedUnit()" title="删除已选单元"
+            style="display:none;background:none;border:none;cursor:pointer;color:var(--ink3);font-size:13px;padding:4px 6px;opacity:.5;transition:opacity .2s,color .2s"
+            onmouseover="this.style.opacity=1;this.style.color='var(--red)'" onmouseout="this.style.opacity=.5;this.style.color='var(--ink3)'">🗑️ 删除</button>
+        </div>
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <select class="wi" id="unit-grade-select" style="flex:1;min-width:130px;max-width:180px">
             <option value="">选择年级（选填）</option>
@@ -817,10 +822,7 @@ function loadUnitList(){
             ${u.gradeName?`<span style="background:var(--teal-l);color:var(--teal);padding:1px 7px;border-radius:10px;font-weight:600;margin-right:4px">${u.gradeName}</span>`:''}${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
-          <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
-          <button title="删除单元" onclick="event.stopPropagation();deleteUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}\')" style="background:none;border:none;cursor:pointer;color:var(--ink3);font-size:14px;padding:4px 6px;opacity:.45;transition:opacity .2s,color .2s" onmouseover="this.style.opacity=1;this.style.color='var(--red)'" onmouseout="this.style.opacity=.45;this.style.color='var(--ink3)'">🗑️</button>
-        </div>
+        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
       </div>`).join('');
   });
 }
@@ -843,23 +845,6 @@ function createUnit(){
   });
 }
 
-function deleteUnit(id, title){
-  if(!confirm(`确认删除单元「${title}」？\n\n此操作将永久删除该单元的所有内容，无法恢复。`)) return;
-  db.ref('units/' + id).remove().then(() => {
-    // If the deleted unit was selected, clear the selection
-    if(selectedUnitId === id){
-      selectedUnitId = null;
-      selectedUnitTitle = null;
-      document.getElementById('selected-unit-name').textContent = '（未选择）';
-      // Clear content fields
-      ['fc-write','cp-write','qz-write','mm-write','sl-write'].forEach(fid => {
-        const el = document.getElementById(fid);
-        if(el) el.value = '';
-      });
-    }
-    loadUnitList();
-  }).catch(err => alert('删除失败：' + err.message));
-}
 
 // ── Import flashcard Markdown (Q/A format) ──
 function importFcMarkdown(){
@@ -926,9 +911,27 @@ function importQzMarkdown(){
   alert('✅ 已转换 ' + questions.length + ' 道题目');
 }
 
+function deleteSelectedUnit(){
+  if(!selectedUnitId){ return; }
+  if(!confirm(`确认删除单元「${selectedUnitTitle}」？\n\n此操作将永久删除该单元的所有内容，无法恢复。`)) return;
+  const idToDelete = selectedUnitId;
+  db.ref('units/' + idToDelete).remove().then(() => {
+    selectedUnitId = null; selectedUnitTitle = null;
+    const btn = document.getElementById('delete-unit-btn');
+    if(btn) btn.style.display = 'none';
+    document.getElementById('selected-unit-name').textContent = '（未选择）';
+    ['fc-write','cp-write','qz-write','mm-write','sl-write'].forEach(fid => {
+      const el = document.getElementById(fid); if(el) el.value = '';
+    });
+    loadUnitList();
+  }).catch(err => alert('删除失败：' + err.message));
+}
+
 function selectUnit(id, title){
   selectedUnitId    = id;
   selectedUnitTitle = title;
+  const btn = document.getElementById('delete-unit-btn');
+  if(btn) btn.style.display = '';
   // Load content into editor
   db.ref('units/'+id+'/content').once('value', snap=>{
     const c = snap.val() || {};
