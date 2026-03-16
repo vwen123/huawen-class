@@ -428,7 +428,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
 <nav class="topnav" id="hud-topnav-wrap">
   <div class="brand">🏮 华文学习系统</div>
-  <div class="lesson-info">当前课文：<strong id="lesson-title">第三课《春天来了》</strong></div>
+  <div class="lesson-info">当前课文：<strong id="lesson-title">—</strong></div>
   </nav>
 
 <!-- ══ STUDENT PART STEPPER ══ -->
@@ -1900,7 +1900,7 @@ function initMindMap(){
     });
   });
   // Pick blanks (45%, min 3, max 12)
-  const n=Math.max(3,Math.min(12,Math.round(allLeafs.length*.45)));
+  const n=Math.min(8,allLeafs.length);
   const shuffled=allLeafs.slice().sort(()=>Math.random()-.5);
   const blankSet=new Set(shuffled.slice(0,n));
   mmBlanks=[]; let bid=0;

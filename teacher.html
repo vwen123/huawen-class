@@ -142,6 +142,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
     <div class="tab" id="tab-progress"  onclick="showTab('progress')">👥 学生进度</div>
     <div class="tab" id="tab-units"     onclick="showTab('units')">📚 单元管理</div>
     <div class="tab" id="tab-content"   onclick="showTab('content')">✏️ 编辑内容</div>
+    <div class="tab" id="tab-tools"     onclick="showTab('tools')">🎲 课堂工具</div>
   </div>
 
   <div class="main">
@@ -395,6 +396,47 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
       </div>
     </div>
 
+    <!-- ══ TOOLS ══ -->
+    <div class="screen" id="screen-tools">
+
+      <!-- Lucky Draw -->
+      <div class="card">
+        <div class="ctitle">🎲 抽签系统</div>
+        <div id="draw-no-session" style="font-size:13px;color:var(--ink3);text-align:center;padding:14px">请先开课，学生加入后才能抽签</div>
+        <div id="draw-panel" style="display:none">
+          <div id="draw-roster" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:48px"></div>
+          <div id="draw-result" style="display:none;text-align:center;padding:18px 12px;background:linear-gradient(135deg,var(--gold-pale),#FFF3C0);border-radius:14px;margin-bottom:16px;border:2px solid var(--gold)">
+            <div style="font-size:36px" id="draw-result-av">🐯</div>
+            <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;color:var(--ink);margin-top:6px" id="draw-result-name">—</div>
+            <div style="font-size:12px;color:var(--ink3);margin-top:4px">恭喜被抽中！</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <button class="btn btn-red" style="flex:1;min-width:140px;font-size:15px;padding:12px" onclick="doLuckyDraw()">🎲 开始抽签</button>
+            <button class="btn btn-ghost" style="font-size:13px;padding:12px 18px" onclick="resetDraw()">↺ 重置</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Timer -->
+      <div class="card">
+        <div class="ctitle">⏱️ 计时器</div>
+        <div style="text-align:center;padding:10px 0 20px">
+          <div id="timer-display" style="font-family:'Noto Serif SC',serif;font-size:64px;font-weight:700;color:var(--ink);letter-spacing:4px;line-height:1">05:00</div>
+          <div id="timer-status" style="font-size:13px;color:var(--ink3);margin-top:6px">等待开始</div>
+        </div>
+        <div style="display:flex;justify-content:center;align-items:center;gap:12px;margin-bottom:18px">
+          <button class="btn btn-ghost" style="font-size:20px;width:48px;height:48px;padding:0;justify-content:center;border-radius:50%" onclick="timerAdjust(-60)">−</button>
+          <span style="font-size:12px;color:var(--ink3);min-width:48px;text-align:center">1 分钟</span>
+          <button class="btn btn-ghost" style="font-size:20px;width:48px;height:48px;padding:0;justify-content:center;border-radius:50%" onclick="timerAdjust(60)">＋</button>
+        </div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-teal" id="timer-start-btn" style="min-width:100px;font-size:15px;padding:12px 20px" onclick="timerToggle()">▶ 开始</button>
+          <button class="btn btn-ghost" style="font-size:14px;padding:12px 18px" onclick="timerReset()">↺ 重置</button>
+        </div>
+      </div>
+
+    </div>
+
   </div><!-- /main -->
 </div><!-- /app -->
 
@@ -610,6 +652,8 @@ function refreshAllViews(){
   renderDashboard();
   const prog = document.getElementById('screen-progress');
   if(prog.classList.contains('on')) renderStudents();
+  const tools = document.getElementById('screen-tools');
+  if(tools && tools.classList.contains('on')) refreshDrawPanel();
 }
 
 // ══════════════════════════════════════
@@ -1029,7 +1073,145 @@ function showTab(id){
   document.getElementById('screen-'+id).classList.add('on');
   if(id==='progress') renderStudents();
   if(id==='units'){ loadGradeList(); loadUnitList(); }
+  if(id==='tools') refreshDrawPanel();
 }
+
+// ══════════════════════════════════════
+//  LUCKY DRAW
+// ══════════════════════════════════════
+let drawPool = [];
+let drawnNames = new Set();
+
+function refreshDrawPanel(){
+  const students = studentRegistry.map(s => s.name);
+  const noSession = document.getElementById('draw-no-session');
+  const panel     = document.getElementById('draw-panel');
+  if(!currentSession || students.length === 0){
+    noSession.style.display = '';
+    panel.style.display = 'none';
+    return;
+  }
+  noSession.style.display = 'none';
+  panel.style.display = '';
+  if(drawPool.length === 0) drawPool = [...students];
+  renderDrawRoster();
+}
+
+function renderDrawRoster(){
+  const pool = document.getElementById('draw-roster');
+  if(!pool) return;
+  pool.innerHTML = studentRegistry.map(s => {
+    const picked = drawnNames.has(s.name);
+    return `<div style="padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600;border:2px solid ${picked?'#ccc':'var(--teal)'};background:${picked?'#f0f0f0':'var(--teal-l)'};color:${picked?'#aaa':'var(--teal)'};${picked?'text-decoration:line-through':''};transition:all .2s">${s.av||'🐯'} ${s.name}</div>`;
+  }).join('');
+}
+
+function doLuckyDraw(){
+  const available = studentRegistry.filter(s => !drawnNames.has(s.name));
+  if(available.length === 0){
+    alert('所有同学都被抽过了！请点「重置」重新开始。'); return;
+  }
+  // Spinning animation
+  const nameEl = document.getElementById('draw-result-name');
+  const avEl   = document.getElementById('draw-result-av');
+  const result = document.getElementById('draw-result');
+  result.style.display = 'block';
+  let spins = 0; const total = 18;
+  const iv = setInterval(()=>{
+    const r = available[Math.floor(Math.random()*available.length)];
+    nameEl.textContent = r.name; avEl.textContent = r.av||'🐯';
+    spins++;
+    if(spins >= total){
+      clearInterval(iv);
+      const winner = available[Math.floor(Math.random()*available.length)];
+      nameEl.textContent = winner.name; avEl.textContent = winner.av||'🐯';
+      drawnNames.add(winner.name);
+      renderDrawRoster();
+      result.style.animation = 'none'; void result.offsetWidth;
+      result.style.animation = 'drawPop .4s cubic-bezier(.17,.67,.35,1.4)';
+    }
+  }, 80);
+}
+
+function resetDraw(){
+  drawnNames.clear();
+  document.getElementById('draw-result').style.display = 'none';
+  renderDrawRoster();
+}
+
+// ══════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════
+let timerSecs = 300;   // 5 minutes default
+let timerRunning = false;
+let timerInterval = null;
+let timerOrigSecs = 300;
+
+function timerRender(){
+  const m = Math.floor(Math.abs(timerSecs)/60).toString().padStart(2,'0');
+  const s = (Math.abs(timerSecs)%60).toString().padStart(2,'0');
+  const neg = timerSecs < 0 ? '-' : '';
+  const el = document.getElementById('timer-display');
+  if(el){
+    el.textContent = neg + m + ':' + s;
+    el.style.color = timerSecs <= 0 ? 'var(--red)' : 'var(--ink)';
+  }
+}
+
+function timerToggle(){
+  if(timerRunning){
+    clearInterval(timerInterval); timerRunning = false;
+    document.getElementById('timer-start-btn').textContent = '▶ 继续';
+    document.getElementById('timer-status').textContent = '已暂停';
+  } else {
+    timerRunning = true;
+    document.getElementById('timer-start-btn').textContent = '⏸ 暂停';
+    document.getElementById('timer-status').textContent = '计时中…';
+    timerInterval = setInterval(()=>{
+      timerSecs--;
+      timerRender();
+      if(timerSecs === 0) timerPlaySound();
+    }, 1000);
+  }
+}
+
+function timerReset(){
+  clearInterval(timerInterval); timerRunning = false;
+  timerSecs = timerOrigSecs;
+  timerRender();
+  document.getElementById('timer-start-btn').textContent = '▶ 开始';
+  document.getElementById('timer-status').textContent = '等待开始';
+}
+
+function timerAdjust(delta){
+  timerOrigSecs = Math.max(60, timerOrigSecs + delta);
+  if(!timerRunning){ timerSecs = timerOrigSecs; timerRender(); }
+}
+
+function timerPlaySound(){
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.35, 0.7].forEach(delay => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.6, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.6);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.6);
+    });
+  } catch(e){}
+  document.getElementById('timer-status').textContent = '⏰ 时间到！';
+}
+
+// Add draw animation CSS
+(()=>{
+  const s = document.createElement('style');
+  s.textContent = '@keyframes drawPop{0%{transform:scale(.8);opacity:.5}70%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}';
+  document.head.appendChild(s);
+})();
 
 // ── Shake animation ──
 const style=document.createElement('style');
