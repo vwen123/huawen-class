@@ -3248,6 +3248,7 @@ function addWord(){
 }
 function buildCloud(){
   const canvas=document.getElementById('wc-canvas');
+  if(!canvas) return;
   canvas.innerHTML='';
   const W=canvas.offsetWidth||600, H=320;
   const placed=[];
