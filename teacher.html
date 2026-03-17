@@ -219,7 +219,10 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Check-in live panel -->
       <div class="card" id="ci-live-card" style="display:none">
-        <div class="ctitle">👋 Check In 情况</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <div class="ctitle" style="margin:0">👋 Check In 情况</div>
+          <button onclick="resetCheckIn()" title="清除学生回答" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;color:var(--ink3)">↺ 重置</button>
+        </div>
         <div id="ci-mood-dist" style="margin-bottom:14px"></div>
         <div id="ci-q1-wrap" style="display:none;margin-bottom:12px">
           <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px" id="ci-q1-label">—</div>
@@ -233,8 +236,9 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Check-out live panel -->
       <div class="card" id="co-live-card" style="display:none">
-        <div style="margin-bottom:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
           <div class="ctitle" style="margin:0">☁️ Check Out 反馈</div>
+          <button onclick="resetCheckOut()" title="清除学生回答" style="background:none;border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:13px;cursor:pointer;color:var(--ink3)">↺ 重置</button>
         </div>
         <!-- Thumbs distribution -->
         <div id="co-thumbs-dist" style="display:flex;gap:8px;margin-bottom:16px"></div>
@@ -1334,6 +1338,26 @@ const MOOD_LIST = [
 ];
 const WC_COLORS = ['#F0C040','#5DCAA5','#E74C3C','#9B59B6','#3498DB','#E67E22','#1ABC9C','#E91E63','#F39C12','#27AE60'];
 
+function resetCheckIn(){
+  if(!currentSession) return;
+  if(!confirm('清除所有学生的 Check In 回答？')) return;
+  // Remove checkin field from every student in Firebase
+  sessionRef(currentSession + '/students').once('value', snap => {
+    const updates = {};
+    Object.keys(snap.val()||{}).forEach(k => { updates[k + '/checkin'] = null; });
+    sessionRef(currentSession + '/students').update(updates);
+  });
+}
+function resetCheckOut(){
+  if(!currentSession) return;
+  if(!confirm('清除所有学生的 Check Out 回答？')) return;
+  sessionRef(currentSession + '/students').once('value', snap => {
+    const updates = {};
+    Object.keys(snap.val()||{}).forEach(k => { updates[k + '/checkout'] = null; });
+    sessionRef(currentSession + '/students').update(updates);
+  });
+}
+
 function renderCheckInPanel(){
   const card = document.getElementById('ci-live-card');
   if(!card) return;
@@ -1535,7 +1559,19 @@ function buildFullscreenCloud(){
   container.innerHTML=words.map(([w,f],i)=>{
     const sz=Math.round(18+(f/maxF)*64);
     const p=container._wcPlaced[w];
-    return `<span style="position:absolute;left:${p.x}%;top:${p.y}%;transform:translate(-50%,-50%);font-size:${sz}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:900;font-family:'Noto Serif SC',serif;text-shadow:0 2px 20px rgba(0,0,0,.6);transition:left 2s ease,top 2s ease;white-space:nowrap;cursor:default">${escHtml(w)}</span>`;
+    const animName=`wcf${i}`;
+    const dx1=(Math.random()-0.5)*4, dy1=(Math.random()-0.5)*4, dx2=(Math.random()-0.5)*4, dy2=(Math.random()-0.5)*4;
+    const dur=(4+Math.random()*4).toFixed(1);
+    const delay=(Math.random()*3).toFixed(1);
+    // Inject unique keyframe for this word
+    if(!document._wcStyles) document._wcStyles={};
+    if(!document._wcStyles[animName]){
+      const ks=document.createElement('style');
+      ks.textContent=`@keyframes ${animName}{0%,100%{transform:translate(-50%,-50%)}33%{transform:translate(calc(-50% + ${dx1}px),calc(-50% + ${dy1}px))}66%{transform:translate(calc(-50% + ${dx2}px),calc(-50% + ${dy2}px))}}`;
+      document.head.appendChild(ks);
+      document._wcStyles[animName]=true;
+    }
+    return `<span style="position:absolute;left:${p.x}%;top:${p.y}%;font-size:${sz}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:900;font-family:'Noto Serif SC',serif;text-shadow:0 2px 20px rgba(0,0,0,.6),0 0 ${sz}px ${WC_COLORS[i%WC_COLORS.length]}44;transition:left 3s ease,top 3s ease;white-space:nowrap;cursor:default;animation:${animName} ${dur}s ease-in-out ${delay}s infinite">${escHtml(w)}</span>`;
   }).join('');
 }
 
@@ -1587,6 +1623,7 @@ function doLuckyDrawFullscreen(){
   if(subEl) subEl.textContent='';
   let _ctx=null;
   try{_ctx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}
+  if(_ctx&&_ctx.state==='suspended') _ctx.resume();
   function playTick(f,t){if(!_ctx)return;const o=_ctx.createOscillator(),g=_ctx.createGain();o.connect(g);g.connect(_ctx.destination);o.type='square';o.frequency.value=f;g.gain.setValueAtTime(0.2,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.07);o.start(t);o.stop(t+0.07);}
   function playFanfare(){if(!_ctx)return;[523,659,784,1047].forEach((f,i)=>{const o=_ctx.createOscillator(),g=_ctx.createGain();o.connect(g);g.connect(_ctx.destination);o.type='sine';o.frequency.value=f;const t=_ctx.currentTime+i*0.13;g.gain.setValueAtTime(0.5,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.5);o.start(t);o.stop(t+0.5);});}
   let t=_ctx?_ctx.currentTime:0;
@@ -1932,8 +1969,8 @@ document.head.appendChild(style);
   <div id="tf-display" style="font-family:'Noto Serif SC',serif;font-size:180px;font-weight:900;color:white;letter-spacing:8px;line-height:1;transition:color .5s;text-shadow:0 0 60px rgba(255,255,255,.2)">05:00</div>
   <div id="tf-status" style="font-size:20px;color:rgba(255,255,255,.5);margin-top:16px">等待开始</div>
   <div style="display:flex;gap:20px;margin-top:40px">
-    <button class="btn btn-teal" id="tf-start-btn" style="font-size:18px;padding:16px 40px" onclick="timerToggle()">▶ 开始</button>
-    <button class="btn btn-ghost" style="font-size:16px;padding:16px 28px;color:white;border-color:rgba(255,255,255,.3)" onclick="timerReset()">↺ 重置</button>
+    <button class="btn btn-teal" id="tf-start-btn" style="font-size:18px;padding:16px 40px;position:relative;z-index:1" onclick="event.stopPropagation();timerToggle();syncTimerFullscreen()">▶ 开始</button>
+    <button style="font-size:16px;padding:16px 28px;background:rgba(255,255,255,.12);color:white;border:1.5px solid rgba(255,255,255,.3);border-radius:12px;cursor:pointer;position:relative;z-index:1" onclick="event.stopPropagation();timerReset();syncTimerFullscreen()">↺ 重置</button>
   </div>
 </div>
 </body>
