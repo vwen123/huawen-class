@@ -903,7 +903,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
   <!-- ── SCREEN: LOBBY ── -->
   <div id="qgs-lobby" style="position:relative;z-index:10;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
-    <div style="font-family:'Noto Serif SC',serif;font-size:clamp(28px,7vw,52px);font-weight:900;text-align:center;background:linear-gradient(135deg,#FFD700,#FFA500,#FF6B6B,#CE93D8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(255,215,0,.3));margin-bottom:6px;line-height:1.2">华文闯关<br>大挑战</div>
+    <div id="qg-lobby-title" style="font-family:'Noto Serif SC',serif;font-size:clamp(28px,7vw,52px);font-weight:900;text-align:center;background:linear-gradient(135deg,#FFD700,#FFA500,#FF6B6B,#CE93D8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 16px rgba(255,215,0,.3));margin-bottom:6px;line-height:1.2">华文闯关<br>大挑战</div>
     <div style="font-size:14px;color:rgba(240,240,255,.5);margin-bottom:28px;text-align:center" id="qg-sub-mode">街机积分 · 限时抢答 · 连击加成</div>
 
     <!-- Avatar + name -->
@@ -921,7 +921,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       </div>
       <input id="qg-pname" placeholder="输入你的名字…" maxlength="8"
         style="width:100%;background:rgba(255,255,255,.07);border:2px solid rgba(255,255,255,.1);border-radius:10px;padding:11px 14px;font-family:'Noto Sans SC',sans-serif;font-size:15px;color:#F0F0FF;margin-bottom:14px">
-      <button onclick="qgStart()" style="width:100%;padding:15px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.4);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
+      <button id="qg-start-btn" onclick="qgStart()" style="width:100%;padding:15px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.4);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
         ⚡ 开始挑战！
       </button>
     </div>
@@ -1474,7 +1474,7 @@ function nav(id){
     if(n.getAttribute('onclick')&&n.getAttribute('onclick').includes("'"+id+"'"))n.classList.add('on');
   });
   if(id==='flashcard')renderFC();
-  if(id==='quiz'){ qgInitLobby(); }
+  if(id==='quiz'){ qgInitLobby(); qgApplyTheme(); }
   if(id==='progress')renderStudents();
   if(id==='dashboard')renderDashboard();
   if(id==='manage'){ loadUnitList(); checkActiveSession(); }
@@ -2861,7 +2861,147 @@ function qgSelAv(el, av){
 // ══════════════════════════════════════
 //  START
 // ══════════════════════════════════════
+// ══════════════════════════════════════
+//  QUIZ THEME ENGINE
+// ══════════════════════════════════════
+const QUIZ_THEMES = {
+  arcade:{
+    bg:'linear-gradient(180deg,#0A0A1A 0%,#0D0520 100%)',
+    accentColor:'#FFD700', optBorder:'rgba(255,215,0,.3)', optBg:'rgba(255,215,0,.06)',
+    title:'华文闯关<br>大挑战', sub:'🕹 街机积分 · 限时抢答 · 连击加成', startTxt:'⚡ 开始挑战！',
+    startGrad:'linear-gradient(135deg,#FFD700,#FFA500)', startColor:'#1A0A00',
+    correctMsg:(combo,pts)=>combo>=3?`🔥 COMBO ${combo}×! +${pts}`:combo>=2?`👏 NICE! +${pts}`:`✅ CORRECT! +${pts}`,
+    wrongMsg:'❌ MISS!', correctCol:'#FFD700', wrongCol:'#FF4466',
+    resIcon:(s)=>s>=80?'🏆':s>=60?'🥈':'🎮', resTitle:(s)=>s>=80?'街机大神！':s>=60?'高手在此！':'继续加油！',
+  },
+  quest:{
+    bg:'linear-gradient(180deg,#1A0805 0%,#2D1500 100%)',
+    accentColor:'#FFB300', optBorder:'rgba(255,179,0,.35)', optBg:'rgba(255,179,0,.07)',
+    title:'闯关冒险<br>华文大陆', sub:'🗺 收集道具 · 击败怪物 · 征服关卡', startTxt:'⚔️ 开始冒险！',
+    startGrad:'linear-gradient(135deg,#FFB300,#E65100)', startColor:'#fff',
+    correctMsg:()=>['🗝️ 获得钥匙！','🗺️ 解锁地图！','⚔️ 击败怪物！','💎 获得宝石！'][Math.floor(Math.random()*4)],
+    wrongMsg:'💔 受到攻击！', correctCol:'#FFD700', wrongCol:'#FF6B6B',
+    resIcon:(s)=>s>=80?'👑':s>=60?'⚔️':'🛡️', resTitle:(s)=>s>=80?'勇者传说！':s>=60?'冒险英雄！':'需要更多修炼！',
+  },
+  cosmos:{
+    bg:'linear-gradient(180deg,#000814 0%,#001233 100%)',
+    accentColor:'#64B5F6', optBorder:'rgba(100,181,246,.3)', optBg:'rgba(100,181,246,.06)',
+    title:'星球探险<br>宇宙征途', sub:'🌌 探索星系 · 殖民星球 · 解锁图鉴', startTxt:'🚀 出发探索！',
+    startGrad:'linear-gradient(135deg,#0D47A1,#1565C0)', startColor:'#fff',
+    correctMsg:()=>['🌍 成功殖民！','⭐ 发现新星！','🪐 探索完成！','🌠 流星奖励！'][Math.floor(Math.random()*4)],
+    wrongMsg:'☄️ 小行星撞击！', correctCol:'#64B5F6', wrongCol:'#FF7043',
+    resIcon:(s)=>s>=80?'🌟':s>=60?'🚀':'🛸', resTitle:(s)=>s>=80?'宇宙探险家！':s>=60?'星际旅行者！':'继续探索！',
+  },
+  escape:{
+    bg:'linear-gradient(180deg,#050505 0%,#081A0D 100%)',
+    accentColor:'#69F0AE', optBorder:'rgba(105,240,174,.3)', optBg:'rgba(105,240,174,.06)',
+    title:'解谜逃生<br>密室挑战', sub:'🔐 搜索线索 · 解开谜题 · 逃离密室', startTxt:'🔦 进入密室！',
+    startGrad:'linear-gradient(135deg,#1B5E20,#2E7D32)', startColor:'#fff',
+    correctMsg:()=>['🔑 找到线索！','📜 解开谜题！','💡 恍然大悟！','🗝️ 钥匙到手！'][Math.floor(Math.random()*4)],
+    wrongMsg:'🚨 触发警报！', correctCol:'#69F0AE', wrongCol:'#FF5252',
+    resIcon:(s)=>s>=80?'🏃':s>=60?'🔓':'🔒', resTitle:(s)=>s>=80?'成功逃脱！':s>=60?'险些逃脱！':'被困密室…',
+  },
+};
+
+function qgApplyTheme(){
+  const style = (gameSettings.style||'arcade');
+  const cfg = QUIZ_THEMES[style] || QUIZ_THEMES.arcade;
+  const page = document.getElementById('page-quiz');
+  if(!page) return;
+  page.style.background = cfg.bg;
+  // Lobby
+  const titleEl = document.getElementById('qg-lobby-title');
+  if(titleEl) titleEl.innerHTML = cfg.title;
+  const subEl = document.getElementById('qg-sub-mode');
+  if(subEl) subEl.textContent = cfg.sub;
+  const startBtn = document.getElementById('qg-start-btn');
+  if(startBtn){ startBtn.textContent = cfg.startTxt; startBtn.style.background = cfg.startGrad; startBtn.style.color = cfg.startColor; }
+  // Timer arc color
+  const arc = document.getElementById('qg-arc');
+  if(arc) arc.style.stroke = cfg.accentColor;
+  const tnum = document.getElementById('qg-tnum');
+  if(tnum) tnum.style.color = cfg.accentColor;
+  // Option button accent
+  const optStyle = document.getElementById('qg-theme-opt-style') || document.createElement('style');
+  optStyle.id = 'qg-theme-opt-style';
+  optStyle.textContent = `.qg-opt{border-color:${cfg.optBorder}!important;background:${cfg.optBg}!important}.qg-opt:hover:not(:disabled){border-color:${cfg.accentColor}!important;background:${cfg.optBg.replace('.06','.14')}!important}`;
+  if(!optStyle.parentNode) document.head.appendChild(optStyle);
+  // Theme HUD bar
+  qgEnsureThemeBar(style, cfg);
+}
+
+function qgEnsureThemeBar(style, cfg){
+  let bar = document.getElementById('qg-theme-bar');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = 'qg-theme-bar';
+    bar.style.cssText = `position:fixed;top:106px;left:0;right:0;z-index:39;display:none;align-items:center;justify-content:center;gap:8px;padding:3px 16px;font-size:12px;min-height:26px;border-bottom:1px solid rgba(255,255,255,.07)`;
+    const hud = document.getElementById('qg-hud');
+    if(hud) hud.insertAdjacentElement('afterend', bar);
+  }
+  bar.style.background = style==='quest'?'rgba(45,21,0,.92)':style==='cosmos'?'rgba(0,8,20,.92)':style==='escape'?'rgba(5,5,5,.95)':'none';
+  bar.style.display = style==='arcade'?'none':'flex';
+}
+
+function qgUpdateThemeBar(){
+  const bar = document.getElementById('qg-theme-bar');
+  if(!bar || bar.style.display==='none') return;
+  const style = gameSettings.style||'arcade';
+  const total = quizQs.length;
+  if(style==='quest'){
+    const wrong = qgState.results.filter(r=>!r).length;
+    const hp = Math.max(0,100-wrong*20);
+    const col = hp>60?'#69F0AE':hp>30?'#FFD700':'#FF5252';
+    bar.innerHTML = `<span style="color:rgba(255,255,255,.55)">❤️</span><div style="width:110px;background:rgba(255,255,255,.1);border-radius:4px;height:8px;overflow:hidden"><div style="width:${hp}%;background:${col};height:100%;border-radius:4px;transition:width .4s"></div></div><span style="color:${col};font-weight:700">${hp}%</span><span style="opacity:.35">·</span><span style="color:#FFD700">道具 ${qgState.results.filter(Boolean).length} 件</span>`;
+  } else if(style==='cosmos'){
+    const planets=['🌍','🌎','🌏','🪐','⭐','🌟','💫','🌠','🌌','✨'];
+    bar.innerHTML = Array.from({length:total},(_,i)=>{
+      const done = i < qgState.results.length;
+      return `<span style="font-size:15px;opacity:${done?(qgState.results[i]?1:.2):.15}">${planets[i%planets.length]}</span>`;
+    }).join('');
+  } else if(style==='escape'){
+    const code = Array.from({length:total},(_,i)=>{
+      const done = i < qgState.results.length;
+      return done && qgState.results[i]
+        ? `<span style="color:#69F0AE;font-weight:900;font-family:monospace;font-size:16px">${(i*3+7)%10}</span>`
+        : `<span style="color:rgba(255,255,255,.2);font-size:14px">◆</span>`;
+    }).join('');
+    bar.innerHTML = `<span style="color:rgba(255,255,255,.45);margin-right:6px">🔐</span>${code}`;
+  }
+}
+
+function qgThemeSound(type){
+  try{
+    const ctx = new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended') ctx.resume();
+    const now = ctx.currentTime;
+    const style = gameSettings.style||'arcade';
+    function osc(type,freq,start,dur,vol){
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(vol,now+start);
+      g.gain.exponentialRampToValueAtTime(0.001,now+start+dur);
+      o.start(now+start);o.stop(now+start+dur);
+    }
+    if(style==='arcade'){
+      if(type==='correct')[330,440,550,660].forEach((f,i)=>osc('square',f,i*.05,.1,.15));
+      else[200,150].forEach((f,i)=>osc('square',f,i*.1,.15,.2));
+    } else if(style==='quest'){
+      if(type==='correct')[523,659,784].forEach((f,i)=>osc('triangle',f,i*.1,.4,.3));
+      else osc('sawtooth',120,0,.4,.3);
+    } else if(style==='cosmos'){
+      if(type==='correct')[880,1320,1760].forEach((f,i)=>osc('sine',f,i*.08,.6,.12));
+      else{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.type='sawtooth';o.frequency.setValueAtTime(300,now);o.frequency.exponentialRampToValueAtTime(60,now+.4);g.gain.setValueAtTime(.2,now);g.gain.exponentialRampToValueAtTime(.001,now+.4);o.start(now);o.stop(now+.4);}
+    } else if(style==='escape'){
+      if(type==='correct')[1047,1319].forEach((f,i)=>osc('square',f,i*.12,.15,.12));
+      else[440,440].forEach((f,i)=>osc('square',f,i*.2,.15,.25));
+    }
+  }catch(e){}
+}
+
 function qgStart(){
+  qgApplyTheme();
   const n = (document.getElementById('qg-pname').value||'').trim();
   qgState = {
     name: n||'玩家', av: qgState.av||'🐯',
@@ -3011,9 +3151,12 @@ function qgAnswer(i, btn){
     qgState.correct++;
     qgState.results.push(true);
     qgUpdateDot(qgState.qIdx, true);
-    if(gameSettings.fx){ qgParticles(btn,'#FFD700'); qgScorePop(btn,'+'+gained+(gained>100?'⚡':'')); }
+    qgUpdateThemeBar();
+    const cfg = QUIZ_THEMES[gameSettings.style||'arcade'] || QUIZ_THEMES.arcade;
+    qgThemeSound('correct');
+    if(gameSettings.fx){ qgParticles(btn, cfg.correctCol||'#FFD700'); qgScorePop(btn,'+'+gained+(gained>100?'⚡':'')); }
     if(gameSettings.combo && qgState.combo>=2) qgShowCombo(qgState.combo);
-    if(gameSettings.fx) qgFeedback(qgState.combo>=4?'🔥超级连击!':qgState.combo>=2?'👏连击!':'✅正确!','#00E676');
+    if(gameSettings.fx) qgFeedback(cfg.correctMsg(qgState.combo, gained), cfg.correctCol||'#00E676');
     qgUpdateHUD();
   } else {
     btn.classList.add('qg-no');
@@ -3021,7 +3164,10 @@ function qgAnswer(i, btn){
     if(gameSettings.combo) qgState.combo = 0;
     qgState.results.push(false);
     qgUpdateDot(qgState.qIdx, false);
-    if(gameSettings.fx){ qgParticles(btn,'#FF4466'); qgFeedback('❌答错了','#FF4466'); }
+    qgUpdateThemeBar();
+    const cfgW = QUIZ_THEMES[gameSettings.style||'arcade'] || QUIZ_THEMES.arcade;
+    qgThemeSound('wrong');
+    if(gameSettings.fx){ qgParticles(btn, cfgW.wrongCol||'#FF4466'); qgFeedback(cfgW.wrongMsg, cfgW.wrongCol||'#FF4466'); }
     document.getElementById('qg-combo-disp').innerHTML='';
     qgUpdateHUD();
   }
@@ -3109,13 +3255,14 @@ function qgEndGame(){
 
   // ── Quiz performance card ──
   const pct = qgState.correct / quizQs.length;
-  const grades = pct === 1 ? ['🥇','满分！太厉害了！','全部答对，而且速度很快！'] :
-                 pct >= .8 ? ['🥈','非常优秀！','只差一步就满分！'] :
-                 pct >= .6 ? ['🥉','做得很好！','超过一半了，继续加油！'] :
-                             ['📚','继续练习！','再多看一遍课文，你一定能进步！'];
-  document.getElementById('qg-grade').textContent = grades[0];
-  document.getElementById('qg-rmsg').textContent  = grades[1];
-  document.getElementById('qg-rsub').textContent  = grades[2];
+  const endCfg = QUIZ_THEMES[gameSettings.style||'arcade'] || QUIZ_THEMES.arcade;
+  const endScore = Math.round(pct * 100);
+  const subMsgs = pct === 1 ? '全部答对，太厉害了！' :
+                  pct >= .8 ? '只差一步就满分！' :
+                  pct >= .6 ? '超过一半了，继续加油！' : '再多看一遍课文，你一定能进步！';
+  document.getElementById('qg-grade').textContent = endCfg.resIcon(endScore);
+  document.getElementById('qg-rmsg').textContent  = endCfg.resTitle(endScore);
+  document.getElementById('qg-rsub').textContent  = subMsgs;
   document.getElementById('qg-rscore').textContent = qgState.score.toLocaleString();
   document.getElementById('qg-rcorrect').textContent = qgState.correct + ' / ' + quizQs.length;
   document.getElementById('qg-rcombo').textContent = qgState.maxCombo + '×';
@@ -4095,8 +4242,7 @@ function enterByName(){
         if(resumePage){
           savedResumePage = resumePage;
           saveProgress(n + '_' + meta.unitId);
-          // Skip check-in and go directly to last page
-          nav(resumePage);
+          // Always check in first; ciSubmitAndContinue will resume to savedResumePage
         }
       });
 
@@ -4153,6 +4299,7 @@ function applyUnitContent(content){
   }
   if(content.gameSettings){
     Object.assign(gameSettings, content.gameSettings);
+    qgApplyTheme();
   }
   if(content.ciQuestions && content.ciQuestions.length){
     applyCiQuestions(content.ciQuestions);
@@ -4199,9 +4346,9 @@ function applyCiQuestions(qs){
   }
 }
 
-// After check-in: always go to reading
+// After check-in: go to resume page or reading
 function ciSubmitAndContinue(){
-  const resumable = ['reading','flashcard','slides','comp','quiz','checkout'];
+  const resumable = ['reading','flashcard','slides','mindmap','comp','quiz','checkout'];
   if(savedResumePage && resumable.includes(savedResumePage)){
     nav(savedResumePage);
   } else {
