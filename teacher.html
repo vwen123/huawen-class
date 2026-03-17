@@ -416,11 +416,16 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div class="ctitle">🎲 抽签系统</div>
         <div id="draw-no-session" style="font-size:13px;color:var(--ink3);text-align:center;padding:14px">请先开课，学生加入后才能抽签</div>
         <div id="draw-panel" style="display:none">
+          <!-- Class selector (shown when multiple sessions) -->
+          <div id="draw-class-selector" style="display:none;margin-bottom:14px">
+            <div style="font-size:12px;color:var(--ink3);margin-bottom:6px">选择班级抽签：</div>
+            <div id="draw-class-tabs" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+          </div>
           <div id="draw-roster" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;min-height:48px"></div>
           <div id="draw-result" style="display:none;text-align:center;padding:18px 12px;background:linear-gradient(135deg,var(--gold-pale),#FFF3C0);border-radius:14px;margin-bottom:16px;border:2px solid var(--gold)">
             <div style="font-size:36px" id="draw-result-av">🐯</div>
             <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:700;color:var(--ink);margin-top:6px" id="draw-result-name">—</div>
-            <div style="font-size:12px;color:var(--ink3);margin-top:4px">恭喜被抽中！</div>
+            <div style="font-size:12px;color:var(--ink3);margin-top:4px">恭喜被抽中！🎉</div>
           </div>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-red" style="flex:1;min-width:140px;font-size:15px;padding:12px" onclick="doLuckyDraw()">🎲 开始抽签</button>
@@ -1208,7 +1213,31 @@ function refreshDrawPanel(){
   noSession.style.display = 'none';
   panel.style.display = '';
   if(drawPool.length === 0) drawPool = [...students];
+  // Class selector: only show when multiple sessions
+  const sessionKeys = Object.keys(activeSessions||{});
+  const selectorWrap = document.getElementById('draw-class-selector');
+  const tabsEl = document.getElementById('draw-class-tabs');
+  if(selectorWrap && tabsEl){
+    if(sessionKeys.length > 1){
+      selectorWrap.style.display = '';
+      tabsEl.innerHTML = sessionKeys.map(code => {
+        const s = activeSessions[code];
+        const isActive = code === activeCode;
+        return `<button onclick="switchDrawClass('${code}')" style="padding:6px 16px;border-radius:20px;border:2px solid ${isActive?'var(--red)':'var(--border)'};background:${isActive?'var(--red-l)':'var(--white)'};font-weight:700;font-size:13px;cursor:pointer;color:${isActive?'var(--red)':'var(--ink2)'}">${s.classLabel||code}</button>`;
+      }).join('');
+    } else {
+      selectorWrap.style.display = 'none';
+    }
+  }
   renderDrawRoster();
+}
+
+function switchDrawClass(code){
+  switchSession(code);
+  drawnNames.clear();
+  drawPool = [];
+  document.getElementById('draw-result').style.display = 'none';
+  refreshDrawPanel();
 }
 
 function renderDrawRoster(){
@@ -1230,7 +1259,46 @@ function doLuckyDraw(){
   const avEl   = document.getElementById('draw-result-av');
   const result = document.getElementById('draw-result');
   result.style.display = 'block';
-  let spins = 0; const total = 18;
+
+  // Play spinning tick sounds
+  let _drawCtx = null;
+  try { _drawCtx = new (window.AudioContext||window.webkitAudioContext)(); } catch(e){}
+  function playTick(freq, time){
+    if(!_drawCtx) return;
+    const o = _drawCtx.createOscillator();
+    const g = _drawCtx.createGain();
+    o.connect(g); g.connect(_drawCtx.destination);
+    o.type = 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.18, time);
+    g.gain.exponentialRampToValueAtTime(0.001, time + 0.06);
+    o.start(time); o.stop(time + 0.06);
+  }
+  function playFanfare(){
+    if(!_drawCtx) return;
+    const notes = [523,659,784,1047]; // C5 E5 G5 C6
+    notes.forEach((f,i)=>{
+      const o = _drawCtx.createOscillator();
+      const g = _drawCtx.createGain();
+      o.connect(g); g.connect(_drawCtx.destination);
+      o.type = 'sine'; o.frequency.value = f;
+      const t = _drawCtx.currentTime + i*0.13;
+      g.gain.setValueAtTime(0.4, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      o.start(t); o.stop(t + 0.4);
+    });
+  }
+
+  let spins = 0; const total = 20;
+  // Schedule ticks — fast then slowing
+  if(_drawCtx){
+    let t = _drawCtx.currentTime;
+    for(let i=0;i<total;i++){
+      const interval = 0.05 + (i/total)*0.09; // speeds up feeling: 50ms→140ms
+      playTick(i%2===0?880:660, t);
+      t += interval;
+    }
+  }
+
   const iv = setInterval(()=>{
     const r = available[Math.floor(Math.random()*available.length)];
     nameEl.textContent = r.name; avEl.textContent = r.av||'🐯';
@@ -1243,8 +1311,9 @@ function doLuckyDraw(){
       renderDrawRoster();
       result.style.animation = 'none'; void result.offsetWidth;
       result.style.animation = 'drawPop .4s cubic-bezier(.17,.67,.35,1.4)';
+      playFanfare();
     }
-  }, 80);
+  }, 90);
 }
 
 function resetDraw(){

@@ -3916,6 +3916,48 @@ function clearProgress(name){
 // ══════════════════════════════════════
 //  NAME ENTRY
 // ══════════════════════════════════════
+let _codeCheckTimer = null;
+let _codeValid = false;
+
+function autoCheckCode(){
+  const code = (document.getElementById('code-input').value||'').trim().toUpperCase();
+  const statusEl = document.getElementById('code-status');
+  clearTimeout(_codeCheckTimer);
+  _codeValid = false;
+  if(code.length < 4){ if(statusEl) statusEl.textContent=''; return; }
+  if(statusEl){ statusEl.textContent='🔍 验证中…'; statusEl.style.color='rgba(255,255,255,.5)'; }
+  _codeCheckTimer = setTimeout(()=>{
+    fbFindSessionByCode(code, meta => {
+      if(meta){
+        _codeValid = true;
+        if(statusEl){ statusEl.textContent='✅ 找到课堂！'; statusEl.style.color='#4ECDC4'; }
+        // Auto-fill name from last session
+        const nameInp = document.getElementById('name-input');
+        if(!nameInp.value.trim()){
+          const saved = localStorage.getItem('hw_last_name')||'';
+          if(saved){ nameInp.value=saved; checkNameResume(); }
+        }
+        // Auto-enter if name already ready
+        if(document.getElementById('name-input').value.trim()){
+          setTimeout(()=>enterByName(), 500);
+        } else {
+          document.getElementById('name-input').focus();
+        }
+      } else {
+        _codeValid = false;
+        if(statusEl){ statusEl.textContent='❌ 进入码不正确，请向老师确认'; statusEl.style.color='#FF4466'; }
+      }
+    });
+  }, 600);
+}
+
+function autoSubmitIfReady(){
+  if(_codeValid && document.getElementById('name-input').value.trim()){
+    clearTimeout(_codeCheckTimer);
+    setTimeout(()=>enterByName(), 400);
+  }
+}
+
 function checkNameResume(){
   const n = document.getElementById('name-input').value.trim();
   const saved = loadProgress(n);
@@ -3949,6 +3991,7 @@ function enterByName(){
 
     qgState.name = n;
     qgState.av   = qgState.av || '🐯';
+    try{ localStorage.setItem('hw_last_name', n); }catch(e){}
 
     // Load this unit's content into the app
     fbLoadUnitContent(meta.unitId, content => {
@@ -4194,14 +4237,15 @@ window.addEventListener('resize',()=>{ if(document.getElementById('page-mindmap'
 
     <!-- Class code -->
     <div style="margin-bottom:6px;text-align:left;font-size:12px;color:rgba(255,255,255,.5)">班级进入码（老师提供）</div>
-    <input class="name-input" id="code-input" placeholder="例如：BC2025" maxlength="12"
-      style="margin-bottom:10px;letter-spacing:.1em;font-weight:700;text-transform:uppercase"
-      oninput="this.value=this.value.toUpperCase()">
+    <input class="name-input" id="code-input" placeholder="例如：6A847" maxlength="12"
+      style="margin-bottom:4px;letter-spacing:.1em;font-weight:700;text-transform:uppercase"
+      oninput="this.value=this.value.toUpperCase();autoCheckCode()">
+    <div id="code-status" style="font-size:12px;min-height:18px;margin-bottom:8px;transition:color .2s"></div>
 
     <!-- Name -->
-    <div style="margin-bottom:6px;text-align:left;font-size:12px;color:rgba(255,255,255,.5)">你的名字</div>
+    <div id="name-section" style="margin-bottom:6px;text-align:left;font-size:12px;color:rgba(255,255,255,.5)">你的名字</div>
     <input class="name-input" id="name-input" placeholder="请输入你的名字…" maxlength="10"
-      onkeydown="if(event.key==='Enter')enterByName()" oninput="checkNameResume()">
+      onkeydown="if(event.key==='Enter')enterByName()" oninput="checkNameResume();autoSubmitIfReady()">
 
     <div class="name-resume" id="name-resume">📖 找到你上次的进度，将从 <strong id="resume-part">—</strong> 继续</div>
     <div id="name-error" style="font-size:12px;color:#FF4466;margin-bottom:8px;display:none">❌ 进入码不正确，请向老师确认</div>
