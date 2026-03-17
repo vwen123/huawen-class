@@ -1604,12 +1604,17 @@ let _ciMood = ''; // current selected mood emoji
 let _ciSyncTimer = null;
 let _coSyncTimer = null;
 
+// Live sync helpers — write to sub-path so checkin/history is never overwritten
 function fbSyncCheckin(){
   if(!firebaseReady || !currentSession || !qgState.name) return;
-  const ans1 = (document.getElementById('ci-ans2')?.value||'').trim();
-  const ans2 = (document.getElementById('ci-ans3')?.value||'').trim();
-  const answers = [ans1, ans2].filter(Boolean);
-  sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkin:{mood:_ciMood, answers} });
+  const ans0 = (document.getElementById('ci-ans2')?.value||'').trim();
+  const ans1 = (document.getElementById('ci-ans3')?.value||'').trim();
+  // Write draft fields only — history is preserved
+  sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/checkin').update({
+    mood: _ciMood,
+    draft_q0: ans0 || null,
+    draft_q1: ans1 || null,
+  });
 }
 function fbSyncCheckinDebounced(){
   clearTimeout(_ciSyncTimer);
@@ -1620,8 +1625,12 @@ function fbSyncCheckout(){
   if(!firebaseReady || !currentSession || !qgState.name) return;
   const ans0 = (document.getElementById('co-ans0')?.value||'').trim();
   const ans1 = (document.getElementById('co-ans1')?.value||'').trim();
-  const answers = [ans0, ans1].filter(Boolean);
-  sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkout:{thumbs:coThumb, answers} });
+  // Write draft fields only — history is preserved
+  sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/checkout').update({
+    thumbs: coThumb,
+    draft_q0: ans0 || null,
+    draft_q1: ans1 || null,
+  });
 }
 function fbSyncCheckoutDebounced(){
   clearTimeout(_coSyncTimer);
@@ -1662,8 +1671,20 @@ function ciSubmit(){
   ciSetDone(true); // unlock all pages now that check-in is complete
   const nameIn = document.getElementById('qg-pname');
   if(nameIn && qgState.name) nameIn.value = qgState.name;
-  // Final sync of check-in data to Firebase
-  fbSyncCheckin();
+  // Final submit: update draft AND append to accumulated history
+  if(firebaseReady && currentSession && qgState.name){
+    const ans0 = (document.getElementById('ci-ans2')?.value||'').trim();
+    const ans1 = (document.getElementById('ci-ans3')?.value||'').trim();
+    const ciRef = sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/checkin');
+    ciRef.update({ mood:_ciMood, draft_q0:ans0||null, draft_q1:ans1||null });
+    // Push to history so previous answers are never overwritten
+    if(ans0 || ans1){
+      const entry = { ts: Date.now() };
+      if(ans0) entry.q0 = ans0;
+      if(ans1) entry.q1 = ans1;
+      ciRef.child('history').push(entry);
+    }
+  }
   ciSubmitAndContinue();
 }
 
@@ -3642,7 +3663,18 @@ function finishLesson(){
 
   // 🔥 Sync completion to Firebase
   fbFinishStudent(name, av, studentScores);
-  fbSyncCheckout(); // final checkout sync (thumb + answers)
+  // Final checkout: update draft AND append to history
+  fbSyncCheckout();
+  if(firebaseReady && currentSession && qgState.name){
+    const ans0 = (document.getElementById('co-ans0')?.value||'').trim();
+    const ans1 = (document.getElementById('co-ans1')?.value||'').trim();
+    if(ans0 || ans1){
+      const entry = { ts: Date.now(), thumbs: coThumb };
+      if(ans0) entry.q0 = ans0;
+      if(ans1) entry.q1 = ans1;
+      sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/checkout/history').push(entry);
+    }
+  }
 
   // Don't clear progress — preserve scores so re-login can show review mode
   lessonCompleted = true;

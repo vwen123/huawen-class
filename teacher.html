@@ -796,8 +796,29 @@ function attachListener(sid){
         const tot = s.done && sc.total ? sc.total : (wt>0?Math.round(ws/wt):0);
         classRoster.push({ name:s.name, av:s.av||'🐯', ...sc, total:tot, time:s.doneTime||s.time||'--:--', done:s.done||false });
       }
-      if(s.checkin) checkInData.push({ name:s.name, av:s.av||'🐯', mood:s.checkin.mood||'', answers:s.checkin.answers||[] });
-      if(s.checkout) checkOutData.push({ name:s.name, av:s.av||'🐯', thumbs:s.checkout.thumbs||'', answers:s.checkout.answers||[], mood:s.checkout.mood||'', reflection:s.checkout.reflection||'' });
+      if(s.checkin){
+        const ciHist = s.checkin.history ? Object.values(s.checkin.history).sort((a,b)=>(a.ts||0)-(b.ts||0)) : [];
+        const q0_answers = ciHist.filter(h=>h.q0).map(h=>h.q0);
+        const q1_answers = ciHist.filter(h=>h.q1).map(h=>h.q1);
+        // Backward compat: old format used answers[0]/[1]
+        if(!q0_answers.length && s.checkin.answers && s.checkin.answers[0]) q0_answers.push(s.checkin.answers[0]);
+        if(!q1_answers.length && s.checkin.answers && s.checkin.answers[1]) q1_answers.push(s.checkin.answers[1]);
+        // Include live draft if not already in history
+        if(s.checkin.draft_q0 && !q0_answers.includes(s.checkin.draft_q0)) q0_answers.push(s.checkin.draft_q0);
+        if(s.checkin.draft_q1 && !q1_answers.includes(s.checkin.draft_q1)) q1_answers.push(s.checkin.draft_q1);
+        checkInData.push({ name:s.name, av:s.av||'🐯', mood:s.checkin.mood||'', q0_answers, q1_answers });
+      }
+      if(s.checkout){
+        const coHist = s.checkout.history ? Object.values(s.checkout.history).sort((a,b)=>(a.ts||0)-(b.ts||0)) : [];
+        const q0_answers = coHist.filter(h=>h.q0).map(h=>h.q0);
+        const q1_answers = coHist.filter(h=>h.q1).map(h=>h.q1);
+        // Backward compat
+        if(!q0_answers.length && s.checkout.answers && s.checkout.answers[0]) q0_answers.push(s.checkout.answers[0]);
+        if(!q1_answers.length && s.checkout.answers && s.checkout.answers[1]) q1_answers.push(s.checkout.answers[1]);
+        if(s.checkout.draft_q0 && !q0_answers.includes(s.checkout.draft_q0)) q0_answers.push(s.checkout.draft_q0);
+        if(s.checkout.draft_q1 && !q1_answers.includes(s.checkout.draft_q1)) q1_answers.push(s.checkout.draft_q1);
+        checkOutData.push({ name:s.name, av:s.av||'🐯', thumbs:s.checkout.thumbs||'', q0_answers, q1_answers });
+      }
     });
     // Store student count on current session for tab badge
     if(activeSessions && activeCode && activeSessions[activeCode])
@@ -1417,27 +1438,29 @@ function renderCheckInPanel(){
     }).join('');
   }
 
-  // Q1 answers — in-place update
+  // Q1 answers — flatten all accumulated answers from all students
   const q1Wrap = document.getElementById('ci-q1-wrap');
   const q1List = document.getElementById('ci-q1-list');
   const q1Label = document.getElementById('ci-q1-label');
-  const q1Answers = checkInData.filter(s => s.answers && s.answers[0]);
+  const q1Entries = [];
+  checkInData.forEach(s => { (s.q0_answers||[]).forEach((ans,i) => q1Entries.push({av:s.av, name:s.name, answer:ans, _key:s.name+'_q0_'+i})); });
   if(q1Wrap && q1List){
-    if(q1Answers.length > 0){
+    if(q1Entries.length > 0){
       q1Wrap.style.display = '';
       if(q1Label) q1Label.textContent = '💬 第 1 题回答：';
-      updateAnswerItems(q1List, q1Answers, s => s.name, s => s.answers[0]);
+      updateAnswerItems(q1List, q1Entries, e => e._key, e => e.answer);
     } else { q1Wrap.style.display = 'none'; }
   }
 
-  // Q2 answers — in-place update
+  // Q2 answers — flatten all accumulated answers from all students
   const q2Wrap = document.getElementById('ci-q2-wrap');
   const q2List = document.getElementById('ci-q2-list');
-  const q2Answers = checkInData.filter(s => s.answers && s.answers[1]);
+  const q2Entries = [];
+  checkInData.forEach(s => { (s.q1_answers||[]).forEach((ans,i) => q2Entries.push({av:s.av, name:s.name, answer:ans, _key:s.name+'_q1_'+i})); });
   if(q2Wrap && q2List){
-    if(q2Answers.length > 0){
+    if(q2Entries.length > 0){
       q2Wrap.style.display = '';
-      updateAnswerItems(q2List, q2Answers, s => s.name, s => s.answers[1]);
+      updateAnswerItems(q2List, q2Entries, e => e._key, e => e.answer);
     } else { q2Wrap.style.display = 'none'; }
   }
 }
@@ -1488,7 +1511,7 @@ function renderCheckOutPanel(){
   let hasWc = false;
   let wcQIdx = -1;
 
-  // Render each question's answers — use in-place update containers
+  // Render each question's answers — plain list, no word cloud, in-place update
   const numQ = Math.max(coQs.length, 1); // at least Q0
 
   // Build/reuse per-question sub-containers inside panel
@@ -1500,12 +1523,17 @@ function renderCheckOutPanel(){
 
   const activeQis = new Set();
   for(let qi=0; qi<numQ; qi++){
-    const qMeta = coQs[qi]||{text:'本课，我最大的收获是……', wordCloud:false};
-    // Pair each student with their answer for this question
-    const answered = checkOutData.map(s => ({s, a: s.answers && s.answers[qi]})).filter(({a}) => a);
-    if(answered.length === 0) continue;
+    const qMeta = coQs[qi]||{text:'本课，我最大的收获是……'};
+    if(qMeta.wordCloud) hasWc = true, wcQIdx = qi; // still track for fullscreen button
+
+    // Flatten all accumulated answers from all students for this question
+    const qField = qi === 0 ? 'q0_answers' : 'q1_answers';
+    const entries = [];
+    checkOutData.forEach(s => {
+      (s[qField]||[]).forEach((ans, i) => entries.push({av:s.av, name:s.name, answer:ans, _key:s.name+'_q'+qi+'_'+i}));
+    });
+    if(entries.length === 0) continue;
     activeQis.add(String(qi));
-    if(qMeta.wordCloud){ hasWc=true; wcQIdx=qi; }
 
     let qDiv = existingQDivs[String(qi)];
     if(!qDiv){
@@ -1516,25 +1544,8 @@ function renderCheckOutPanel(){
       panel.appendChild(qDiv);
     }
 
-    if(qMeta.wordCloud){
-      // Word cloud: rebuild (words change as answers grow)
-      const answers = answered.map(({a})=>a);
-      const freq={};
-      answers.forEach(a => {
-        (a||'').split(/[\s，。！？、；：""''（）,.!?;:]+/).map(w=>w.trim()).filter(w=>w.length>1).forEach(w=>{freq[w]=(freq[w]||0)+1;});
-      });
-      const words=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,25);
-      const maxF=words[0]?words[0][1]:1;
-      let wcDiv = qDiv.querySelector('.co-wc-mini');
-      if(!wcDiv){ wcDiv=document.createElement('div'); wcDiv.className='co-wc-mini'; wcDiv.style.cssText='display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:10px;min-height:50px;align-items:center;margin-bottom:8px'; qDiv.querySelector('.co-ans-list').before(wcDiv); }
-      wcDiv.innerHTML = words.map(([w,f],i)=>`<span style="font-size:${Math.round(11+(f/maxF)*18)}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif">${escHtml(w)}</span>`).join('');
-    } else {
-      // Text answers: in-place update
-      updateAnswerItems(qDiv.querySelector('.co-ans-list'), answered,
-        ({s}) => s.name,
-        ({a}) => a
-      );
-    }
+    // Plain list with avatar + name + content (no word cloud mini-view)
+    updateAnswerItems(qDiv.querySelector('.co-ans-list'), entries, e => e._key, e => e.answer);
   }
 
   // Remove question panels no longer active
