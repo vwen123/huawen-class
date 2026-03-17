@@ -1487,12 +1487,29 @@ function nav(id){
   if(id==='comp'){compIdx=0;compMarks=Array(compQs.length).fill(null);renderCompQ();}
   if(id==='checkout'){
     buildCloud();
-    // Always hide score report until finish is clicked
-    const report=document.getElementById('score-report-card');
-    if(report) report.style.display='none';
-    // Re-enable the finish button in case of revisit
-    const btn=document.querySelector('#co-input-card .btn-gold');
-    if(btn){btn.disabled=false;btn.textContent='完成今天的学习，查看成绩 🎉';}
+    if(lessonCompleted){
+      // Review mode: show scores immediately, show review banner, allow re-submit
+      const report=document.getElementById('score-report-card');
+      if(report){ report.style.display='block'; }
+      refreshScoreReport();
+      const btn=document.querySelector('#co-input-card .btn-gold');
+      if(btn){btn.disabled=false;btn.textContent='重新提交 Check Out 📝';}
+      // Show review-mode banner above checkout card (once)
+      if(!document.getElementById('review-mode-banner')){
+        const banner=document.createElement('div');
+        banner.id='review-mode-banner';
+        banner.style.cssText='background:linear-gradient(135deg,rgba(78,205,196,.15),rgba(255,215,0,.1));border:1px solid rgba(78,205,196,.35);border-radius:12px;padding:12px 16px;margin-bottom:16px;font-size:14px;color:var(--teal);font-family:"Noto Serif SC",serif;text-align:center';
+        banner.textContent='📚 复习模式 — 你已完成今天的学习！可以自由复习各个环节。';
+        const coPage=document.getElementById('page-checkout');
+        if(coPage) coPage.insertBefore(banner, coPage.firstChild);
+      }
+    } else {
+      // Normal first-time view: hide score report until finish is clicked
+      const report=document.getElementById('score-report-card');
+      if(report) report.style.display='none';
+      const btn=document.querySelector('#co-input-card .btn-gold');
+      if(btn){btn.disabled=false;btn.textContent='完成今天的学习，查看成绩 🎉';}
+    }
   }
   if(id==='slides')renderSlidesForStudent();
   if(id==='mindmap') initMindMap();
@@ -1524,6 +1541,7 @@ function exitToHome(){
   if(!confirm('确定退出返回主页？你的学习进度已保存。')) return;
   // Reset state
   ciSetDone(false);
+  lessonCompleted = false;
   qgState.name=''; currentSession=null; currentUnitId=null;
   document.getElementById('hud-topnav-wrap').style.display='none';
   document.getElementById('part-bar').style.display='none';
@@ -1563,7 +1581,8 @@ function setRole(r){
 
 // ── CHECK IN ──
 let ciStep=1, ciMaxStep=1; // ciMaxStep set by applyUnitContent: 1=mood only, 2=+Q1, 3=+Q2
-let ciDone = false; // gate: must complete check-in before accessing other pages
+let ciDone = false;        // gate: must complete check-in before accessing other pages
+let lessonCompleted = false; // student has previously finished the full lesson (done:true in Firebase)
 
 function ciSetDone(done){
   ciDone = done;
@@ -3604,7 +3623,9 @@ function finishLesson(){
     sessionRef(currentSession+'/students/'+safeKey(name)).update({ checkout:{thumbs:coThumb, answers} });
   }
 
-  clearProgress(name);
+  // Don't clear progress — preserve scores so re-login can show review mode
+  lessonCompleted = true;
+  saveProgress(qgState.name || '');
 
   const btn=document.querySelector('#co-input-card .btn-gold');
   if(btn){btn.disabled=true;btn.textContent='✅ 已完成';}
@@ -4257,21 +4278,29 @@ function enterByName(){
         }
         // Register (only reset currentPage if brand new student)
         fbRegisterStudent(n, qgState.av, isNew);
-        // Determine resume page: Firebase lastPage > localStorage currentPage
-        const fbPage = fbData && fbData.lastPage;
-        const localPage = saved && saved.currentPage;
-        const resumePage = resumable.includes(fbPage) ? fbPage
-                         : resumable.includes(localPage) ? localPage : null;
-        if(resumePage){
-          savedResumePage = resumePage;
-          saveProgress(n + '_' + meta.unitId);
-          // Always check in first; ciSubmitAndContinue will resume to savedResumePage
+        // Detect if student has already completed the full lesson
+        if(fbData && fbData.done){
+          lessonCompleted = true;
+          savedResumePage = 'checkout'; // review starts at score / checkout page
+        } else {
+          // Determine resume page: Firebase lastPage > localStorage currentPage
+          const fbPage = fbData && fbData.lastPage;
+          const localPage = saved && saved.currentPage;
+          const resumePage = resumable.includes(fbPage) ? fbPage
+                           : resumable.includes(localPage) ? localPage : null;
+          if(resumePage){
+            savedResumePage = resumePage;
+            saveProgress(n + '_' + meta.unitId);
+            // Always check in first; ciSubmitAndContinue will resume to savedResumePage
+          }
         }
       });
 
-      // Personalise greeting
+      // Personalise greeting (different message for returning completed students)
       const greetEl = document.getElementById('ci-greeting');
-      if(greetEl) greetEl.textContent = n + '，你好！上课前先签个到吧。';
+      if(greetEl) greetEl.textContent = lessonCompleted
+        ? n + '，欢迎回来！签个到后可以复习今天的内容。'
+        : n + '，你好！上课前先签个到吧。';
 
       // Reset check-in state (ready for whenever they reach it)
       ciStep = 1;
@@ -4373,6 +4402,11 @@ function applyCiQuestions(qs){
 
 // After check-in: go to resume page or reading
 function ciSubmitAndContinue(){
+  if(lessonCompleted){
+    // Student has already finished the lesson → go straight to review (checkout + scores)
+    nav('checkout');
+    return;
+  }
   const resumable = ['reading','flashcard','slides','mindmap','comp','quiz','checkout'];
   if(savedResumePage && resumable.includes(savedResumePage)){
     nav(savedResumePage);
