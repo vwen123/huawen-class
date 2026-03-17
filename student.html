@@ -1539,6 +1539,9 @@ function navPart(id){ nav(id); }
 
 function exitToHome(){
   if(!confirm('确定退出返回主页？你的学习进度已保存。')) return;
+  // Remove completion overlay if still visible (prevent black screen on re-login)
+  const compOverlay = document.getElementById('completion-overlay');
+  if(compOverlay) compOverlay.remove();
   // Reset state
   ciSetDone(false);
   lessonCompleted = false;
@@ -3639,9 +3642,18 @@ function finishLesson(){
   refreshScoreReport();
 }
 
+function dismissCompletionBanner(){
+  const el = document.getElementById('completion-overlay');
+  if(el) el.remove();
+  exitToHome();
+}
 function showCompletionBanner(name, total){
+  // Remove any existing banner first
+  const existing = document.getElementById('completion-overlay');
+  if(existing) existing.remove();
   const grade = total>=90?'🥇优秀':total>=75?'🥈良好':total>=60?'🥉继续加油':'📚需要加油';
   const el = document.createElement('div');
+  el.id = 'completion-overlay';
   el.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(10,10,26,.88);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px)';
   el.innerHTML=`<div style="background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:1px solid rgba(255,215,0,.25);border-radius:24px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,215,0,.15)">
     <div style="font-size:56px;margin-bottom:8px">🎉</div>
@@ -3651,7 +3663,7 @@ function showCompletionBanner(name, total){
       <div style="font-size:42px;font-weight:900;font-family:'Noto Serif SC',serif;color:#FFD700;line-height:1">${total}</div>
       <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:3px">总分 / 100 &nbsp;·&nbsp; ${grade}</div>
     </div>
-    <button onclick="this.closest('div[style]').remove();showNameOverlay()" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:900;cursor:pointer">返回主页 →</button>
+    <button onclick="dismissCompletionBanner()" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:900;cursor:pointer">返回主页 →</button>
   </div>`;
   document.body.appendChild(el);
 }
@@ -4213,6 +4225,10 @@ function checkNameResume(){
 }
 
 function enterByName(){
+  // Safety net: remove any lingering completion overlay before logging in
+  const compOverlay = document.getElementById('completion-overlay');
+  if(compOverlay) compOverlay.remove();
+
   const code = (document.getElementById('code-input').value||'').trim().toUpperCase();
   const n    = (document.getElementById('name-input').value||'').trim();
   const errEl = document.getElementById('name-error');
