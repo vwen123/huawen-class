@@ -1014,30 +1014,15 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
   <!-- ── WORD CLOUD + REFLECTION ── -->
   <div class="card" id="co-input-card">
-    <div class="ctitle">☁️ 本课我学会了……</div>
-    <div class="co-input-row">
-      <input class="co-input" id="co-input" placeholder="输入今天学到的一个词语…" maxlength="10" onkeydown="if(event.key==='Enter')addWord()">
-      <button class="btn btn-red" onclick="addWord()">+ 加入</button>
+    <div class="ctitle">☁️ Check Out</div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px;font-family:'Noto Serif SC',serif" id="co-q-label">本课，我最大的收获是……</div>
+    <textarea class="ci-input" rows="3" id="co-reflection" placeholder="写一句话总结本课的学习…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+    <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
+      <div class="co-mood-btn" onclick="setCoMood(this)" title="很开心">😄</div>
+      <div class="co-mood-btn" onclick="setCoMood(this)" title="还不错">😊</div>
+      <div class="co-mood-btn" onclick="setCoMood(this)" title="普通">😐</div>
     </div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">已提交：</div>
-    <div class="submitted-words" id="sw-tags"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-      <div class="ctitle" style="margin:0">🌟 全班文字云</div>
-      <button class="btn btn-ghost btn-sm" onclick="buildCloud()">🔄 刷新</button>
-    </div>
-    <div class="wc-container" id="wc-canvas"></div>
-
-    <!-- Exit ticket -->
-    <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
-      <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif">本课，我最大的收获是……</div>
-      <textarea class="ci-input" rows="2" id="co-reflection" placeholder="写一句话总结本课的学习…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
-      <div style="display:flex;gap:8px;margin-top:10px;justify-content:center">
-        <div class="co-mood-btn" onclick="setCoMood(this)" title="很开心">😄</div>
-        <div class="co-mood-btn" onclick="setCoMood(this)" title="还不错">😊</div>
-        <div class="co-mood-btn" onclick="setCoMood(this)" title="普通">😐</div>
-      </div>
-      <button class="btn btn-gold btn-lg" style="margin-top:16px;width:100%" onclick="finishLesson()">完成本课学习，查看成绩 🎉</button>
-    </div>
+    <button class="btn btn-gold btn-lg" style="margin-top:16px;width:100%" onclick="finishLesson()">完成本课学习，查看成绩 🎉</button>
   </div>
 
   <!-- ── TOTAL SCORE REPORT — hidden until finishLesson() ── -->
@@ -1557,6 +1542,15 @@ function updateCiDots(){
 function ciSubmit(){
   const nameIn = document.getElementById('qg-pname');
   if(nameIn && qgState.name) nameIn.value = qgState.name;
+  // Write check-in data to Firebase (live only, not stored permanently)
+  if(firebaseReady && currentSession && qgState.name){
+    const moodEl = document.querySelector('.mood-btn.sel .mood-emoji');
+    const mood = moodEl ? moodEl.textContent : '';
+    const ans1 = (document.getElementById('ci-ans2')?.value||'').trim();
+    const ans2 = (document.getElementById('ci-ans3')?.value||'').trim();
+    const answers = [ans1, ans2].filter(Boolean);
+    sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkin:{mood, answers} });
+  }
   ciSubmitAndContinue();
 }
 
@@ -3382,6 +3376,13 @@ function finishLesson(){
 
   // 🔥 Sync completion to Firebase
   fbFinishStudent(name, av, studentScores);
+  // Write checkout response to Firebase (live only)
+  if(firebaseReady && currentSession){
+    const reflection=(document.getElementById('co-reflection')?.value||'').trim();
+    const coMoodEl=document.querySelector('.co-mood-btn.sel');
+    const coMood=coMoodEl?coMoodEl.title:'';
+    sessionRef(currentSession+'/students/'+safeKey(name)).update({ checkout:{mood:coMood, reflection} });
+  }
 
   clearProgress(name);
 

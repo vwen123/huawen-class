@@ -216,6 +216,28 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div class="ctitle">⚠️ 需要跟进</div>
         <div id="t-needs-attention"><div style="font-size:13px;color:var(--ink3)">学生完成学习后显示</div></div>
       </div>
+
+      <!-- Check-in live panel -->
+      <div class="card" id="ci-live-card" style="display:none">
+        <div class="ctitle">👋 Check In 情况</div>
+        <div id="ci-mood-dist" style="margin-bottom:14px"></div>
+        <div id="ci-q1-wrap" style="display:none;margin-bottom:12px">
+          <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px" id="ci-q1-label">—</div>
+          <div id="ci-q1-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+        <div id="ci-q2-wrap" style="display:none">
+          <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px" id="ci-q2-label">—</div>
+          <div id="ci-q2-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        </div>
+      </div>
+
+      <!-- Check-out live panel -->
+      <div class="card" id="co-live-card" style="display:none">
+        <div class="ctitle">☁️ Check Out 反馈</div>
+        <div id="co-word-cloud" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:12px;min-height:60px;margin-bottom:14px;align-items:center"></div>
+        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px" id="co-reflection-label">本课最大收获</div>
+        <div id="co-reflection-list" style="display:flex;flex-direction:column;gap:6px"></div>
+      </div>
     </div>
 
     <!-- ══ PROGRESS ══ -->
@@ -718,6 +740,8 @@ function attachListener(sid){
     const data = snap.val() || {};
     studentRegistry = [];
     classRoster = [];
+    checkInData = [];
+    checkOutData = [];
     Object.values(data).forEach(s => {
       studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false });
       if(s.scores){
@@ -728,6 +752,8 @@ function attachListener(sid){
         const tot = s.done && sc.total ? sc.total : (wt>0?Math.round(ws/wt):0);
         classRoster.push({ name:s.name, av:s.av||'🐯', ...sc, total:tot, time:s.doneTime||s.time||'--:--', done:s.done||false });
       }
+      if(s.checkin) checkInData.push({ name:s.name, av:s.av||'🐯', mood:s.checkin.mood||'', answers:s.checkin.answers||[] });
+      if(s.checkout) checkOutData.push({ name:s.name, av:s.av||'🐯', mood:s.checkout.mood||'', reflection:s.checkout.reflection||'' });
     });
     // Store student count on current session for tab badge
     if(activeSessions && activeCode && activeSessions[activeCode])
@@ -738,6 +764,8 @@ function attachListener(sid){
 
 function refreshAllViews(){
   renderDashboard();
+  renderCheckInPanel();
+  renderCheckOutPanel();
   const prog = document.getElementById('screen-progress');
   if(prog.classList.contains('on')) renderStudents();
   const tools = document.getElementById('screen-tools');
@@ -1236,8 +1264,124 @@ function showTab(id){
 // ══════════════════════════════════════
 //  LUCKY DRAW
 // ══════════════════════════════════════
+let checkInData = [];
+let checkOutData = [];
 let drawPool = [];
 let drawnNames = new Set();
+
+// ══════════════════════════════════════
+//  CHECK-IN / CHECK-OUT LIVE PANELS
+// ══════════════════════════════════════
+const MOOD_LIST = [
+  {e:'😄',l:'很开心'},{e:'😊',l:'还不错'},{e:'😐',l:'普通'},{e:'😔',l:'有点难过'},{e:'😴',l:'很疲倦'}
+];
+const WC_COLORS = ['#F0C040','#5DCAA5','#E74C3C','#9B59B6','#3498DB','#E67E22','#1ABC9C','#E91E63','#F39C12','#27AE60'];
+
+function renderCheckInPanel(){
+  const card = document.getElementById('ci-live-card');
+  if(!card) return;
+  if(checkInData.length === 0){ card.style.display='none'; return; }
+  card.style.display = '';
+
+  // Mood distribution chart
+  const moodCount = {};
+  MOOD_LIST.forEach(m => moodCount[m.e] = 0);
+  checkInData.forEach(s => { if(moodCount[s.mood]!=null) moodCount[s.mood]++; });
+  const total = checkInData.length;
+  const moodEl = document.getElementById('ci-mood-dist');
+  if(moodEl){
+    moodEl.innerHTML = MOOD_LIST.map(m => {
+      const n = moodCount[m.e]||0;
+      const pct = total>0 ? Math.round(n/total*100) : 0;
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:22px;width:30px;text-align:center">${m.e}</span>
+        <span style="font-size:12px;color:var(--ink3);width:52px">${m.l}</span>
+        <div style="flex:1;background:var(--mist);border-radius:20px;height:16px;overflow:hidden">
+          <div style="width:${pct}%;background:${n===0?'transparent':'var(--teal)'};height:100%;border-radius:20px;transition:width .4s"></div>
+        </div>
+        <span style="font-size:12px;font-weight:700;color:var(--ink2);min-width:24px;text-align:right">${n>0?n+'人':''}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Q1 answers
+  const q1Wrap = document.getElementById('ci-q1-wrap');
+  const q1List = document.getElementById('ci-q1-list');
+  const q1Label = document.getElementById('ci-q1-label');
+  const q1Answers = checkInData.filter(s => s.answers && s.answers[0]);
+  if(q1Wrap && q1List){
+    if(q1Answers.length > 0){
+      q1Wrap.style.display = '';
+      if(q1Label) q1Label.textContent = '💬 第 1 题回答：';
+      q1List.innerHTML = q1Answers.map(s =>
+        `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
+          <span style="font-size:15px">${s.av}</span>
+          <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
+          <span style="color:var(--ink)">${escHtml(s.answers[0])}</span>
+        </div>`
+      ).join('');
+    } else { q1Wrap.style.display = 'none'; }
+  }
+
+  // Q2 answers
+  const q2Wrap = document.getElementById('ci-q2-wrap');
+  const q2List = document.getElementById('ci-q2-list');
+  const q2Answers = checkInData.filter(s => s.answers && s.answers[1]);
+  if(q2Wrap && q2List){
+    if(q2Answers.length > 0){
+      q2Wrap.style.display = '';
+      q2List.innerHTML = q2Answers.map(s =>
+        `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
+          <span style="font-size:15px">${s.av}</span>
+          <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
+          <span style="color:var(--ink)">${escHtml(s.answers[1])}</span>
+        </div>`
+      ).join('');
+    } else { q2Wrap.style.display = 'none'; }
+  }
+}
+
+function renderCheckOutPanel(){
+  const card = document.getElementById('co-live-card');
+  if(!card) return;
+  if(checkOutData.length === 0){ card.style.display='none'; return; }
+  card.style.display = '';
+
+  // Word cloud from reflection texts
+  const wcEl = document.getElementById('co-word-cloud');
+  if(wcEl){
+    const freq = {};
+    checkOutData.forEach(s => {
+      if(!s.reflection) return;
+      s.reflection.split(/[\s，。！？、；：""''（）\(\),.!?;:]+/)
+        .map(w=>w.trim()).filter(w=>w.length>0)
+        .forEach(w => { freq[w]=(freq[w]||0)+1; });
+    });
+    const words = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,30);
+    const maxF = words[0]?words[0][1]:1;
+    wcEl.innerHTML = words.map(([w,f],i) => {
+      const sz = Math.round(12 + (f/maxF)*22);
+      return `<span style="font-size:${sz}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif;padding:2px 4px">${escHtml(w)}</span>`;
+    }).join('');
+  }
+
+  // Reflection answers list
+  const listEl = document.getElementById('co-reflection-list');
+  if(listEl){
+    listEl.innerHTML = checkOutData.filter(s=>s.reflection).map(s =>
+      `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
+        <span style="font-size:15px">${s.av}</span>
+        <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
+        <span style="color:var(--ink)">${escHtml(s.reflection)}</span>
+        ${s.mood?`<span style="margin-left:6px;font-size:15px">${s.mood}</span>`:''}
+      </div>`
+    ).join('');
+  }
+}
+
+function escHtml(str){
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 
 function refreshDrawPanel(){
   const students = studentRegistry.map(s => s.name);
