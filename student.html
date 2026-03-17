@@ -434,7 +434,8 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 <nav class="topnav" id="hud-topnav-wrap">
   <div class="brand">🏮 华文学习系统</div>
   <div class="lesson-info">当前课文：<strong id="lesson-title">—</strong></div>
-  </nav>
+  <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;margin-left:auto;flex-shrink:0">退出</button>
+</nav>
 
 <!-- ══ STUDENT PART STEPPER ══ -->
 <div id="part-bar" style="background:var(--white);border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;position:sticky;top:54px;z-index:150;box-shadow:0 2px 8px rgba(26,26,46,0.07);display:none">
@@ -1514,6 +1515,22 @@ function nav(id){
 }
 
 function navPart(id){ nav(id); }
+
+function exitToHome(){
+  if(!confirm('确定退出返回主页？你的学习进度已保存。')) return;
+  // Reset state
+  qgState.name=''; currentSession=null; currentUnitId=null;
+  document.getElementById('hud-topnav-wrap').style.display='none';
+  document.getElementById('part-bar').style.display='none';
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('page-checkin').classList.add('on');
+  // Clear code + name inputs for fresh entry
+  const ci=document.getElementById('code-input'); if(ci) ci.value='';
+  const ni=document.getElementById('name-input'); if(ni) ni.value='';
+  const st=document.getElementById('code-status'); if(st) st.textContent='';
+  _codeValid=false;
+  document.getElementById('name-overlay').style.display='flex';
+}
 
 function navAfterSlides(){
   if(mmData){ nav('mindmap'); } else { nav('comp'); }
@@ -3973,11 +3990,13 @@ function autoCheckCode(){
           const saved = localStorage.getItem('hw_last_name')||'';
           if(saved){ nameInp.value=saved; checkNameResume(); }
         }
-        // Auto-enter if name already ready
-        if(document.getElementById('name-input').value.trim()){
-          setTimeout(()=>enterByName(), 500);
+        // Focus name field if empty, otherwise just highlight the button
+        const nameInp2 = document.getElementById('name-input');
+        if(!nameInp2.value.trim()){
+          nameInp2.focus();
         } else {
-          document.getElementById('name-input').focus();
+          const btn = document.querySelector('.name-submit');
+          if(btn){ btn.style.animation='none'; void btn.offsetWidth; btn.style.animation='drawPop .4s ease'; }
         }
       } else {
         _codeValid = false;
@@ -3988,10 +4007,7 @@ function autoCheckCode(){
 }
 
 function autoSubmitIfReady(){
-  if(_codeValid && document.getElementById('name-input').value.trim()){
-    clearTimeout(_codeCheckTimer);
-    setTimeout(()=>enterByName(), 400);
-  }
+  // No longer auto-submits — user must click button
 }
 
 function checkNameResume(){
