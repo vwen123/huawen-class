@@ -1458,6 +1458,12 @@ function updatePartBar(activeId){
 
 // ── NAV ──
 function nav(id){
+  // Block navigation to learning pages until check-in is done
+  const ciGated = ['reading','flashcard','slides','mindmap','comp','quiz','checkout','progress'];
+  if(!ciDone && currentSession && ciGated.includes(id)){
+    id = 'checkin'; // redirect back to check-in
+  }
+
   if(curPage && curPage!==id) completedParts.add(curPage);
 
   // Exit quiz fullscreen when leaving quiz
@@ -1517,6 +1523,7 @@ function navPart(id){ nav(id); }
 function exitToHome(){
   if(!confirm('确定退出返回主页？你的学习进度已保存。')) return;
   // Reset state
+  ciSetDone(false);
   qgState.name=''; currentSession=null; currentUnitId=null;
   document.getElementById('hud-topnav-wrap').style.display='none';
   document.getElementById('part-bar').style.display='none';
@@ -1556,6 +1563,21 @@ function setRole(r){
 
 // ── CHECK IN ──
 let ciStep=1, ciMaxStep=1; // ciMaxStep set by applyUnitContent: 1=mood only, 2=+Q1, 3=+Q2
+let ciDone = false; // gate: must complete check-in before accessing other pages
+
+function ciSetDone(done){
+  ciDone = done;
+  // Lock/unlock sidebar items (dim non-checkin items until check-in complete)
+  document.querySelectorAll('#s-sidebar .nitem').forEach(el => {
+    const onclick = el.getAttribute('onclick') || '';
+    const isCheckin = onclick.includes("'checkin'");
+    if(done){
+      el.style.opacity=''; el.style.pointerEvents=''; el.title='';
+    } else {
+      if(!isCheckin){ el.style.opacity='0.35'; el.style.pointerEvents='none'; el.title='请先完成 Check In'; }
+    }
+  });
+}
 function selMood(el,m){
   document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
@@ -1585,6 +1607,7 @@ function updateCiDots(){
   if(btn1) btn1.textContent = ciMaxStep === 1 ? '开始学习！' : '下一步 →';
 }
 function ciSubmit(){
+  ciSetDone(true); // unlock all pages now that check-in is complete
   const nameIn = document.getElementById('qg-pname');
   if(nameIn && qgState.name) nameIn.value = qgState.name;
   // Write check-in data to Firebase (live only, not stored permanently)
@@ -4259,7 +4282,9 @@ function enterByName(){
       document.getElementById('ci1-btn').setAttribute('disabled','');
       updateCiDots();
 
-      // Go to checkin by default; fbLoadStudentData callback will redirect if resume page found
+      // Lock pages until check-in is completed
+      ciSetDone(false);
+      // Go to checkin — student must complete it before accessing learning pages
       nav('checkin');
     });
   });
