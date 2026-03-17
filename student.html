@@ -546,13 +546,13 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     <!-- Step 2: Open question 1 -->
     <div id="ci-step2" style="display:none">
       <div class="ci-q" id="ci-q2">分享你的想法：</div>
-      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans2"></textarea>
+      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans2" oninput="fbSyncCheckinDebounced()"></textarea>
       <button class="btn btn-red" style="margin-top:12px" onclick="ciNext(3)" id="ci2-btn">下一步 →</button>
     </div>
     <!-- Step 3: Open question 2 -->
     <div id="ci-step3" style="display:none">
       <div class="ci-q" id="ci-q3">分享你的想法：</div>
-      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans3"></textarea>
+      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans3" oninput="fbSyncCheckinDebounced()"></textarea>
       <div style="margin-top:12px">
         <button class="btn btn-gold btn-lg" onclick="ciSubmit()">开始学习！</button>
       </div>
@@ -1044,13 +1044,13 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     <!-- Q1 (shown if teacher sets coQuestions[0]) -->
     <div id="co-q0-wrap" style="margin-bottom:16px">
       <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif" id="co-q0-label">本课，我最大的收获是……</div>
-      <textarea class="ci-input" rows="3" id="co-ans0" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+      <textarea class="ci-input" rows="3" id="co-ans0" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore();fbSyncCheckoutDebounced()"></textarea>
     </div>
 
     <!-- Q2 (hidden by default, shown if teacher sets coQuestions[1]) -->
     <div id="co-q1-wrap" style="display:none;margin-bottom:16px">
       <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif" id="co-q1-label">—</div>
-      <textarea class="ci-input" rows="3" id="co-ans1" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+      <textarea class="ci-input" rows="3" id="co-ans1" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore();fbSyncCheckoutDebounced()"></textarea>
     </div>
 
     <button class="btn btn-gold btn-lg" style="margin-top:16px;width:100%" onclick="finishLesson()">完成本课学习，查看成绩 🎉</button>
@@ -1600,10 +1600,40 @@ function ciSetDone(done){
     }
   });
 }
+let _ciMood = ''; // current selected mood emoji
+let _ciSyncTimer = null;
+let _coSyncTimer = null;
+
+function fbSyncCheckin(){
+  if(!firebaseReady || !currentSession || !qgState.name) return;
+  const ans1 = (document.getElementById('ci-ans2')?.value||'').trim();
+  const ans2 = (document.getElementById('ci-ans3')?.value||'').trim();
+  const answers = [ans1, ans2].filter(Boolean);
+  sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkin:{mood:_ciMood, answers} });
+}
+function fbSyncCheckinDebounced(){
+  clearTimeout(_ciSyncTimer);
+  _ciSyncTimer = setTimeout(fbSyncCheckin, 500);
+}
+
+function fbSyncCheckout(){
+  if(!firebaseReady || !currentSession || !qgState.name) return;
+  const ans0 = (document.getElementById('co-ans0')?.value||'').trim();
+  const ans1 = (document.getElementById('co-ans1')?.value||'').trim();
+  const answers = [ans0, ans1].filter(Boolean);
+  sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkout:{thumbs:coThumb, answers} });
+}
+function fbSyncCheckoutDebounced(){
+  clearTimeout(_coSyncTimer);
+  _coSyncTimer = setTimeout(fbSyncCheckout, 500);
+}
+
 function selMood(el,m){
   document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
+  _ciMood = m; // save mood value
   document.getElementById('ci1-btn').removeAttribute('disabled');
+  fbSyncCheckin(); // live-sync mood immediately
 }
 function selCiOpt(el){
   document.querySelectorAll('.ci-opt').forEach(o=>o.classList.remove('sel'));
@@ -1632,15 +1662,8 @@ function ciSubmit(){
   ciSetDone(true); // unlock all pages now that check-in is complete
   const nameIn = document.getElementById('qg-pname');
   if(nameIn && qgState.name) nameIn.value = qgState.name;
-  // Write check-in data to Firebase (live only, not stored permanently)
-  if(firebaseReady && currentSession && qgState.name){
-    const moodEl = document.querySelector('.mood-btn.sel .mood-emoji');
-    const mood = moodEl ? moodEl.textContent : '';
-    const ans1 = (document.getElementById('ci-ans2')?.value||'').trim();
-    const ans2 = (document.getElementById('ci-ans3')?.value||'').trim();
-    const answers = [ans1, ans2].filter(Boolean);
-    sessionRef(currentSession+'/students/'+safeKey(qgState.name)).update({ checkin:{mood, answers} });
-  }
+  // Final sync of check-in data to Firebase
+  fbSyncCheckin();
   ciSubmitAndContinue();
 }
 
@@ -3596,6 +3619,7 @@ function setThumb(val, el){
   const cls = val==='up'?'sel-up':val==='sideways'?'sel-side':'sel-down';
   el.classList.add(cls);
   setScore('checkout', 100);
+  fbSyncCheckout(); // live-sync thumb immediately
 }
 function updateCheckoutScore(){
   const txt=(document.getElementById('co-ans0')||{}).value||'';
@@ -3618,13 +3642,7 @@ function finishLesson(){
 
   // 🔥 Sync completion to Firebase
   fbFinishStudent(name, av, studentScores);
-  // Write checkout response to Firebase (live only)
-  if(firebaseReady && currentSession){
-    const ans0=(document.getElementById('co-ans0')?.value||'').trim();
-    const ans1=(document.getElementById('co-ans1')?.value||'').trim();
-    const answers=[ans0,ans1].filter(Boolean);
-    sessionRef(currentSession+'/students/'+safeKey(name)).update({ checkout:{thumbs:coThumb, answers} });
-  }
+  fbSyncCheckout(); // final checkout sync (thumb + answers)
 
   // Don't clear progress — preserve scores so re-login can show review mode
   lessonCompleted = true;
@@ -4319,6 +4337,7 @@ function enterByName(){
         : n + '，你好！上课前先签个到吧。';
 
       // Reset check-in state (ready for whenever they reach it)
+      _ciMood = ''; coThumb = '';
       ciStep = 1;
       document.getElementById('ci-step1').style.display = '';
       document.getElementById('ci-step2').style.display = 'none';
