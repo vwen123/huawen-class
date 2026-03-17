@@ -1204,7 +1204,7 @@ function initFirebase(){
 function safeKey(s){ return String(s).replace(/[.#$[\]/]/g,'_'); }
 function unitsRef()   { return db.ref('units'); }
 function sessionRef(sid){ return db.ref('sessions/' + sid); }
-function activeRef()  { return db.ref('meta/activeSession'); }
+function activeRef()  { return db.ref('meta/activeSessions'); }
 
 // ══════════════════════════════════════
 //  UNITS (永久课文内容)
@@ -1289,9 +1289,9 @@ function fbClearSessionStudents(sid){
 // Student: look up active session by class code
 function fbFindSessionByCode(code, cb){
   if(!firebaseReady){ cb(null); return; }
-  activeRef().once('value', snap => {
+  db.ref('meta/activeSessions/' + code.toUpperCase()).once('value', snap => {
     const meta = snap.val();
-    if(meta && meta.code === code.toUpperCase()){
+    if(meta && meta.sessionId){
       currentSession = meta.sessionId;
       currentUnitId  = meta.unitId;
       activeClassCode = meta.code;
@@ -1358,15 +1358,14 @@ let sessionListener = null;
 
 function listenActiveSession(){
   if(!firebaseReady) return;
-  // Listen to meta/activeSession for changes
-  activeRef().on('value', snap => {
+  // Listen to meta/activeSessions for session changes (student uses activeClassCode set during entry)
+  if(!activeClassCode) return;
+  db.ref('meta/activeSessions/' + activeClassCode).on('value', snap => {
     const meta = snap.val();
-    if(!meta){ return; }
-    currentSession  = meta.sessionId;
-    currentUnitId   = meta.unitId;
-    activeClassCode = meta.code;
-    // Now listen to students in this session
-    attachStudentListener(meta.sessionId);
+    if(!meta){ return; } // session ended; student stays on current page
+    // Keep session info in sync in case of updates
+    if(meta.sessionId) currentSession = meta.sessionId;
+    if(meta.unitId) currentUnitId = meta.unitId;
   });
 }
 

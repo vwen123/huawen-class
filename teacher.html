@@ -95,8 +95,14 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 #bulk-delete-bar{display:none;align-items:center;gap:10px;background:var(--red-l);border:1.5px solid var(--red);border-radius:var(--r);padding:8px 14px;margin-bottom:10px;font-size:13px;font-weight:600;color:var(--red)}
 
 /* ── SESSION BANNER ── */
-.session-banner{background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border:1.5px solid var(--teal);border-radius:var(--rl);padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
-.code-display{font-family:'Noto Serif SC',serif;font-size:36px;font-weight:900;color:var(--red);letter-spacing:.2em;background:white;padding:8px 20px;border-radius:10px;border:2px dashed var(--red)}
+.session-banner{background:linear-gradient(135deg,var(--teal-l),#E0FAF4);border:1.5px solid var(--teal);border-radius:var(--rl);padding:14px 18px;margin-bottom:20px}
+.code-display{font-family:'Noto Serif SC',serif;font-size:32px;font-weight:900;color:var(--red);letter-spacing:.2em;background:white;padding:6px 16px;border-radius:10px;border:2px dashed var(--red)}
+/* Session tabs */
+.session-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed rgba(22,160,133,.3)}
+.session-tab{padding:5px 14px;border-radius:20px;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;border:2px solid var(--border);background:white;color:var(--ink2)}
+.session-tab:hover{border-color:var(--teal);color:var(--teal)}
+.session-tab.active{border-color:var(--teal);background:var(--teal);color:white}
+.sb-body{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 
 /* ── WAITING LIST ── */
 .waiting-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;background:var(--mist);border:1px solid var(--border);font-size:12px;margin:3px}
@@ -155,18 +161,23 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Active session banner -->
       <div id="session-banner" style="display:none" class="session-banner">
-        <div style="flex:1">
-          <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:4px">🟢 课堂进行中</div>
-          <div style="font-size:15px;font-weight:600" id="sb-unit-name">—</div>
-          <div style="font-size:12px;color:var(--ink3)" id="sb-class-label">—</div>
-        </div>
-        <div style="text-align:center">
-          <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">学生进入码</div>
-          <div class="code-display" id="sb-code">—</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-teal btn-sm" onclick="copyCode()">📋 复制进入码</button>
-          <button class="btn btn-ghost btn-sm" onclick="endSession()">🏁 结束课堂</button>
+        <!-- Session tab row -->
+        <div class="session-tabs" id="session-tabs"></div>
+        <!-- Current session details -->
+        <div class="sb-body">
+          <div style="flex:1;min-width:120px">
+            <div style="font-size:12px;font-weight:700;color:var(--teal);margin-bottom:4px">🟢 课堂进行中</div>
+            <div style="font-size:15px;font-weight:600" id="sb-unit-name">—</div>
+            <div style="font-size:12px;color:var(--ink3)" id="sb-class-label">—</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:11px;color:var(--ink3);margin-bottom:4px">学生进入码</div>
+            <div class="code-display" id="sb-code">—</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-teal btn-sm" onclick="copyCode()">📋 复制进入码</button>
+            <button class="btn btn-ghost btn-sm" onclick="endSession()">🏁 结束课堂</button>
+          </div>
         </div>
       </div>
 
@@ -482,6 +493,7 @@ let firebaseReady = false;
 let currentSession = null;
 let currentUnitId  = null;
 let activeCode     = null;
+let activeSessions = {};
 let selectedUnitId = null;
 let selectedUnitTitle = '';
 let studentRegistry = [];
@@ -530,7 +542,7 @@ function initApp(){
 
 function safeKey(s){ return String(s).replace(/[.#$[\]/]/g,'_'); }
 function sessionRef(path){ return db.ref('sessions/' + path); }
-function activeRef(){ return db.ref('meta/activeSession'); }
+function activeRef(){ return db.ref('meta/activeSessions'); }
 function unitsRef(){ return db.ref('units'); }
 function gradesRef(){ return db.ref('grades'); }
 
@@ -601,38 +613,91 @@ function filterGrade(gradeId){
   loadUnitList();
 }
 
-// ── Listen to active session ──
+// ── Listen to active sessions (multi-session) ──
 function listenActiveSession(){
   activeRef().on('value', snap => {
-    const meta = snap.val();
-    if(meta && meta.sessionId){
+    activeSessions = snap.val() || {};
+    const keys = Object.keys(activeSessions);
+    if(keys.length === 0){
+      currentSession = null; currentUnitId = null; activeCode = null;
+      studentRegistry = []; classRoster = [];
+      hideBanner();
+      return;
+    }
+    // If current active session still exists, keep it; otherwise switch to first
+    if(activeCode && activeSessions[activeCode]){
+      // Update metadata in case classStatus changed
+      const meta = activeSessions[activeCode];
+      classStatus = meta.classStatus || 'waiting';
+      updateSessionBannerInfo(meta);
+    } else {
+      // Switch to first available session
+      const firstCode = keys[0];
+      const meta = activeSessions[firstCode];
       currentSession = meta.sessionId;
       currentUnitId  = meta.unitId;
-      activeCode     = meta.code;
+      activeCode     = meta.code || firstCode;
       classStatus    = meta.classStatus || 'waiting';
-      showSessionBanner(meta);
+      studentRegistry = []; classRoster = [];
       attachListener(meta.sessionId);
-    } else {
-      currentSession = null;
-      hideBanner();
+      updateSessionBannerInfo(meta);
     }
+    renderSessionTabs();
+    document.getElementById('session-banner').style.display = '';
+    document.getElementById('no-session-banner').style.display = 'none';
+    document.getElementById('nav-live-badge').style.display = 'flex';
+    document.getElementById('waiting-control').style.display = 'block';
   });
 }
 
+function updateSessionBannerInfo(meta){
+  document.getElementById('sb-code').textContent = meta.code || activeCode || '—';
+  // Get unit title
+  if(meta.unitId){
+    db.ref('units/' + meta.unitId + '/info/title').once('value', s => {
+      const t = s.val() || '课文';
+      document.getElementById('sb-unit-name').textContent = t;
+      document.getElementById('sb-class-label').textContent = meta.classLabel || '';
+      document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
+    });
+  }
+}
+
 function showSessionBanner(meta){
-  document.getElementById('session-banner').style.display = 'flex';
+  document.getElementById('session-banner').style.display = '';
   document.getElementById('no-session-banner').style.display = 'none';
-  document.getElementById('sb-code').textContent = meta.code || '—';
   document.getElementById('nav-live-badge').style.display = 'flex';
   document.getElementById('waiting-control').style.display = 'block';
-  // Get unit title
-  db.ref('units/' + meta.unitId + '/info/title').once('value', s => {
-    const t = s.val() || '课文';
-    document.getElementById('sb-unit-name').textContent = t;
-    document.getElementById('sb-class-label').textContent = meta.classLabel || '';
-    document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
-  });
-  // No start-class button needed — students enter freely after code is shared
+  updateSessionBannerInfo(meta);
+  renderSessionTabs();
+}
+
+function renderSessionTabs(){
+  const tabs = document.getElementById('session-tabs');
+  if(!tabs) return;
+  const keys = Object.keys(activeSessions);
+  if(keys.length <= 1){ tabs.style.display = 'none'; return; }
+  tabs.style.display = 'flex';
+  tabs.innerHTML = keys.map(code => {
+    const s = activeSessions[code];
+    const isActive = code === activeCode;
+    return `<button class="session-tab${isActive?' active':''}" onclick="switchSession('${code}')">${s.classLabel||code}</button>`;
+  }).join('');
+}
+
+function switchSession(code){
+  if(!activeSessions[code]) return;
+  const meta = activeSessions[code];
+  currentSession = meta.sessionId;
+  currentUnitId  = meta.unitId;
+  activeCode     = meta.code || code;
+  classStatus    = meta.classStatus || 'waiting';
+  studentRegistry = []; classRoster = [];
+  if(sessionListener) sessionListener.off();
+  attachListener(meta.sessionId);
+  renderSessionTabs();
+  updateSessionBannerInfo(meta);
+  refreshAllViews();
 }
 
 function hideBanner(){
@@ -641,6 +706,7 @@ function hideBanner(){
   document.getElementById('nav-live-badge').style.display = 'none';
   document.getElementById('waiting-control').style.display = 'none';
   document.getElementById('nav-subtitle').textContent = '老师管理端';
+  refreshAllViews();
 }
 
 // ── Listen to students ──
@@ -678,14 +744,12 @@ function refreshAllViews(){
 //  CLASS CONTROL
 // ══════════════════════════════════════
 function startClass(){
-  if(!currentSession){ alert('请先开课'); return; }
+  if(!currentSession || !activeCode){ alert('请先开课'); return; }
   sessionRef(currentSession).update({ classStatus: 'started' });
-  activeRef().update({ classStatus: 'started' });
+  db.ref('meta/activeSessions/' + activeCode).update({ classStatus: 'started' });
   classStatus = 'started';
   const btn = document.getElementById('start-class-btn');
-  btn.textContent = '🟢 课堂已开始';
-  btn.disabled = true;
-  btn.style.background = 'var(--teal)';
+  if(btn){ btn.textContent = '🟢 课堂已开始'; btn.disabled = true; btn.style.background = 'var(--teal)'; }
 }
 
 function copyCode(){
@@ -697,12 +761,22 @@ function copyCode(){
 
 function endSession(){
   if(!currentSession){ alert('没有进行中的课堂'); return; }
-  if(!confirm('确定结束课堂并清除学生数据？\n请先确认已下载成绩！')) return;
-  sessionRef(currentSession + '/status').set('ended');
-  sessionRef(currentSession + '/students').remove();
-  activeRef().remove();
+  if(!confirm('确定结束课堂「' + (activeCode||'') + '」并清除学生数据？\n请先确认已下载成绩！')) return;
+  const endingCode = activeCode;
+  const endingSession = currentSession;
+  sessionRef(endingSession + '/status').set('ended');
+  sessionRef(endingSession + '/students').remove();
+  db.ref('meta/activeSessions/' + endingCode).remove();
   studentRegistry = []; classRoster = [];
-  refreshAllViews();
+  // Switch to another session if available, or hide banner
+  const remaining = Object.keys(activeSessions).filter(c => c !== endingCode);
+  if(remaining.length > 0){
+    switchSession(remaining[0]);
+  } else {
+    currentSession = null; currentUnitId = null; activeCode = null;
+    activeSessions = {};
+    hideBanner();
+  }
 }
 
 // ══════════════════════════════════════
@@ -1014,12 +1088,11 @@ function selectUnit(id, title){
 function openSession(unitId, unitTitle){
   const label = prompt('输入班级名称（例如：6A、6B）', '班级');
   if(!label) return;
-  const code = label.toUpperCase().replace(/\s/g,'').slice(0,4) + Math.floor(100+Math.random()*900);
+  const code = label.toUpperCase().replace(/\s/g,'') + Math.floor(100+Math.random()*900);
   const sid  = 'session_' + Date.now();
   const data = { unitId, classLabel:label, code, startedAt:Date.now(), status:'active', classStatus:'waiting', students:{} };
   db.ref('sessions/'+sid).set(data).then(()=>{
-    activeRef().set({ sessionId:sid, unitId, code, classLabel:label, classStatus:'waiting' });
-    currentSession = sid; currentUnitId = unitId; activeCode = code;
+    db.ref('meta/activeSessions/'+code).set({ sessionId:sid, unitId, code, classLabel:label, classStatus:'waiting' });
     alert('✅ 课堂已开启！\n\n学生进入码：' + code + '\n\n告诉学生这个进入码，他们就可以进入系统。');
     showTab('dashboard');
   });
