@@ -537,21 +537,16 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       </div>
       <button class="btn btn-red" onclick="ciNext(2)" id="ci1-btn" disabled>下一步 →</button>
     </div>
-    <!-- Step 2: Topic intro -->
+    <!-- Step 2: Open question 1 -->
     <div id="ci-step2" style="display:none">
-      <div class="ci-q" id="ci-q2">今天我们要学习《春天来了》。你觉得春天是什么样的季节？</div>
-      <div class="ci-opts" id="ci-opts2">
-        <button class="ci-opt" onclick="selCiOpt(this)">🌸 温暖、百花盛开的季节</button>
-        <button class="ci-opt" onclick="selCiOpt(this)">🌧️ 多雨、潮湿的季节</button>
-        <button class="ci-opt" onclick="selCiOpt(this)">🌱 万物生长的季节</button>
-        <button class="ci-opt" onclick="selCiOpt(this)">🤔 我还不太了解春天</button>
-      </div>
-      <button class="btn btn-red" onclick="ciNext(3)" id="ci2-btn">下一步 →</button>
+      <div class="ci-q" id="ci-q2">分享你的想法：</div>
+      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans2"></textarea>
+      <button class="btn btn-red" style="margin-top:12px" onclick="ciNext(3)" id="ci2-btn">下一步 →</button>
     </div>
-    <!-- Step 3: Open question -->
+    <!-- Step 3: Open question 2 -->
     <div id="ci-step3" style="display:none">
-      <div class="ci-q">你见过哪些春天的景色或动植物？分享一下！</div>
-      <textarea class="ci-input" rows="3" placeholder="例如：我见过樱花、青蛙、燕子……" id="ci-open"></textarea>
+      <div class="ci-q" id="ci-q3">分享你的想法：</div>
+      <textarea class="ci-input" rows="3" placeholder="写下你的答案……" id="ci-ans3"></textarea>
       <div style="margin-top:12px">
         <button class="btn btn-gold btn-lg" onclick="ciSubmit()">开始学习！</button>
       </div>
@@ -4077,30 +4072,21 @@ function applyUnitContent(content){
 function applyCiQuestions(qs){
   const q0 = qs[0];
   const q1 = qs[1];
-  const hasQ0 = q0 && q0.text && q0.opts && q0.opts.some(o=>o);
-  const hasQ1 = q1 && q1.text && q1.opts && q1.opts.some(o=>o);
+  const hasQ0 = q0 && q0.text && q0.text.trim();
+  const hasQ1 = q1 && q1.text && q1.text.trim();
   ciMaxStep = hasQ0 ? (hasQ1 ? 3 : 2) : 1;
   updateCiDots();
 
-  // Q1 → Step 2
+  // Q1 → Step 2 (open textarea)
   if(hasQ0){
     const qEl = document.getElementById('ci-q2');
-    const optsEl = document.getElementById('ci-opts2');
     if(qEl) qEl.textContent = q0.text;
-    if(optsEl) optsEl.innerHTML = q0.opts.filter(o=>o).map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('');
   }
 
-  // Q2 → Step 3
-  const step3 = document.getElementById('ci-step3');
-  if(step3){
-    if(hasQ1){
-      step3.innerHTML = `
-        <div class="ci-q">${q1.text}</div>
-        <div class="ci-opts" id="ci-opts3">${q1.opts.filter(o=>o).map(o=>`<button class="ci-opt" onclick="selCiOpt(this)">${o}</button>`).join('')}</div>
-        <div style="margin-top:12px">
-          <button class="btn btn-gold btn-lg" onclick="ciSubmit()">开始学习！</button>
-        </div>`;
-    }
+  // Q2 → Step 3 (open textarea)
+  if(hasQ1){
+    const qEl = document.getElementById('ci-q3');
+    if(qEl) qEl.textContent = q1.text;
   }
 }
 

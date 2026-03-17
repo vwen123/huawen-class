@@ -390,31 +390,19 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
         <!-- Check-in questions -->
         <div class="card">
-          <div class="ctitle">📝 签到题目（1–2 题）</div>
-          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">学生完成签到心情选择后，会看到这些题目。不填则使用默认题目。</div>
+          <div class="ctitle">📝 签到开放题（1–2 题）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">学生完成心情选择后，会看到这些开放题，自由填写作答。不填则跳过。</div>
 
           <!-- Q1 -->
           <div style="background:var(--mist);border-radius:var(--r);padding:14px;margin-bottom:12px">
             <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 1 题</div>
-            <input class="wi" id="ci-q0-text" placeholder="题目内容，例如：你觉得今天上课的心情怎样？" style="margin-bottom:8px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <input class="wi" id="ci-q0-opt0" placeholder="选项 A（必填）">
-              <input class="wi" id="ci-q0-opt1" placeholder="选项 B（必填）">
-              <input class="wi" id="ci-q0-opt2" placeholder="选项 C（选填）">
-              <input class="wi" id="ci-q0-opt3" placeholder="选项 D（选填）">
-            </div>
+            <input class="wi" id="ci-q0-text" placeholder="例如：你今天最期待哪个部分的学习？">
           </div>
 
           <!-- Q2 -->
           <div style="background:var(--mist);border-radius:var(--r);padding:14px">
             <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 2 题（选填）</div>
-            <input class="wi" id="ci-q1-text" placeholder="第二道题目（留空则只有1题）" style="margin-bottom:8px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-              <input class="wi" id="ci-q1-opt0" placeholder="选项 A">
-              <input class="wi" id="ci-q1-opt1" placeholder="选项 B">
-              <input class="wi" id="ci-q1-opt2" placeholder="选项 C（选填）">
-              <input class="wi" id="ci-q1-opt3" placeholder="选项 D（选填）">
-            </div>
+            <input class="wi" id="ci-q1-text" placeholder="第二道开放题（留空则只有1题）">
           </div>
         </div>
       </div>
@@ -1071,9 +1059,6 @@ function selectUnit(id, title){
     for(let qi=0;qi<2;qi++){
       const q = qs[qi]||{};
       if(el('ci-q'+qi+'-text')) el('ci-q'+qi+'-text').value = q.text||'';
-      for(let oi=0;oi<4;oi++){
-        if(el('ci-q'+qi+'-opt'+oi)) el('ci-q'+qi+'-opt'+oi).value = (q.opts&&q.opts[oi])||'';
-      }
     }
   });
   document.getElementById('editing-title').textContent = title;
@@ -1127,17 +1112,11 @@ function saveAllContent(){
     if(parts.length >= 6) quizQs.push({ q:parts[0], opts:[parts[1],parts[2],parts[3],parts[4]], ans:parseInt(parts[5])||0 });
   });
 
-  // Parse check-in questions
+  // Parse check-in questions (open-ended, no options)
   const ciQuestions = [];
   for(let qi=0;qi<2;qi++){
     const text = g('ci-q'+qi+'-text').trim();
-    if(!text) continue;
-    const opts = [];
-    for(let oi=0;oi<4;oi++){
-      const v = g('ci-q'+qi+'-opt'+oi).trim();
-      if(v) opts.push(v);
-    }
-    if(opts.length>=2) ciQuestions.push({text, opts});
+    if(text) ciQuestions.push({text});
   }
 
   // Read quiz game settings
