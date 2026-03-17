@@ -241,6 +241,11 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .co-mood-btn{font-size:28px;cursor:pointer;padding:8px;border-radius:10px;border:2px solid var(--border);background:white;transition:all .15s;flex:1;text-align:center;}
 .co-mood-btn:hover{border-color:var(--gold);transform:scale(1.06);}
 .co-mood-btn.sel{border-color:var(--gold);background:var(--gold-pale);transform:scale(1.1);}
+.co-thumb-btn{flex:1;padding:14px 8px;border:2.5px solid var(--border);border-radius:14px;background:var(--white);cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;display:flex;flex-direction:column;align-items:center;gap:4px}
+.co-thumb-btn:hover{border-color:var(--teal);transform:scale(1.04)}
+.co-thumb-btn.sel-up{border-color:#27AE60;background:#D4FADF}
+.co-thumb-btn.sel-side{border-color:var(--gold);background:var(--gold-pale)}
+.co-thumb-btn.sel-down{border-color:var(--red);background:#FFE0E0}
 /* Teacher score table */
 .ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;gap:0;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px;}
 .ts-row:last-child{border-bottom:none;}
@@ -1015,13 +1020,38 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
   <!-- ── WORD CLOUD + REFLECTION ── -->
   <div class="card" id="co-input-card">
     <div class="ctitle">☁️ Check Out</div>
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px;font-family:'Noto Serif SC',serif" id="co-q-label">本课，我最大的收获是……</div>
-    <textarea class="ci-input" rows="3" id="co-reflection" placeholder="写一句话总结本课的学习…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
-    <div style="display:flex;gap:8px;margin-top:12px;justify-content:center">
-      <div class="co-mood-btn" onclick="setCoMood(this)" title="很开心">😄</div>
-      <div class="co-mood-btn" onclick="setCoMood(this)" title="还不错">😊</div>
-      <div class="co-mood-btn" onclick="setCoMood(this)" title="普通">😐</div>
+
+    <!-- Thumbs evaluation -->
+    <div style="margin-bottom:20px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px;font-family:'Noto Serif SC',serif">今天的学习状态……</div>
+      <div style="display:flex;gap:10px">
+        <button class="co-thumb-btn" id="thumb-up" onclick="setThumb('up',this)">
+          <span style="font-size:30px">👍</span>
+          <span style="font-size:11px;color:var(--ink2)">我明白了</span>
+        </button>
+        <button class="co-thumb-btn" id="thumb-side" onclick="setThumb('sideways',this)">
+          <span style="font-size:30px">✋</span>
+          <span style="font-size:11px;color:var(--ink2)">半懂不懂</span>
+        </button>
+        <button class="co-thumb-btn" id="thumb-down" onclick="setThumb('down',this)">
+          <span style="font-size:30px">👎</span>
+          <span style="font-size:11px;color:var(--ink2)">我卡住了</span>
+        </button>
+      </div>
     </div>
+
+    <!-- Q1 (shown if teacher sets coQuestions[0]) -->
+    <div id="co-q0-wrap" style="margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif" id="co-q0-label">本课，我最大的收获是……</div>
+      <textarea class="ci-input" rows="3" id="co-ans0" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+    </div>
+
+    <!-- Q2 (hidden by default, shown if teacher sets coQuestions[1]) -->
+    <div id="co-q1-wrap" style="display:none;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;font-family:'Noto Serif SC',serif" id="co-q1-label">—</div>
+      <textarea class="ci-input" rows="3" id="co-ans1" placeholder="写下你的答案…" style="border-color:var(--border)" oninput="updateCheckoutScore()"></textarea>
+    </div>
+
     <button class="btn btn-gold btn-lg" style="margin-top:16px;width:100%" onclick="finishLesson()">完成本课学习，查看成绩 🎉</button>
   </div>
 
@@ -3351,15 +3381,19 @@ function buildLearningAnalysis(total){
     </div>` : `<div style="margin-top:10px;padding:10px 12px;background:#4CAF5015;border-radius:10px;font-size:12px;color:var(--ink2)">🎉 今天没有特别需要补救的地方，表现很全面！</div>`}
   `;
 }
+let coThumb = '';
+function setThumb(val, el){
+  coThumb = val;
+  document.querySelectorAll('.co-thumb-btn').forEach(b=>b.classList.remove('sel-up','sel-side','sel-down'));
+  const cls = val==='up'?'sel-up':val==='sideways'?'sel-side':'sel-down';
+  el.classList.add(cls);
+  setScore('checkout', 100);
+}
 function updateCheckoutScore(){
-  const txt=(document.getElementById('co-reflection')||{}).value||'';
-  setScore('checkout',txt.trim().length>3?100:0);
+  const txt=(document.getElementById('co-ans0')||{}).value||'';
+  if(coThumb || txt.trim().length>3) setScore('checkout',100);
 }
-function setCoMood(el){
-  document.querySelectorAll('.co-mood-btn').forEach(b=>b.classList.remove('sel'));
-  el.classList.add('sel');
-  setScore('checkout',100);
-}
+function setCoMood(el){} // kept for legacy compatibility
 function finishLesson(){
   setScore('checkout',100);
   const name=qgState.name||'学生', av=qgState.av||'🐯';
@@ -3378,10 +3412,10 @@ function finishLesson(){
   fbFinishStudent(name, av, studentScores);
   // Write checkout response to Firebase (live only)
   if(firebaseReady && currentSession){
-    const reflection=(document.getElementById('co-reflection')?.value||'').trim();
-    const coMoodEl=document.querySelector('.co-mood-btn.sel');
-    const coMood=coMoodEl?coMoodEl.title:'';
-    sessionRef(currentSession+'/students/'+safeKey(name)).update({ checkout:{mood:coMood, reflection} });
+    const ans0=(document.getElementById('co-ans0')?.value||'').trim();
+    const ans1=(document.getElementById('co-ans1')?.value||'').trim();
+    const answers=[ans0,ans1].filter(Boolean);
+    sessionRef(currentSession+'/students/'+safeKey(name)).update({ checkout:{thumbs:coThumb, answers} });
   }
 
   clearProgress(name);
@@ -4111,6 +4145,22 @@ function applyUnitContent(content){
     ciMaxStep = 1; // No teacher questions → mood only
     updateCiDots();
   }
+  if(content.coQuestions) applyCoQuestions(content.coQuestions);
+}
+
+function applyCoQuestions(qs){
+  const q0 = qs && qs[0];
+  const q1 = qs && qs[1];
+  const hasQ0 = q0 && q0.text && q0.text.trim();
+  const hasQ1 = q1 && q1.text && q1.text.trim();
+  const w0=document.getElementById('co-q0-wrap');
+  const w1=document.getElementById('co-q1-wrap');
+  const l0=document.getElementById('co-q0-label');
+  const l1=document.getElementById('co-q1-label');
+  if(w0) w0.style.display = hasQ0||true ? '' : 'none'; // always show Q0 as default
+  if(hasQ0 && l0) l0.textContent = q0.text;
+  if(w1) w1.style.display = hasQ1 ? '' : 'none';
+  if(hasQ1 && l1) l1.textContent = q1.text;
 }
 
 function applyCiQuestions(qs){

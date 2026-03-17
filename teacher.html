@@ -233,10 +233,20 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
       <!-- Check-out live panel -->
       <div class="card" id="co-live-card" style="display:none">
-        <div class="ctitle">☁️ Check Out 反馈</div>
-        <div id="co-word-cloud" style="display:flex;flex-wrap:wrap;gap:8px;padding:12px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:12px;min-height:60px;margin-bottom:14px;align-items:center"></div>
-        <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px" id="co-reflection-label">本课最大收获</div>
-        <div id="co-reflection-list" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <div class="ctitle" style="margin:0">☁️ Check Out 反馈</div>
+          <button class="btn btn-ghost btn-sm" id="co-wc-btn" style="display:none" onclick="openWcFullscreen()">📺 大屏文字云</button>
+        </div>
+        <!-- Thumbs distribution -->
+        <div id="co-thumbs-dist" style="display:flex;gap:8px;margin-bottom:16px"></div>
+        <!-- Per-question panels -->
+        <div id="co-questions-panel"></div>
+      </div>
+
+      <!-- Word cloud fullscreen overlay -->
+      <div id="wc-fullscreen" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0A0A18,#1A1A2E);overflow:hidden;cursor:pointer" onclick="closeWcFullscreen()">
+        <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.5);font-size:13px">点击任意处关闭</div>
+        <div id="wc-fullscreen-cloud" style="width:100%;height:100%;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:16px;padding:60px 40px"></div>
       </div>
     </div>
 
@@ -433,6 +443,26 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div style="background:var(--mist);border-radius:var(--r);padding:14px">
             <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 2 题（选填）</div>
             <input class="wi" id="ci-q1-text" placeholder="第二道开放题（留空则只有1题）">
+          </div>
+        </div>
+
+        <!-- Check-out questions -->
+        <div class="card">
+          <div class="ctitle">☁️ Check Out 题目（1–2 题）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">学生完成手势评价后看到这些问题。勾选「文字云」可在老师端一键展示大屏文字云。</div>
+
+          <!-- Q1 -->
+          <div style="background:var(--mist);border-radius:var(--r);padding:14px;margin-bottom:12px">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 1 题</div>
+            <input class="wi" id="co-q0-text" placeholder="例如：本课，我最大的收获是……" style="margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer;margin-top:6px"><input type="checkbox" id="co-q0-wc"> 📊 展示为文字云</label>
+          </div>
+
+          <!-- Q2 -->
+          <div style="background:var(--mist);border-radius:var(--r);padding:14px">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:8px">第 2 题（选填）</div>
+            <input class="wi" id="co-q1-text" placeholder="第二道题目（留空则只有1题）" style="margin-bottom:8px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2);cursor:pointer;margin-top:6px"><input type="checkbox" id="co-q1-wc"> 📊 展示为文字云</label>
           </div>
         </div>
       </div>
@@ -683,6 +713,10 @@ function updateSessionBannerInfo(meta){
       document.getElementById('sb-class-label').textContent = meta.classLabel || '';
       document.getElementById('nav-subtitle').textContent = t + ' · ' + (meta.classLabel||'');
     });
+    db.ref('units/'+meta.unitId+'/content').once('value', snap=>{
+      const c = snap.val()||{};
+      _coQuestionsMeta = c.coQuestions||[];
+    });
   }
 }
 
@@ -753,7 +787,7 @@ function attachListener(sid){
         classRoster.push({ name:s.name, av:s.av||'🐯', ...sc, total:tot, time:s.doneTime||s.time||'--:--', done:s.done||false });
       }
       if(s.checkin) checkInData.push({ name:s.name, av:s.av||'🐯', mood:s.checkin.mood||'', answers:s.checkin.answers||[] });
-      if(s.checkout) checkOutData.push({ name:s.name, av:s.av||'🐯', mood:s.checkout.mood||'', reflection:s.checkout.reflection||'' });
+      if(s.checkout) checkOutData.push({ name:s.name, av:s.av||'🐯', thumbs:s.checkout.thumbs||'', answers:s.checkout.answers||[], mood:s.checkout.mood||'', reflection:s.checkout.reflection||'' });
     });
     // Store student count on current session for tab badge
     if(activeSessions && activeCode && activeSessions[activeCode])
@@ -1131,6 +1165,14 @@ function selectUnit(id, title){
       const q = qs[qi]||{};
       if(el('ci-q'+qi+'-text')) el('ci-q'+qi+'-text').value = q.text||'';
     }
+    // Load check-out questions
+    const coQs = c.coQuestions || [];
+    for(let qi=0;qi<2;qi++){
+      const q = coQs[qi]||{};
+      if(el('co-q'+qi+'-text')) el('co-q'+qi+'-text').value = q.text||'';
+      const wcEl = document.getElementById('co-q'+qi+'-wc');
+      if(wcEl) wcEl.checked = q.wordCloud||false;
+    }
   });
   document.getElementById('editing-title').textContent = title;
   document.getElementById('no-unit-msg').style.display    = 'none';
@@ -1190,6 +1232,14 @@ function saveAllContent(){
     if(text) ciQuestions.push({text});
   }
 
+  // Parse check-out questions
+  const coQuestions = [];
+  for(let qi=0;qi<2;qi++){
+    const text = g('co-q'+qi+'-text').trim();
+    const wordCloud = document.getElementById('co-q'+qi+'-wc')?.checked||false;
+    if(text) coQuestions.push({text, wordCloud});
+  }
+
   // Read quiz game settings
   const qstChecked = document.querySelector('input[name="qst"]:checked');
   const fcGames = [];
@@ -1214,7 +1264,7 @@ function saveAllContent(){
     cpMarkdown:  g('cp-write'),
     qzMarkdown:  g('qz-write'),
     mmMarkdown:  g('mm-write'),
-    flashcards, compQs, quizQs, ciQuestions, gameSettings,
+    flashcards, compQs, quizQs, ciQuestions, coQuestions, gameSettings,
   };
 
   db.ref('units/'+selectedUnitId+'/content').set(content).then(()=>{
@@ -1341,42 +1391,116 @@ function renderCheckInPanel(){
   }
 }
 
+// Tracks which question index has wordCloud=true for fullscreen
+let wcFullscreenQIdx = -1;
+let _coQuestionsMeta = []; // loaded from Firebase content
+
 function renderCheckOutPanel(){
   const card = document.getElementById('co-live-card');
   if(!card) return;
   if(checkOutData.length === 0){ card.style.display='none'; return; }
   card.style.display = '';
 
-  // Word cloud from reflection texts
-  const wcEl = document.getElementById('co-word-cloud');
-  if(wcEl){
-    const freq = {};
-    checkOutData.forEach(s => {
-      if(!s.reflection) return;
-      s.reflection.split(/[\s，。！？、；：""''（）\(\),.!?;:]+/)
-        .map(w=>w.trim()).filter(w=>w.length>0)
-        .forEach(w => { freq[w]=(freq[w]||0)+1; });
-    });
-    const words = Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,30);
-    const maxF = words[0]?words[0][1]:1;
-    wcEl.innerHTML = words.map(([w,f],i) => {
-      const sz = Math.round(12 + (f/maxF)*22);
-      return `<span style="font-size:${sz}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif;padding:2px 4px">${escHtml(w)}</span>`;
+  // ── Thumbs distribution ──
+  const thumbsEl = document.getElementById('co-thumbs-dist');
+  if(thumbsEl){
+    const counts = {up:0, sideways:0, down:0};
+    checkOutData.forEach(s => { if(counts[s.thumbs]!=null) counts[s.thumbs]++; });
+    const total = checkOutData.length;
+    const thumbDef = [
+      {k:'up',    e:'👍', l:'我明白了', col:'#27AE60', bg:'#D4FADF'},
+      {k:'sideways',e:'✋',l:'半懂不懂', col:'var(--gold)', bg:'var(--gold-pale)'},
+      {k:'down',  e:'👎', l:'我卡住了', col:'var(--red)', bg:'#FFE0E0'},
+    ];
+    thumbsEl.innerHTML = thumbDef.map(t => {
+      const n = counts[t.k];
+      const pct = total>0 ? Math.round(n/total*100) : 0;
+      return `<div style="flex:1;text-align:center;padding:10px 6px;border-radius:12px;background:${n>0?t.bg:'var(--mist)'};border:2px solid ${n>0?t.col:'var(--border)'}">
+        <div style="font-size:26px">${t.e}</div>
+        <div style="font-size:18px;font-weight:900;color:${n>0?t.col:'var(--ink3)'}">${n}</div>
+        <div style="font-size:10px;color:var(--ink3)">${t.l}</div>
+      </div>`;
     }).join('');
   }
 
-  // Reflection answers list
-  const listEl = document.getElementById('co-reflection-list');
-  if(listEl){
-    listEl.innerHTML = checkOutData.filter(s=>s.reflection).map(s =>
-      `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
-        <span style="font-size:15px">${s.av}</span>
-        <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
-        <span style="color:var(--ink)">${escHtml(s.reflection)}</span>
-        ${s.mood?`<span style="margin-left:6px;font-size:15px">${s.mood}</span>`:''}
-      </div>`
-    ).join('');
+  // ── Per-question panels ──
+  const panel = document.getElementById('co-questions-panel');
+  if(!panel) return;
+
+  // Load coQuestions meta from current unit content
+  const coQs = _coQuestionsMeta;
+  let hasWc = false;
+  let wcQIdx = -1;
+
+  // Render each question's answers
+  let html = '';
+  const numQ = Math.max(coQs.length, 1); // at least Q0
+  for(let qi=0; qi<numQ; qi++){
+    const qMeta = coQs[qi]||{text:'本课，我最大的收获是……', wordCloud:false};
+    const answers = checkOutData.map(s => s.answers && s.answers[qi]).filter(Boolean);
+    if(answers.length === 0) continue;
+    if(qMeta.wordCloud){ hasWc=true; wcQIdx=qi; }
+    html += `<div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px">${escHtml(qMeta.text||('第'+(qi+1)+'题'))}</div>`;
+    if(qMeta.wordCloud){
+      // Show mini word cloud + big screen button
+      const freq={};
+      answers.forEach(a => {
+        (a||'').split(/[\s，。！？、；：""''（）,.!?;:]+/).map(w=>w.trim()).filter(w=>w.length>1).forEach(w=>{freq[w]=(freq[w]||0)+1;});
+      });
+      const words=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,25);
+      const maxF=words[0]?words[0][1]:1;
+      html += `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:10px;min-height:50px;align-items:center;margin-bottom:8px">
+        ${words.map(([w,f],i)=>`<span style="font-size:${Math.round(11+(f/maxF)*18)}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif">${escHtml(w)}</span>`).join('')}
+      </div>`;
+    } else {
+      html += answers.map((a,i)=>{
+        const s=checkOutData[i]||{};
+        return `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:4px">
+          <span style="font-size:14px">${s.av||''}</span>
+          <strong style="font-size:11px;color:var(--ink2)"> ${escHtml(s.name||'')}：</strong>
+          <span>${escHtml(a)}</span>
+        </div>`;
+      }).join('');
+    }
+    html += `</div>`;
   }
+  panel.innerHTML = html;
+
+  // Show/hide fullscreen button
+  wcFullscreenQIdx = wcQIdx;
+  const wcBtn = document.getElementById('co-wc-btn');
+  if(wcBtn) wcBtn.style.display = hasWc ? '' : 'none';
+}
+
+function buildFullscreenCloud(){
+  if(wcFullscreenQIdx < 0) return;
+  const answers = checkOutData.map(s => s.answers && s.answers[wcFullscreenQIdx]).filter(Boolean);
+  const freq={};
+  answers.forEach(a=>{
+    (a||'').split(/[\s，。！？、；：""''（）,.!?;:]+/).map(w=>w.trim()).filter(w=>w.length>1).forEach(w=>{freq[w]=(freq[w]||0)+1;});
+  });
+  const words=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,40);
+  const maxF=words[0]?words[0][1]:1;
+  const el=document.getElementById('wc-fullscreen-cloud');
+  if(el) el.innerHTML=words.map(([w,f],i)=>{
+    const sz=Math.round(20+(f/maxF)*60);
+    return `<span style="font-size:${sz}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:900;font-family:'Noto Serif SC',serif;text-shadow:0 2px 10px rgba(0,0,0,.5)">${escHtml(w)}</span>`;
+  }).join('');
+}
+
+let _wcInterval = null;
+function openWcFullscreen(){
+  const el=document.getElementById('wc-fullscreen');
+  if(!el) return;
+  el.style.display='block';
+  buildFullscreenCloud();
+  _wcInterval=setInterval(buildFullscreenCloud, 5000); // refresh every 5s
+}
+function closeWcFullscreen(){
+  const el=document.getElementById('wc-fullscreen');
+  if(el) el.style.display='none';
+  clearInterval(_wcInterval);
 }
 
 function escHtml(str){
