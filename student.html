@@ -3358,14 +3358,29 @@ function qgEndGame(){
 
   // ── Leaderboard ──
   if(gameSettings.leaderboard){
-    // Build leaderboard from students who've already finished + current player
-    const me = {name:qgState.name||'你', av:qgState.av||'🐯', score:qgState.score, correct:qgState.correct, maxCombo:qgState.maxCombo, isMe:true};
-    // Convert classRoster entries to leaderboard format (use quiz score as proxy for now)
-    const classmates = classRoster
-      .filter(r => r.name !== me.name)
-      .map(r => ({name:r.name, av:r.av, score:r.quiz||0, correct:Math.round((r.quiz||0)/20), maxCombo:0}));
-    qgRenderLB([...classmates, me].sort((a,b) => b.score - a.score));
-    document.getElementById('qg-lb-section').style.display = '';
+    // Use quizScore (0-100) for current player — consistent with classmates stored in Firebase
+    const me = {name:qgState.name||'你', av:qgState.av||'🐯', score:quizScore, correct:qgState.correct, maxCombo:qgState.maxCombo, isMe:true};
+    if(firebaseReady && currentSession){
+      // Fetch all students' quiz scores from Firebase
+      sessionRef(currentSession + '/students').once('value', snap => {
+        const data = snap.val() || {};
+        const players = [me];
+        Object.values(data).forEach(s => {
+          if(!s.name || s.name === me.name) return;
+          const sq = s.scores && s.scores.quiz !== undefined ? s.scores.quiz : null;
+          if(sq !== null) players.push({name:s.name, av:s.av||'🐯', score:sq, correct:0, maxCombo:0});
+        });
+        qgRenderLB(players.sort((a,b) => b.score - a.score));
+        document.getElementById('qg-lb-section').style.display = '';
+      });
+    } else {
+      // Fallback: use classRoster
+      const classmates = classRoster
+        .filter(r => r.name !== me.name)
+        .map(r => ({name:r.name, av:r.av, score:r.quiz||0, correct:0, maxCombo:0}));
+      qgRenderLB([...classmates, me].sort((a,b) => b.score - a.score));
+      document.getElementById('qg-lb-section').style.display = '';
+    }
   } else {
     document.getElementById('qg-lb-section').style.display = 'none';
   }
@@ -3449,7 +3464,7 @@ function qgRenderLB(players){
     const row=document.createElement('div');
     row.className='qg-lb-row'+(p.isMe?' qg-me':'');
     row.style.animationDelay=(i*.07)+'s';
-    const badges=(p.maxCombo>=5?'🔥':'')+(p.correct===quizQs.length?'💯':'')+(p.score>=900?'⚡':'');
+    const badges=(p.maxCombo>=5?'🔥':'')+(p.correct===quizQs.length?'💯':'')+(p.score>=90?'⚡':'');
     row.innerHTML=`<div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:900;width:28px;text-align:center;color:${i===0?'#FFD700':i===1?'#C0C0C0':i===2?'#CD7F32':'rgba(240,240,255,.5)'}">${i<3?medals[i]:i+1}</div><div style="font-size:20px">${p.av}</div><div style="flex:1;font-size:13px;font-weight:600;color:#F0F0FF">${p.name}${p.isMe?' <span style="font-size:10px;color:#FFD700;font-weight:400">（你）</span>':''}</div><div style="font-size:13px">${badges}</div><div style="font-family:'Noto Serif SC',serif;font-size:17px;font-weight:900;color:#FFD700">${p.score.toLocaleString()}</div>`;
     lb.appendChild(row);
   });
@@ -3457,9 +3472,27 @@ function qgRenderLB(players){
 
 function qgRenderLBPreview(){
   const c=document.getElementById('qg-lb-preview'); if(!c)return;
-  const top=[...qgDemoPlayers].sort((a,b)=>b.score-a.score).slice(0,3);
-  c.innerHTML=`<div style="font-size:12px;color:rgba(240,240,255,.4);text-align:center;margin-bottom:8px">🏆 当前排行前三</div>`
-    +top.map((p,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:10px;background:rgba(18,18,42,.8);border:1px solid rgba(255,255,255,.07);margin-bottom:6px"><div style="font-size:15px">${['🥇','🥈','🥉'][i]}</div><div style="font-size:18px">${p.av}</div><div style="font-size:13px;font-weight:600;color:#F0F0FF;flex:1">${p.name}</div><div style="font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900;color:#FFD700">${p.score}</div></div>`).join('');
+  const medals=['🥇','🥈','🥉'];
+  function _renderTop(players){
+    const top=players.sort((a,b)=>b.score-a.score).slice(0,3);
+    c.innerHTML=`<div style="font-size:12px;color:rgba(240,240,255,.4);text-align:center;margin-bottom:8px">🏆 当前排行前三</div>`
+      +(top.length
+        ? top.map((p,i)=>`<div style="display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:10px;background:rgba(18,18,42,.8);border:1px solid rgba(255,255,255,.07);margin-bottom:6px"><div style="font-size:15px">${medals[i]}</div><div style="font-size:18px">${p.av||'🐯'}</div><div style="font-size:13px;font-weight:600;color:#F0F0FF;flex:1">${p.name}</div><div style="font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900;color:#FFD700">${p.score}</div></div>`).join('')
+        : `<div style="font-size:12px;color:rgba(240,240,255,.4);text-align:center;padding:12px 0">暂无排名数据</div>`);
+  }
+  if(firebaseReady && currentSession){
+    sessionRef(currentSession+'/students').once('value', snap=>{
+      const data=snap.val()||{};
+      const players=[];
+      Object.values(data).forEach(s=>{
+        const sq=s.scores&&s.scores.quiz!==undefined?s.scores.quiz:null;
+        if(sq!==null) players.push({name:s.name,av:s.av||'🐯',score:sq});
+      });
+      _renderTop(players);
+    });
+  } else {
+    _renderTop([...qgDemoPlayers]);
+  }
 }
 
 // Hook into main nav: init quiz game when page-quiz is shown
