@@ -242,34 +242,6 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div id="co-questions-panel"></div>
       </div>
 
-      <!-- Word cloud fullscreen overlay -->
-      <div id="wc-fullscreen" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0A0A18,#1A1A2E);overflow:hidden" onclick="closeWcFullscreen()">
-        <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.5);font-size:13px;z-index:1">点击任意处关闭</div>
-        <div id="wc-fullscreen-cloud" style="position:relative;width:100%;height:100%"></div>
-      </div>
-
-      <!-- Draw fullscreen overlay -->
-      <div id="draw-fullscreen" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(135deg,#0A0A1E,#1A0A2E);flex-direction:column;align-items:center;justify-content:center" onclick="closeDrawFullscreen()">
-        <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.4);font-size:13px">点击任意处关闭</div>
-        <div id="df-roster" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:700px;margin-bottom:32px;padding:0 24px"></div>
-        <div id="df-result-wrap" style="text-align:center;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center">
-          <div id="df-av" style="font-size:80px;line-height:1;margin-bottom:8px">🎲</div>
-          <div id="df-name" style="font-family:'Noto Serif SC',serif;font-size:72px;font-weight:900;color:white;letter-spacing:4px;min-height:80px;text-shadow:0 0 40px rgba(255,215,0,.6)">—</div>
-          <div id="df-sub" style="font-size:18px;color:rgba(255,215,0,.7);margin-top:8px"></div>
-        </div>
-        <button class="btn btn-red" style="margin-top:36px;font-size:18px;padding:16px 40px" onclick="event.stopPropagation();doLuckyDrawFullscreen()">🎲 抽签</button>
-      </div>
-
-      <!-- Timer fullscreen overlay -->
-      <div id="timer-fullscreen" style="display:none;position:fixed;inset:0;z-index:9997;background:#0A0A18;flex-direction:column;align-items:center;justify-content:center" onclick="event.stopPropagation()">
-        <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.4);font-size:13px;cursor:pointer" onclick="closeTimerFullscreen()">✕ 关闭</div>
-        <div id="tf-display" style="font-family:'Noto Serif SC',serif;font-size:180px;font-weight:900;color:white;letter-spacing:8px;line-height:1;transition:color .5s;text-shadow:0 0 60px rgba(255,255,255,.2)">05:00</div>
-        <div id="tf-status" style="font-size:20px;color:rgba(255,255,255,.5);margin-top:16px">等待开始</div>
-        <div style="display:flex;gap:20px;margin-top:40px">
-          <button class="btn btn-teal" style="font-size:18px;padding:16px 40px" onclick="timerToggle()">▶ 开始</button>
-          <button class="btn btn-ghost" style="font-size:16px;padding:16px 28px;color:white;border-color:rgba(255,255,255,.3)" onclick="timerReset()">↺ 重置</button>
-        </div>
-      </div>
     </div>
 
     <!-- ══ PROGRESS ══ -->
@@ -499,7 +471,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div id="wc-tool-empty" style="font-size:13px;color:var(--ink3);text-align:center;padding:14px">学生完成 Check Out 后，文字云将在此展示</div>
         <div id="wc-tool-panel" style="display:none">
           <div id="wc-tool-mini" style="display:flex;flex-wrap:wrap;gap:6px;padding:12px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:10px;min-height:60px;align-items:center;margin-bottom:12px"></div>
-          <button class="btn btn-teal" style="width:100%;font-size:15px;padding:12px" onclick="openWcFullscreen()">📺 展开大屏文字云</button>
+          <button class="btn btn-teal" style="width:100%;font-size:15px;padding:12px" onclick="openWcFullscreen()">大屏展示文字云</button>
         </div>
       </div>
 
@@ -522,7 +494,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-red" style="flex:1;min-width:140px;font-size:15px;padding:12px" onclick="doLuckyDraw()">🎲 开始抽签</button>
             <button class="btn btn-ghost" style="font-size:13px;padding:12px 18px" onclick="resetDraw()">↺ 重置</button>
-            <button class="btn btn-ghost" style="font-size:13px;padding:12px 18px" onclick="openDrawFullscreen()">📺 大屏</button>
+            <button class="btn btn-ghost" style="font-size:13px;padding:12px 18px" onclick="openDrawFullscreen()">大屏</button>
           </div>
         </div>
       </div>
@@ -547,7 +519,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
           <button class="btn btn-teal" id="timer-start-btn" style="min-width:100px;font-size:15px;padding:12px 20px" onclick="timerToggle()">▶ 开始</button>
           <button class="btn btn-ghost" style="font-size:14px;padding:12px 18px" onclick="timerReset()">↺ 重置</button>
-          <button class="btn btn-ghost" style="font-size:14px;padding:12px 18px" onclick="openTimerFullscreen()">📺 大屏</button>
+          <button class="btn btn-ghost" style="font-size:14px;padding:12px 18px" onclick="openTimerFullscreen()">大屏</button>
         </div>
       </div>
 
@@ -1669,7 +1641,7 @@ function syncTimerFullscreen(){
     stat.textContent=origStat?origStat.textContent:'';
   }
   // Sync start button text
-  const tfBtn=document.getElementById('timer-fullscreen')?.querySelector('.btn-teal');
+  const tfBtn=document.getElementById('tf-start-btn');
   if(tfBtn&&btn) tfBtn.textContent=btn.textContent;
 }
 
@@ -1933,5 +1905,36 @@ const style=document.createElement('style');
 style.textContent='@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}60%{transform:translateX(8px)}}';
 document.head.appendChild(style);
 </script>
+
+<!-- ══ FULLSCREEN OVERLAYS — must be at body level so display:none parents don't hide them ══ -->
+
+<!-- Word cloud fullscreen -->
+<div id="wc-fullscreen" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0A0A18,#1A1A2E);overflow:hidden" onclick="closeWcFullscreen()">
+  <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.5);font-size:13px;z-index:1">点击任意处关闭</div>
+  <div id="wc-fullscreen-cloud" style="position:relative;width:100%;height:100%"></div>
+</div>
+
+<!-- Draw fullscreen -->
+<div id="draw-fullscreen" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(135deg,#0A0A1E,#1A0A2E);flex-direction:column;align-items:center;justify-content:center" onclick="closeDrawFullscreen()">
+  <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.4);font-size:13px">点击任意处关闭</div>
+  <div id="df-roster" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:800px;margin-bottom:32px;padding:0 24px"></div>
+  <div id="df-result-wrap" style="text-align:center;min-height:180px;display:flex;flex-direction:column;align-items:center;justify-content:center">
+    <div id="df-av" style="font-size:80px;line-height:1;margin-bottom:8px">🎲</div>
+    <div id="df-name" style="font-family:'Noto Serif SC',serif;font-size:72px;font-weight:900;color:white;letter-spacing:4px;min-height:80px;text-shadow:0 0 40px rgba(255,215,0,.6)">—</div>
+    <div id="df-sub" style="font-size:18px;color:rgba(255,215,0,.7);margin-top:8px"></div>
+  </div>
+  <button class="btn btn-red" style="margin-top:36px;font-size:18px;padding:16px 40px" onclick="event.stopPropagation();doLuckyDrawFullscreen()">🎲 抽签</button>
+</div>
+
+<!-- Timer fullscreen -->
+<div id="timer-fullscreen" style="display:none;position:fixed;inset:0;z-index:9997;background:#0A0A18;flex-direction:column;align-items:center;justify-content:center" onclick="event.stopPropagation()">
+  <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.4);font-size:14px;cursor:pointer;padding:8px 16px;border:1px solid rgba(255,255,255,.2);border-radius:8px" onclick="closeTimerFullscreen()">✕ 关闭</div>
+  <div id="tf-display" style="font-family:'Noto Serif SC',serif;font-size:180px;font-weight:900;color:white;letter-spacing:8px;line-height:1;transition:color .5s;text-shadow:0 0 60px rgba(255,255,255,.2)">05:00</div>
+  <div id="tf-status" style="font-size:20px;color:rgba(255,255,255,.5);margin-top:16px">等待开始</div>
+  <div style="display:flex;gap:20px;margin-top:40px">
+    <button class="btn btn-teal" id="tf-start-btn" style="font-size:18px;padding:16px 40px" onclick="timerToggle()">▶ 开始</button>
+    <button class="btn btn-ghost" style="font-size:16px;padding:16px 28px;color:white;border-color:rgba(255,255,255,.3)" onclick="timerReset()">↺ 重置</button>
+  </div>
+</div>
 </body>
 </html>
