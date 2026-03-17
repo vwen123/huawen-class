@@ -1412,7 +1412,16 @@ function timerToggle(){
     timerInterval = setInterval(()=>{
       timerSecs--;
       timerRender();
-      if(timerSecs === 0) timerPlaySound();
+      if(timerSecs <= 0){
+        clearInterval(timerInterval);
+        timerRunning = false;
+        timerSecs = timerOrigSecs;
+        const inp = document.getElementById('timer-input');
+        if(inp) inp.removeAttribute('readonly');
+        document.getElementById('timer-start-btn').textContent = '▶ 开始';
+        timerPlaySound();
+        timerRender();
+      }
     }, 1000);
   }
 }
