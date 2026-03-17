@@ -1358,6 +1358,33 @@ function resetCheckOut(){
   });
 }
 
+// In-place answer list update: no re-animation for existing items, animate only new ones
+function updateAnswerItems(container, entries, getKey, getAnswerText){
+  if(!container) return;
+  const seen = new Set();
+  entries.forEach(entry => {
+    const key = getKey(entry);
+    seen.add(key);
+    const escaped = key.replace(/"/g,'&quot;');
+    let el = container.querySelector('[data-akey="'+escaped+'"]');
+    if(el){
+      // In-place text update — no flicker, no re-animation
+      const span = el.querySelector('.ans-text');
+      if(span) span.textContent = getAnswerText(entry);
+    } else {
+      el = document.createElement('div');
+      el.setAttribute('data-akey', key);
+      el.style.cssText = 'background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:4px;opacity:0;animation:fadeSlideIn .4s ease forwards';
+      el.innerHTML = `<span style="font-size:15px">${entry.av||''}</span> <strong style="font-size:12px;color:var(--ink2)">${escHtml(entry.name||'')}：</strong><span class="ans-text">${escHtml(getAnswerText(entry))}</span>`;
+      container.appendChild(el);
+    }
+  });
+  // Remove stale entries
+  Array.from(container.children).forEach(el => {
+    if(!seen.has(el.getAttribute('data-akey'))) el.remove();
+  });
+}
+
 function renderCheckInPanel(){
   const card = document.getElementById('ci-live-card');
   if(!card) return;
@@ -1390,7 +1417,7 @@ function renderCheckInPanel(){
     }).join('');
   }
 
-  // Q1 answers
+  // Q1 answers — in-place update
   const q1Wrap = document.getElementById('ci-q1-wrap');
   const q1List = document.getElementById('ci-q1-list');
   const q1Label = document.getElementById('ci-q1-label');
@@ -1399,30 +1426,18 @@ function renderCheckInPanel(){
     if(q1Answers.length > 0){
       q1Wrap.style.display = '';
       if(q1Label) q1Label.textContent = '💬 第 1 题回答：';
-      q1List.innerHTML = q1Answers.map(s =>
-        `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
-          <span style="font-size:15px">${s.av}</span>
-          <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
-          <span style="color:var(--ink)">${escHtml(s.answers[0])}</span>
-        </div>`
-      ).join('');
+      updateAnswerItems(q1List, q1Answers, s => s.name, s => s.answers[0]);
     } else { q1Wrap.style.display = 'none'; }
   }
 
-  // Q2 answers
+  // Q2 answers — in-place update
   const q2Wrap = document.getElementById('ci-q2-wrap');
   const q2List = document.getElementById('ci-q2-list');
   const q2Answers = checkInData.filter(s => s.answers && s.answers[1]);
   if(q2Wrap && q2List){
     if(q2Answers.length > 0){
       q2Wrap.style.display = '';
-      q2List.innerHTML = q2Answers.map(s =>
-        `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px">
-          <span style="font-size:15px">${s.av}</span>
-          <strong style="font-size:12px;color:var(--ink2)"> ${s.name}：</strong>
-          <span style="color:var(--ink)">${escHtml(s.answers[1])}</span>
-        </div>`
-      ).join('');
+      updateAnswerItems(q2List, q2Answers, s => s.name, s => s.answers[1]);
     } else { q2Wrap.style.display = 'none'; }
   }
 }
@@ -1473,40 +1488,60 @@ function renderCheckOutPanel(){
   let hasWc = false;
   let wcQIdx = -1;
 
-  // Render each question's answers
-  let html = '';
+  // Render each question's answers — use in-place update containers
   const numQ = Math.max(coQs.length, 1); // at least Q0
+
+  // Build/reuse per-question sub-containers inside panel
+  const existingQDivs = {};
+  Array.from(panel.children).forEach(el => {
+    const qi = el.getAttribute('data-qi');
+    if(qi != null) existingQDivs[qi] = el;
+  });
+
+  const activeQis = new Set();
   for(let qi=0; qi<numQ; qi++){
     const qMeta = coQs[qi]||{text:'本课，我最大的收获是……', wordCloud:false};
-    const answers = checkOutData.map(s => s.answers && s.answers[qi]).filter(Boolean);
-    if(answers.length === 0) continue;
+    // Pair each student with their answer for this question
+    const answered = checkOutData.map(s => ({s, a: s.answers && s.answers[qi]})).filter(({a}) => a);
+    if(answered.length === 0) continue;
+    activeQis.add(String(qi));
     if(qMeta.wordCloud){ hasWc=true; wcQIdx=qi; }
-    html += `<div style="margin-bottom:14px">
-      <div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px">${escHtml(qMeta.text||('第'+(qi+1)+'题'))}</div>`;
+
+    let qDiv = existingQDivs[String(qi)];
+    if(!qDiv){
+      qDiv = document.createElement('div');
+      qDiv.setAttribute('data-qi', qi);
+      qDiv.style.marginBottom = '14px';
+      qDiv.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--ink2);margin-bottom:6px">${escHtml(qMeta.text||('第'+(qi+1)+'题'))}</div><div class="co-ans-list"></div>`;
+      panel.appendChild(qDiv);
+    }
+
     if(qMeta.wordCloud){
-      // Show mini word cloud + big screen button
+      // Word cloud: rebuild (words change as answers grow)
+      const answers = answered.map(({a})=>a);
       const freq={};
       answers.forEach(a => {
         (a||'').split(/[\s，。！？、；：""''（）,.!?;:]+/).map(w=>w.trim()).filter(w=>w.length>1).forEach(w=>{freq[w]=(freq[w]||0)+1;});
       });
       const words=Object.entries(freq).sort((a,b)=>b[1]-a[1]).slice(0,25);
       const maxF=words[0]?words[0][1]:1;
-      html += `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:10px;min-height:50px;align-items:center;margin-bottom:8px">
-        ${words.map(([w,f],i)=>`<span style="font-size:${Math.round(11+(f/maxF)*18)}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif">${escHtml(w)}</span>`).join('')}
-      </div>`;
+      let wcDiv = qDiv.querySelector('.co-wc-mini');
+      if(!wcDiv){ wcDiv=document.createElement('div'); wcDiv.className='co-wc-mini'; wcDiv.style.cssText='display:flex;flex-wrap:wrap;gap:6px;padding:10px;background:linear-gradient(135deg,#1A1A2E,#0A0A18);border-radius:10px;min-height:50px;align-items:center;margin-bottom:8px'; qDiv.querySelector('.co-ans-list').before(wcDiv); }
+      wcDiv.innerHTML = words.map(([w,f],i)=>`<span style="font-size:${Math.round(11+(f/maxF)*18)}px;color:${WC_COLORS[i%WC_COLORS.length]};font-weight:700;font-family:'Noto Serif SC',serif">${escHtml(w)}</span>`).join('');
     } else {
-      html += answers.map((a,i)=>{
-        const s=checkOutData[i]||{};
-        return `<div style="background:var(--mist);border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:4px;opacity:0;animation:fadeSlideIn .4s ease forwards;animation-delay:${i*0.12}s">
-          <span style="font-size:14px">${s.av||''}</span>
-          <strong style="font-size:12px;color:var(--ink2)"> ${escHtml(s.name||'')}：</strong>
-          <span>${escHtml(a)}</span>
-        </div>`;
-      }).join('');
+      // Text answers: in-place update
+      updateAnswerItems(qDiv.querySelector('.co-ans-list'), answered,
+        ({s}) => s.name,
+        ({a}) => a
+      );
     }
-    html += `</div>`;
   }
-  panel.innerHTML = html;
+
+  // Remove question panels no longer active
+  Array.from(panel.children).forEach(el => {
+    const qi = el.getAttribute('data-qi');
+    if(qi != null && !activeQis.has(qi)) el.remove();
+  });
 
   // Show/hide fullscreen button
   wcFullscreenQIdx = wcQIdx;
