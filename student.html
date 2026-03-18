@@ -3588,10 +3588,10 @@ function getStudentBadges(s){
   else if(total >= 55) badges.push({icon:'⭐', name:'进步达人', color:'#2980B9', bg:'#EBF5FB'});
   if(total>=80 && (s.reading||0)>=75 && (s.flashcard||0)>=75 && (s.comp||0)>=75 && (s.quiz||0)>=75)
     badges.push({icon:'🌈', name:'全能达人', color:'#8E44AD', bg:'#F5EEF8'});
-  if((s.reading||0)   >= 90) badges.push({icon:'🎙', name:'朗读达人', color:'#7D3C98', bg:'#F4ECF7'});
-  if((s.flashcard||0) >= 90) badges.push({icon:'📚', name:'词语达人', color:'#CA6F1E', bg:'#FEF5E7'});
-  if((s.comp||0)      >= 90) badges.push({icon:'💬', name:'理解达人', color:'#148F77', bg:'#E8F8F5'});
-  if((s.quiz||0)      >= 90) badges.push({icon:'🎮', name:'Quiz达人', color:'#C0392B', bg:'#FDEDEC'});
+  if((s.reading||0)   >= 75) badges.push({icon:'🎙', name:'朗读达人', color:'#7D3C98', bg:'#F4ECF7'});
+  if((s.flashcard||0) >= 75) badges.push({icon:'📚', name:'词语达人', color:'#CA6F1E', bg:'#FEF5E7'});
+  if((s.comp||0)      >= 75) badges.push({icon:'💬', name:'理解达人', color:'#148F77', bg:'#E8F8F5'});
+  if((s.quiz||0)      >= 75) badges.push({icon:'🎮', name:'Quiz达人', color:'#C0392B', bg:'#FDEDEC'});
   return badges;
 }
 
@@ -3628,7 +3628,7 @@ function setScore(section, raw100){
   fbUpdateScore(qgState.name || '', section, studentScores[section]);
   // Show section badge popup if newly earned
   const sb = _SECTION_BADGES[section];
-  if(sb && studentScores[section] >= 90 && !_shownSectionBadges.has(section)){
+  if(sb && studentScores[section] >= 75 && !_shownSectionBadges.has(section)){
     _shownSectionBadges.add(section);
     showBadgePopup(sb);
   }
