@@ -437,7 +437,8 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 <nav class="topnav" id="hud-topnav-wrap">
   <div class="brand">🏮 智学华文小达人</div>
   <div class="lesson-info">当前课文：<strong id="lesson-title">—</strong></div>
-  <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;margin-left:auto;flex-shrink:0">退出</button>
+  <div id="badge-counter-wrap" style="display:none;align-items:center;gap:5px;margin-left:auto;margin-right:8px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:4px 11px;font-size:12px;color:rgba(255,215,0,.9);font-weight:700;flex-shrink:0">🏅 <span id="badge-count">0</span></div>
+  <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;flex-shrink:0">退出</button>
 </nav>
 
 <!-- ══ STUDENT PART STEPPER ══ -->
@@ -699,7 +700,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
   <div class="card" id="fc-blast-card" style="display:none;margin-top:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
       <div class="ctitle" style="margin:0">📦 速配排序</div>
-      <div style="font-size:12px;color:var(--ink3)">⭐ <b id="ss-score">0</b> &nbsp; 轮 <span id="ss-round">1</span>/3</div>
+      <div style="font-size:12px;color:var(--ink3)">⭐ <b id="ss-score">0</b> &nbsp; 轮 <span id="ss-round">1</span>/<span id="ss-max-round">—</span></div>
     </div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">将下方词语拖入对应的含义框中</div>
     <!-- Drop target boxes -->
@@ -2224,7 +2225,7 @@ function fcGameNext(){
   ['fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   fcGameIdx++;
-  if(fcGameIdx >= fcGameQueue.length){ nav('slides'); return; }
+  if(fcGameIdx >= fcGameQueue.length){ triggerSectionBadge('flashcard'); nav('slides'); return; }
   const game = fcGameQueue[fcGameIdx];
   if(game==='match'){
     const mc=document.getElementById('fc-match-card');
@@ -2245,7 +2246,6 @@ let ssState = {};
 let ssDragItem = null;
 let ssTouchEl = null, ssTouchClone = null;
 const SS_PAIRS = 4; // words per round
-const SS_ROUNDS = 3;
 
 function buildSortGame(){
   const card = document.getElementById('fc-blast-card');
@@ -2253,7 +2253,8 @@ function buildSortGame(){
   document.getElementById('ss-result').style.display = 'none';
   const pool = fcCards.slice();
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  ssState = { pool, round:1, score:0, correct:0, total:0 };
+  const maxRounds = Math.max(1, Math.ceil(pool.length / SS_PAIRS));
+  ssState = { pool, round:1, maxRounds, score:0, correct:0, total:0 };
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
   renderSortRound();
 }
@@ -2262,6 +2263,7 @@ function renderSortRound(){
   const { pool, round } = ssState;
   document.getElementById('ss-score').textContent = ssState.score;
   document.getElementById('ss-round').textContent = round;
+  const mrEl = document.getElementById('ss-max-round'); if(mrEl) mrEl.textContent = ssState.maxRounds;
   // Pick pairs for this round (cycle through pool)
   const offset = ((round-1) * SS_PAIRS) % pool.length;
   const pairs = [];
@@ -2346,7 +2348,7 @@ function ssDropChar(char,box){
 }
 
 function ssAdvance(){
-  if(ssState.round >= SS_ROUNDS){ endSortGame(); return; }
+  if(ssState.round >= ssState.maxRounds){ endSortGame(); return; }
   ssState.round++;
   renderSortRound();
 }
@@ -2372,7 +2374,7 @@ function buildHangmanGame(){
   card.style.display = 'block';
   const pool = fcCards.slice();
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  hmState = { pool, qIdx:0, maxQ:Math.min(8, pool.length), score:0, wrongCount:0, guessed:[], currentWord:'' };
+  hmState = { pool, qIdx:0, maxQ:pool.length, score:0, wrongCount:0, guessed:[], currentWord:'' };
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
   showHangmanQ();
 }
@@ -2497,7 +2499,7 @@ function buildBalloonGame(){
   card.style.display = 'block';
   const pool = fcCards.slice();
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  bpState = { pool, qIdx:0, maxQ:Math.min(10, pool.length), score:0, lives:3, done:false };
+  bpState = { pool, qIdx:0, maxQ:pool.length, score:0, lives:3, done:false };
   document.getElementById('bp-result').style.display = 'none';
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
   showBalloonQ();
@@ -2565,16 +2567,25 @@ function endBalloonGame(){
 }
 
 // ── 词语配配看 matching game ──
-let matchState = { pairs:[], selWord:null, selMean:null, matched:[], wrong:[] };
+let matchState = { roundPool:[], pairs:[], meanShuf:[], selWord:null, selMean:null, matched:[], wrong:[], totalPairs:0, completedPairs:0, roundDone:false };
 
 function buildMatchGame(){
   const pool = fcCards.slice();
-  // Shuffle and pick up to 6 cards
   for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  const pairs = pool.slice(0, Math.min(6, pool.length));
-  // Shuffle meanings separately
-  const meanShuf = pairs.map(p=>p.mean).sort(()=>Math.random()-.5);
-  matchState = { pairs, meanShuf, selWord:null, selMean:null, matched:[], wrong:[], score:0 };
+  matchState = { roundPool:pool.slice(), pairs:[], meanShuf:[], selWord:null, selMean:null, matched:[], wrong:[], totalPairs:pool.length, completedPairs:0, roundDone:false };
+  startMatchRound();
+}
+
+function startMatchRound(){
+  const batch = matchState.roundPool.splice(0, Math.min(6, matchState.roundPool.length));
+  const meanShuf = batch.map(p=>p.mean).sort(()=>Math.random()-.5);
+  matchState.pairs = batch;
+  matchState.meanShuf = meanShuf;
+  matchState.matched = [];
+  matchState.wrong = [];
+  matchState.selWord = null;
+  matchState.selMean = null;
+  matchState.roundDone = false;
   renderMatchGame();
 }
 
@@ -2582,7 +2593,9 @@ function renderMatchGame(){
   const el = document.getElementById('match-game-body');
   if(!el) return;
   const { pairs, meanShuf, matched, wrong } = matchState;
-  let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  const doneTotal = matchState.completedPairs + matched.length;
+  let html = `<div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-align:right">进度 ${doneTotal}/${matchState.totalPairs} 词</div>`;
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
   pairs.forEach((p,i)=>{
     const isDone = matched.includes(i);
     const isWrong = wrong.includes('w'+i);
@@ -2603,12 +2616,16 @@ function renderMatchGame(){
   });
   html += '</div>';
   if(matchState.matched.length === matchState.pairs.length){
+    const allWordsMatched = matchState.roundPool.length === 0;
     html += `<div style="margin-top:14px;padding:14px;background:linear-gradient(135deg,var(--teal-l),#D4FAE6);border-radius:10px;text-align:center">
-      <div style="font-size:24px;margin-bottom:4px">🎉</div>
-      <div style="font-weight:700;color:var(--teal);margin-bottom:12px">配对完成！全部正确！</div>
+      <div style="font-size:24px;margin-bottom:4px">${allWordsMatched?'🎉':'✅'}</div>
+      <div style="font-weight:700;color:var(--teal);margin-bottom:4px">${allWordsMatched?'全部词语配对完成！':'这组配对完成！'}</div>
+      ${allWordsMatched?'':'<div style="font-size:11px;color:var(--ink3);margin-bottom:10px">还有 '+matchState.roundPool.length+' 词等待挑战</div>'}
       <div style="display:flex;gap:8px">
-        <button class="btn btn-ghost" style="flex:1" onclick="buildMatchGame()">🔄 再来一局</button>
-        <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+        ${allWordsMatched?'<button class="btn btn-ghost" style="flex:1" onclick="buildMatchGame()">🔄 再来一局</button>':''}
+        <button class="btn btn-teal" style="flex:2" onclick="${allWordsMatched?'fcGameNext()':'startMatchRound()'}">
+          ${allWordsMatched?'继续 →':'下一组 →'}
+        </button>
       </div>
     </div>`;
   }
@@ -2638,7 +2655,11 @@ function checkMatch(){
   if(word.mean === mean){
     matchState.matched.push(wi);
     matchState.selWord = null; matchState.selMean = null;
-    if(matchState.matched.length === matchState.pairs.length) _fcActivitySetScore(100);
+    if(matchState.matched.length === matchState.pairs.length){
+      matchState.completedPairs += matchState.pairs.length;
+      // Only award score when ALL vocabulary words have been matched
+      if(matchState.roundPool.length === 0) _fcActivitySetScore(100);
+    }
   } else {
     matchState.wrong = ['w'+wi,'m'+mi];
     setTimeout(()=>{ matchState.wrong=[]; matchState.selWord=null; matchState.selMean=null; renderMatchGame(); },900);
@@ -3638,21 +3659,35 @@ function showBadgePopup(badge){
   }, 2800);
 }
 
-function setScore(section, raw100){
-  studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
-  refreshScoreReport();
-  // Sync score to Firebase in real-time
-  fbUpdateScore(qgState.name || '', section, studentScores[section]);
-  // Show section badge popup if newly earned
+function refreshBadgeCounter(){
+  const count = _shownSectionBadges.size;
+  const wrap = document.getElementById('badge-counter-wrap');
+  const el = document.getElementById('badge-count');
+  if(el) el.textContent = count;
+  if(wrap) wrap.style.display = count > 0 ? 'flex' : 'none';
+}
+
+// Call after section is fully complete (not mid-session for flashcard)
+function triggerSectionBadge(section){
   const sb = _SECTION_BADGES[section];
   if(sb && studentScores[section] >= 75 && !_shownSectionBadges.has(section)){
     _shownSectionBadges.add(section);
+    refreshBadgeCounter();
     showBadgePopup(sb);
-    // Record badge in Firebase so teacher can see it
     if(firebaseReady && currentSession && qgState.name){
       sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/badges/'+section)
         .set({icon:sb.icon, name:sb.name, ts:Date.now()});
     }
+  }
+}
+
+function setScore(section, raw100){
+  studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
+  refreshScoreReport();
+  fbUpdateScore(qgState.name || '', section, studentScores[section]);
+  // Flashcard badge fires only when ALL games are done (in fcGameNext)
+  if(section !== 'flashcard'){
+    triggerSectionBadge(section);
   }
 }
 function calcTotal(s){
