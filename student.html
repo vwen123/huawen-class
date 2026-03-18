@@ -686,7 +686,20 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     </div>
   </div>
 
-  <!-- 词语配配看 matching game -->
+  <!-- 📝 词语测验 (MCQ quiz — replaces old games) -->
+  <div class="card" id="fc-quiz-card" style="display:none;margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div class="ctitle" style="margin:0">📝 词语测验</div>
+      <div style="font-size:12px;color:var(--ink3)">题 <span id="fqz-qnum">1</span>/<span id="fqz-total">—</span> &nbsp; ✓ <b id="fqz-correct" style="color:var(--teal)">0</b></div>
+    </div>
+    <!-- Progress bar -->
+    <div style="height:5px;background:var(--mist2);border-radius:3px;overflow:hidden;margin-bottom:14px">
+      <div id="fqz-progress-bar" style="height:100%;background:linear-gradient(90deg,var(--teal),var(--gold-l));border-radius:3px;width:0%;transition:width .4s ease"></div>
+    </div>
+    <div id="fqz-body"></div>
+  </div>
+
+  <!-- 词语配配看 matching game (kept for teacher to enable) -->
   <div class="card" id="fc-match-card" style="display:none;margin-top:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
       <div class="ctitle" style="margin:0">🎯 词语配配看</div>
@@ -703,12 +716,9 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <div style="font-size:12px;color:var(--ink3)">⭐ <b id="ss-score">0</b> &nbsp; 轮 <span id="ss-round">1</span>/<span id="ss-max-round">—</span></div>
     </div>
     <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">将下方词语拖入对应的含义框中</div>
-    <!-- Drop target boxes -->
     <div id="ss-boxes" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px"></div>
-    <!-- Draggable word items -->
     <div style="font-size:11px;color:var(--ink3);margin-bottom:8px;text-align:center">☝️ 拖动词语到上方含义框</div>
     <div id="ss-items" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;min-height:52px;padding:4px"></div>
-    <!-- Result -->
     <div id="ss-result" style="display:none;margin-top:14px;text-align:center;padding:16px;background:linear-gradient(135deg,var(--teal-l),#D4FAE6);border-radius:var(--rl)">
       <div style="font-size:28px;margin-bottom:6px">🎉</div>
       <div id="ss-result-text" style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:4px"></div>
@@ -2213,21 +2223,144 @@ function _fcActivitySetScore(raw100){
   }
 }
 
+// ── 📝 词语测验 MCQ QUIZ ────────────────────
+const FQZ_BATCH = 6; // questions per batch
+let fqzState = {};
+
+function buildFcQuiz(){
+  const card = document.getElementById('fc-quiz-card');
+  card.style.display = 'block';
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+  const pool = fcCards.slice();
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  fqzState = { pool, qIdx:0, correct:0, total:pool.length, batchStart:0, batchCorrectBefore:0, answered:false };
+  renderFqzQ();
+}
+
+function renderFqzQ(){
+  const { pool, qIdx, correct, total } = fqzState;
+  document.getElementById('fqz-qnum').textContent = qIdx + 1;
+  document.getElementById('fqz-total').textContent = total;
+  document.getElementById('fqz-correct').textContent = correct;
+  document.getElementById('fqz-progress-bar').style.width = Math.round(qIdx / total * 100) + '%';
+
+  const word = pool[qIdx];
+  const others = pool.filter((_, i) => i !== qIdx);
+  for(let i=others.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[others[i],others[j]]=[others[j],others[i]];}
+  // opts[i].correct = true means this is the answer
+  const opts = [{ ...word, correct:true }, ...others.slice(0,3).map(o=>({...o,correct:false}))]
+    .sort(() => Math.random() - .5);
+
+  document.getElementById('fqz-body').innerHTML = `
+    <div style="background:linear-gradient(135deg,#EAF3FF,#D8ECFF);border-radius:12px;padding:16px;text-align:center;margin-bottom:16px">
+      <div style="font-size:11px;color:var(--ink3);margin-bottom:6px;letter-spacing:.05em">选出符合以下意思的词语</div>
+      <div style="font-size:15px;font-weight:600;color:var(--ink2);line-height:1.6">${word.mean}</div>
+      ${word.pin?`<div style="font-size:11px;color:var(--ink3);margin-top:4px">（拼音：${word.pin}）</div>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      ${opts.map((o,i)=>`
+        <button id="fqz-opt-${i}" data-correct="${o.correct}" onclick="checkFqzAns(${i})"
+          style="padding:14px 10px;background:var(--white);border:2px solid var(--border);border-radius:12px;
+          font-family:'Noto Serif SC',serif;font-size:16px;font-weight:700;cursor:pointer;
+          color:var(--ink);transition:all .15s;min-height:54px">${o.char}</button>`).join('')}
+    </div>
+    <div id="fqz-feedback" style="display:none;margin-top:14px;padding:12px 16px;border-radius:10px;text-align:center;font-weight:600;font-size:14px"></div>`;
+  fqzState.answered = false;
+}
+
+function checkFqzAns(optIdx){
+  if(fqzState.answered) return;
+  fqzState.answered = true;
+  const { pool, qIdx, total, batchStart } = fqzState;
+  const btn = document.getElementById('fqz-opt-'+optIdx);
+  const isCorrect = btn.dataset.correct === 'true';
+  // Disable all & highlight correct answer green
+  for(let i=0;i<4;i++){
+    const b = document.getElementById('fqz-opt-'+i);
+    if(!b) continue;
+    b.disabled = true;
+    if(b.dataset.correct === 'true'){
+      b.style.background='#D4FAE6'; b.style.borderColor='var(--teal)'; b.style.color='var(--teal)';
+    }
+  }
+  // Override selected button if wrong
+  if(!isCorrect){
+    btn.style.background='#FFE0E0'; btn.style.borderColor='var(--red)'; btn.style.color='var(--red)';
+  }
+  if(isCorrect) fqzState.correct++;
+  const fb = document.getElementById('fqz-feedback');
+  fb.style.cssText = `display:block;margin-top:14px;padding:12px 16px;border-radius:10px;text-align:center;font-weight:600;font-size:14px;background:${isCorrect?'#D4FAE6':'#FFE0E0'};color:${isCorrect?'var(--teal)':'var(--red)'}`;
+  fb.innerHTML = isCorrect
+    ? `✅ 正确！「${pool[qIdx].char}」— ${pool[qIdx].mean}`
+    : `❌ 答案是「${pool[qIdx].char}」— ${pool[qIdx].mean}`;
+  const isLastInBatch = (qIdx + 1 - batchStart) >= FQZ_BATCH;
+  const isLastQ = qIdx + 1 >= total;
+  setTimeout(() => {
+    if(isLastQ)          showFqzFinalResult();
+    else if(isLastInBatch) showFqzBatchResult();
+    else { fqzState.qIdx++; renderFqzQ(); }
+  }, isCorrect ? 700 : 1300);
+}
+
+function showFqzBatchResult(){
+  const { batchStart, qIdx, correct, batchCorrectBefore } = fqzState;
+  const batchCount = qIdx + 1 - batchStart;
+  const batchCorrect = correct - batchCorrectBefore;
+  const pct = Math.round(batchCorrect / batchCount * 100);
+  document.getElementById('fqz-body').innerHTML = `
+    <div style="text-align:center;padding:20px 10px">
+      <div style="font-size:36px;margin-bottom:8px">${pct>=80?'🌟':pct>=60?'👍':'💪'}</div>
+      <div style="font-weight:700;font-size:16px;color:var(--teal);margin-bottom:6px">本组完成！</div>
+      <div style="font-size:13px;color:var(--ink3);margin-bottom:16px">本组正确 <strong style="color:var(--ink);font-size:18px">${batchCorrect}</strong> / ${batchCount} 题</div>
+      <button class="btn btn-teal" style="width:100%;padding:12px" onclick="fqzNextBatch()">下一组 →</button>
+    </div>`;
+}
+
+function fqzNextBatch(){
+  fqzState.batchCorrectBefore = fqzState.correct;
+  fqzState.batchStart = fqzState.qIdx + 1;
+  fqzState.qIdx++;
+  renderFqzQ();
+}
+
+function showFqzFinalResult(){
+  const { correct, total } = fqzState;
+  const pct = total > 0 ? Math.round(correct / total * 100) : 0;
+  document.getElementById('fqz-progress-bar').style.width = '100%';
+  document.getElementById('fqz-qnum').textContent = total;
+  document.getElementById('fqz-correct').textContent = correct;
+  document.getElementById('fqz-body').innerHTML = `
+    <div style="text-align:center;padding:20px 10px">
+      <div style="font-size:40px;margin-bottom:10px">${pct>=90?'🏆':pct>=75?'🌟':pct>=60?'👍':'💪'}</div>
+      <div style="font-family:'Noto Serif SC',serif;font-weight:700;font-size:18px;color:var(--teal);margin-bottom:6px">测验完成！</div>
+      <div style="font-size:14px;color:var(--ink3);margin-bottom:4px">答对 <strong style="color:var(--ink);font-size:20px">${correct}</strong> / ${total} 题</div>
+      <div style="font-size:26px;font-weight:900;color:${pct>=75?'var(--teal)':'var(--red)'};margin:10px 0">${pct} 分</div>
+      <div style="display:flex;gap:8px;margin-top:16px">
+        <button class="btn btn-ghost" style="flex:1" onclick="buildFcQuiz()">🔄 再测一次</button>
+        <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+      </div>
+    </div>`;
+  _fcActivitySetScore(pct);
+}
+
 function startFcGames(){
   _fcActivityBestScore = studentScores.flashcard || 0; // preserve any existing score
   const enabled = (gameSettings.fcGames && gameSettings.fcGames.length)
-    ? gameSettings.fcGames : ['match','blast','hangman','balloon'];
+    ? gameSettings.fcGames : ['wordquiz'];
   fcGameQueue = enabled;
   fcGameIdx = -1;
+  fqzState._batchCorrectBefore = 0;
   fcGameNext();
 }
 function fcGameNext(){
-  ['fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
+  ['fc-quiz-card','fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   fcGameIdx++;
   if(fcGameIdx >= fcGameQueue.length){ triggerSectionBadge('flashcard'); nav('slides'); return; }
   const game = fcGameQueue[fcGameIdx];
-  if(game==='match'){
+  if(game==='wordquiz'){
+    buildFcQuiz();
+  } else if(game==='match'){
     const mc=document.getElementById('fc-match-card');
     if(mc){mc.style.display='block';buildMatchGame();setTimeout(()=>mc.scrollIntoView({behavior:'smooth',block:'nearest'}),50);}
   } else if(game==='blast'){
