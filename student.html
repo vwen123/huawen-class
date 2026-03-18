@@ -1951,9 +1951,7 @@ function prevFC(){fcIdx=(fcIdx-1+fcCards.length)%fcCards.length;renderFC();}
 function markFC(k){
   if(k&&!fcDone.includes(fcIdx)) fcDone.push(fcIdx);
   else if(!k) fcDone=fcDone.filter(i=>i!==fcIdx);
-  // Update vocab score
-  setScore('flashcard',Math.round(fcDone.length/fcCards.length*100));
-  // Save progress
+  // Reading part — no score; score comes from activity games below
   saveProgress(qgState.name||'');
   // If all done show banner without advancing; else advance to next card
   if(fcDone.length<fcCards.length){
@@ -2204,7 +2202,18 @@ function submitMindMap(){
 let fcGameQueue = [];
 let fcGameIdx = -1;
 
+// Track best activity score across all games in this session
+let _fcActivityBestScore = 0;
+function _fcActivitySetScore(raw100){
+  const score = Math.min(100, Math.max(0, Math.round(raw100)));
+  if(score > _fcActivityBestScore){
+    _fcActivityBestScore = score;
+    setScore('flashcard', score);
+  }
+}
+
 function startFcGames(){
+  _fcActivityBestScore = studentScores.flashcard || 0; // preserve any existing score
   const enabled = (gameSettings.fcGames && gameSettings.fcGames.length)
     ? gameSettings.fcGames : ['match','blast','hangman','balloon'];
   fcGameQueue = enabled;
@@ -2351,6 +2360,7 @@ function endSortGame(){
   document.getElementById('ss-result-sub').textContent=
     `共配对 ${ssState.correct} / ${ssState.total} 次正确`;
   document.getElementById('ss-result').style.display='block';
+  _fcActivitySetScore(Math.round(pct*100));
 }
 
 // ── 🎯 HANGMAN GAME ────────────────────────
@@ -2472,6 +2482,7 @@ function endHangmanGame(){
       <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
     </div>`;
   document.getElementById('hm-choices').innerHTML = '';
+  _fcActivitySetScore(Math.round(hmState.score / (hmState.maxQ * 60) * 100));
 }
 
 // ── 🎈 BALLOON POP GAME ────────────────────
@@ -2550,6 +2561,7 @@ function endBalloonGame(){
   document.getElementById('bp-result-text').textContent =
     score >= max*0.8 ? '🌟 太棒了！全部答对！' : score >= max*0.5 ? '👍 答得不错！' : '💪 再接再厉！';
   res.style.display = 'block';
+  _fcActivitySetScore(Math.round(score / max * 100));
 }
 
 // ── 词语配配看 matching game ──
@@ -2626,6 +2638,7 @@ function checkMatch(){
   if(word.mean === mean){
     matchState.matched.push(wi);
     matchState.selWord = null; matchState.selMean = null;
+    if(matchState.matched.length === matchState.pairs.length) _fcActivitySetScore(100);
   } else {
     matchState.wrong = ['w'+wi,'m'+mi];
     setTimeout(()=>{ matchState.wrong=[]; matchState.selWord=null; matchState.selMean=null; renderMatchGame(); },900);
