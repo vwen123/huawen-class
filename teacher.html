@@ -1309,12 +1309,23 @@ function saveAllContent(){
 //  DOWNLOAD
 // ══════════════════════════════════════
 function downloadCSV(){
-  const h=['姓名','朗读','词语','理解','Quiz','签到','总分','时间'];
-  const rows = classRoster.map(s=>[s.name,s.reading||0,s.flashcard||0,s.comp||0,s.quiz||0,s.checkout?100:0,s.total,s.time]);
-  const csv = [h,...rows].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
+  const date = new Date().toLocaleDateString('zh');
+  const classLabel = (activeSessions[activeCode]||{}).classLabel || '';
+  const label = [classLabel, selectedUnitTitle].filter(Boolean).join(' · ');
+  const meta = [
+    ['智学华文小达人 Smart Chinese Master'],
+    ['智能引领，玩转华文'],
+    [label, '', '', '', '', '', '', date],
+    [],
+    ['姓名','朗读(25%)','词语(25%)','理解(20%)','Quiz(20%)','签到(10%)','总分','时间'],
+  ];
+  const rows = [...classRoster].sort((a,b)=>b.total-a.total)
+    .map(s=>[s.name, s.reading||0, s.flashcard||0, s.comp||0, s.quiz||0, s.checkout?100:0, s.total, s.time]);
+  const footer = [[], ['Designed by Wei Wen @ 2026']];
+  const csv = [...meta, ...rows, ...footer].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'}));
-  a.download = '华文成绩_'+selectedUnitTitle+'_'+new Date().toLocaleDateString('zh')+'.csv';
+  a.download = '智学华文_'+(classLabel||selectedUnitTitle)+'_'+date+'.csv';
   a.click();
 }
 
@@ -1325,58 +1336,18 @@ function downloadPDF(){
   const totals = classRoster.map(s=>s.total).filter(t=>t>0);
   const avg = totals.length?Math.round(totals.reduce((a,b)=>a+b,0)/totals.length):0;
 
-  // ── 达人勋章 badge logic ──
-  function getBadges(s){
-    const badges = [];
-    if(s.total >= 95) badges.push({icon:'🏆',name:'超级达人',color:'#C0392B'});
-    else if(s.total >= 85) badges.push({icon:'🌟',name:'优秀达人',color:'#D4A017'});
-    else if(s.total >= 70) badges.push({icon:'🎖',name:'华文达人',color:'#16A085'});
-    else if(s.total >= 55) badges.push({icon:'⭐',name:'进步达人',color:'#3498DB'});
-    if((s.reading||0) >= 90) badges.push({icon:'🎙',name:'朗读达人',color:'#9B59B6'});
-    if((s.flashcard||0) >= 90) badges.push({icon:'📚',name:'词语达人',color:'#E67E22'});
-    if((s.comp||0) >= 90) badges.push({icon:'💬',name:'理解达人',color:'#1ABC9C'});
-    if((s.quiz||0) >= 90) badges.push({icon:'🎮',name:'Quiz达人',color:'#E74C3C'});
-    if(s.total >= 80 && (s.reading||0)>=75 && (s.flashcard||0)>=75 && (s.comp||0)>=75 && (s.quiz||0)>=75)
-      badges.push({icon:'🌈',name:'全能达人',color:'#8E44AD'});
-    return badges;
-  }
-
   const rows = sorted.map((s,i)=>{
-    const badges = getBadges(s);
-    const badgeHtml = badges.map(b=>`<span style="display:inline-block;background:${b.color}18;border:1px solid ${b.color};color:${b.color};border-radius:10px;padding:1px 6px;font-size:10px;margin:1px;white-space:nowrap">${b.icon} ${b.name}</span>`).join('');
     const tc = s.total>=85?'#16A085':s.total>=70?'#D4A017':s.total>=50?'#E67E22':'#C0392B';
     return `<tr style="background:${i%2===0?'#fafaf8':'white'}">
-      <td style="padding:7px 10px;text-align:center;color:#aaa">${i+1}</td>
-      <td style="padding:7px 10px;font-weight:700">${s.name}<div style="margin-top:3px">${badgeHtml}</div></td>
-      <td style="text-align:center;padding:7px 6px">${s.reading||'—'}</td>
-      <td style="text-align:center;padding:7px 6px">${s.flashcard||'—'}</td>
-      <td style="text-align:center;padding:7px 6px">${s.comp||'—'}</td>
-      <td style="text-align:center;padding:7px 6px">${s.quiz||'—'}</td>
-      <td style="text-align:center;padding:7px 6px">${s.checkout?'✓':'—'}</td>
-      <td style="text-align:center;padding:7px 6px;font-weight:900;font-size:16px;color:${tc}">${s.total}</td>
+      <td style="padding:8px 10px;text-align:center;color:#aaa">${i+1}</td>
+      <td style="padding:8px 10px;font-weight:700">${s.name}</td>
+      <td style="text-align:center;padding:8px 6px">${s.reading||'—'}</td>
+      <td style="text-align:center;padding:8px 6px">${s.flashcard||'—'}</td>
+      <td style="text-align:center;padding:8px 6px">${s.comp||'—'}</td>
+      <td style="text-align:center;padding:8px 6px">${s.quiz||'—'}</td>
+      <td style="text-align:center;padding:8px 6px">${s.checkout?'✓':'—'}</td>
+      <td style="text-align:center;padding:8px 6px;font-weight:900;font-size:16px;color:${tc}">${s.total}</td>
     </tr>`;
-  }).join('');
-
-  // ── 勋章榜 ──
-  const badgeTiers = [
-    {icon:'🏆',name:'超级达人',cond:s=>s.total>=95,color:'#C0392B'},
-    {icon:'🌟',name:'优秀达人',cond:s=>s.total>=85&&s.total<95,color:'#D4A017'},
-    {icon:'🎖',name:'华文达人',cond:s=>s.total>=70&&s.total<85,color:'#16A085'},
-    {icon:'🌈',name:'全能达人',cond:s=>s.total>=80&&(s.reading||0)>=75&&(s.flashcard||0)>=75&&(s.comp||0)>=75&&(s.quiz||0)>=75,color:'#8E44AD'},
-    {icon:'🎙',name:'朗读达人',cond:s=>(s.reading||0)>=90,color:'#9B59B6'},
-    {icon:'📚',name:'词语达人',cond:s=>(s.flashcard||0)>=90,color:'#E67E22'},
-    {icon:'💬',name:'理解达人',cond:s=>(s.comp||0)>=90,color:'#1ABC9C'},
-    {icon:'🎮',name:'Quiz达人',cond:s=>(s.quiz||0)>=90,color:'#E74C3C'},
-    {icon:'⭐',name:'进步达人',cond:s=>s.total>=55&&s.total<70,color:'#3498DB'},
-  ];
-  const medalRows = badgeTiers.map(t=>{
-    const winners = sorted.filter(t.cond);
-    if(!winners.length) return '';
-    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:10px;border-left:4px solid ${t.color};background:${t.color}0D;margin-bottom:8px">
-      <div style="font-size:22px;line-height:1.2">${t.icon}</div>
-      <div><div style="font-size:13px;font-weight:800;color:${t.color};margin-bottom:4px">${t.name}</div>
-      <div style="font-size:13px;color:#333">${winners.map(s=>s.name).join('、')}</div></div>
-    </div>`;
   }).join('');
 
   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
@@ -1398,7 +1369,7 @@ function downloadPDF(){
     table{width:100%;border-collapse:collapse;margin-bottom:24px}
     th{background:#1A1A2E;color:white;padding:9px 8px;font-size:11px;font-weight:700;letter-spacing:.05em}
     th:not(:first-child):not(:nth-child(2)){text-align:center}
-    td{border-bottom:1px solid #f0f0f0;vertical-align:top}
+    td{border-bottom:1px solid #f0f0f0}
     .footer{text-align:center;font-size:11px;color:#bbb;border-top:1px solid #eee;padding-top:16px;margin-top:12px}
   </style></head><body>
   <div class="header">
@@ -1418,9 +1389,9 @@ function downloadPDF(){
     <div class="stat"><div class="stat-n">${sorted.filter(s=>s.total<55).length}</div><div class="stat-l">需跟进 &lt;55</div></div>
   </div>
 
-  <div class="section-title">📋 成绩明细</div>
+  <div class="section-title">📋 学生成绩明细</div>
   <table><thead><tr>
-    <th style="width:32px">#</th><th style="text-align:left">姓名 · 达人勋章</th>
+    <th style="width:32px">#</th><th style="text-align:left">姓名</th>
     <th>朗读<br><span style="font-weight:400;font-size:10px">25%</span></th>
     <th>词语<br><span style="font-weight:400;font-size:10px">25%</span></th>
     <th>理解<br><span style="font-weight:400;font-size:10px">20%</span></th>
@@ -1428,9 +1399,6 @@ function downloadPDF(){
     <th>签到<br><span style="font-weight:400;font-size:10px">10%</span></th>
     <th>总分</th>
   </tr></thead><tbody>${rows}</tbody></table>
-
-  <div class="section-title">🏅 达人勋章榜</div>
-  ${medalRows || '<div style="color:#aaa;font-size:13px;padding:10px 0">暂无学生获得达人勋章</div>'}
 
   <div class="footer">
     Designed by Wei Wen @ 2026 &nbsp;·&nbsp; 智学华文小达人 Smart Chinese Master &nbsp;·&nbsp; 智能引领，玩转华文
