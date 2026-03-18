@@ -125,6 +125,8 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .fc-hint{font-size:11px;opacity:.45;}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fc-pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes badge-pop-in{from{opacity:0;transform:translateX(-50%) scale(.7) translateY(-20px)}to{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
+@keyframes badge-pop-out{from{opacity:1;transform:translateX(-50%) scale(1)}to{opacity:0;transform:translateX(-50%) scale(.8) translateY(-16px)}}
 .fc-nav{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:12px;}
 .fcdots{display:flex;gap:5px;}
 .fcd{width:7px;height:7px;border-radius:50%;background:var(--mist2);transition:background .2s;}
@@ -1175,6 +1177,11 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 </div>
 
 </main>
+</div>
+
+<!-- Page footer -->
+<div style="text-align:center;padding:14px 0 20px;font-size:10px;color:rgba(255,255,255,.18);letter-spacing:.06em;position:relative;z-index:1">
+  智学华文小达人 · 智能引领，玩转华文 &nbsp;·&nbsp; Designed by Wei Wen @ 2026
 </div>
 
 <script>
@@ -3588,11 +3595,43 @@ function getStudentBadges(s){
   return badges;
 }
 
+const _SECTION_BADGES = {
+  reading:   {icon:'🎙', name:'朗读达人'},
+  flashcard: {icon:'📚', name:'词语达人'},
+  mindmap:   {icon:'🧠', name:'心智图达人'},
+  comp:      {icon:'💬', name:'理解达人'},
+  quiz:      {icon:'🎮', name:'Quiz达人'},
+};
+const _shownSectionBadges = new Set();
+
+function showBadgePopup(badge){
+  const existing = document.getElementById('badge-popup');
+  if(existing) existing.remove();
+  const el = document.createElement('div');
+  el.id = 'badge-popup';
+  el.style.cssText = 'position:fixed;top:80px;left:50%;z-index:700;background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:2px solid #FFD700;border-radius:20px;padding:22px 32px;text-align:center;box-shadow:0 8px 40px rgba(255,215,0,.35);animation:badge-pop-in .4s cubic-bezier(.34,1.56,.64,1) forwards;min-width:180px';
+  el.innerHTML = `
+    <div style="font-size:50px;line-height:1;margin-bottom:8px">${badge.icon}</div>
+    <div style="font-size:10px;color:rgba(255,215,0,.65);font-weight:700;letter-spacing:.12em;margin-bottom:5px">🏅 获得达人勋章！</div>
+    <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:900;color:#FFD700">${badge.name}</div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>{
+    el.style.animation = 'badge-pop-out .35s ease forwards';
+    setTimeout(()=>el.remove(), 380);
+  }, 2800);
+}
+
 function setScore(section, raw100){
   studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
   refreshScoreReport();
   // Sync score to Firebase in real-time
   fbUpdateScore(qgState.name || '', section, studentScores[section]);
+  // Show section badge popup if newly earned
+  const sb = _SECTION_BADGES[section];
+  if(sb && studentScores[section] >= 90 && !_shownSectionBadges.has(section)){
+    _shownSectionBadges.add(section);
+    showBadgePopup(sb);
+  }
 }
 function calcTotal(s){
   let ws=0,wt=0;
