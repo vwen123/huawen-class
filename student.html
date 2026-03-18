@@ -125,8 +125,9 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .fc-hint{font-size:11px;opacity:.45;}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes fc-pop{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes badge-pop-in{from{opacity:0;transform:translateX(-50%) scale(.7) translateY(-20px)}to{opacity:1;transform:translateX(-50%) scale(1) translateY(0)}}
-@keyframes badge-pop-out{from{opacity:1;transform:translateX(-50%) scale(1)}to{opacity:0;transform:translateX(-50%) scale(.8) translateY(-16px)}}
+@keyframes badge-pop-in{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+@keyframes badge-pop-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(.8)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .fc-nav{display:flex;align-items:center;gap:14px;justify-content:center;margin-bottom:12px;}
 .fcdots{display:flex;gap:5px;}
 .fcd{width:7px;height:7px;border-radius:50%;background:var(--mist2);transition:background .2s;}
@@ -3605,19 +3606,22 @@ const _SECTION_BADGES = {
 const _shownSectionBadges = new Set();
 
 function showBadgePopup(badge){
-  const existing = document.getElementById('badge-popup');
+  const existing = document.getElementById('badge-popup-wrap');
   if(existing) existing.remove();
-  const el = document.createElement('div');
-  el.id = 'badge-popup';
-  el.style.cssText = 'position:fixed;top:80px;left:50%;z-index:700;background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:2px solid #FFD700;border-radius:20px;padding:22px 32px;text-align:center;box-shadow:0 8px 40px rgba(255,215,0,.35);animation:badge-pop-in .4s cubic-bezier(.34,1.56,.64,1) forwards;min-width:180px';
-  el.innerHTML = `
-    <div style="font-size:50px;line-height:1;margin-bottom:8px">${badge.icon}</div>
-    <div style="font-size:10px;color:rgba(255,215,0,.65);font-weight:700;letter-spacing:.12em;margin-bottom:5px">🏅 获得达人勋章！</div>
-    <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:900;color:#FFD700">${badge.name}</div>`;
-  document.body.appendChild(el);
+  const wrap = document.createElement('div');
+  wrap.id = 'badge-popup-wrap';
+  wrap.style.cssText = 'position:fixed;inset:0;z-index:700;display:flex;align-items:center;justify-content:center;background:rgba(10,10,26,.55);backdrop-filter:blur(4px);animation:fadeIn .25s ease';
+  wrap.innerHTML = `
+    <div style="background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:2px solid #FFD700;border-radius:24px;padding:36px 44px;text-align:center;box-shadow:0 12px 60px rgba(255,215,0,.4);animation:badge-pop-in .45s cubic-bezier(.34,1.56,.64,1) forwards;min-width:220px;max-width:320px">
+      <div style="font-size:72px;line-height:1;margin-bottom:12px">${badge.icon}</div>
+      <div style="font-size:11px;color:rgba(255,215,0,.7);font-weight:700;letter-spacing:.14em;margin-bottom:8px">🏅 获得达人勋章！</div>
+      <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#FFD700;margin-bottom:6px">${badge.name}</div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:4px">厉害！继续保持 💪</div>
+    </div>`;
+  document.body.appendChild(wrap);
   setTimeout(()=>{
-    el.style.animation = 'badge-pop-out .35s ease forwards';
-    setTimeout(()=>el.remove(), 380);
+    wrap.style.animation = 'badge-pop-out .35s ease forwards';
+    setTimeout(()=>wrap.remove(), 380);
   }, 2800);
 }
 
@@ -3631,6 +3635,11 @@ function setScore(section, raw100){
   if(sb && studentScores[section] >= 75 && !_shownSectionBadges.has(section)){
     _shownSectionBadges.add(section);
     showBadgePopup(sb);
+    // Record badge in Firebase so teacher can see it
+    if(firebaseReady && currentSession && qgState.name){
+      sessionRef(currentSession+'/students/'+safeKey(qgState.name)+'/badges/'+section)
+        .set({icon:sb.icon, name:sb.name, ts:Date.now()});
+    }
   }
 }
 function calcTotal(s){

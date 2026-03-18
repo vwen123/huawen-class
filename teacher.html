@@ -794,7 +794,8 @@ function attachListener(sid){
     checkInData = [];
     checkOutData = [];
     Object.values(data).forEach(s => {
-      studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false });
+      const badges = s.badges ? Object.values(s.badges).sort((a,b)=>(a.ts||0)-(b.ts||0)) : [];
+      studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false, badges });
       if(s.scores){
         const sc = s.scores;
         const w={reading:.25,flashcard:.25,comp:.2,quiz:.2,checkout:.1};
@@ -970,8 +971,9 @@ function renderStudents(){
       const statusBadge = sc.done
         ? `<div style="font-size:10px;color:var(--teal)">✅ 完成 ${sc.time}</div>`
         : `<div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>`;
+      const badgeIcons = (s.badges||[]).map(b=>`<span title="${b.name}" style="font-size:13px">${b.icon}</span>`).join('');
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}</div></div>
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}${badgeIcons?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons}</div>`:''}</div></div>
         <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
         <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
         <div class="ts-cell" style="color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'}">${sc.comp??'—'}</div>
@@ -981,8 +983,9 @@ function renderStudents(){
         <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
     } else {
       const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
+      const badgeIcons2 = (s.badges||[]).map(b=>`<span title="${b.name}" style="font-size:13px">${b.icon}</span>`).join('');
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div></div></div>
+        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div>
