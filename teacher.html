@@ -1560,14 +1560,28 @@ function renderCheckOutPanel(){
   if(wcBtn) wcBtn.style.display = hasWc ? '' : 'none';
 }
 
-function buildFullscreenCloud(){
-  // Collect words from all checkout answers for word-cloud questions
-  const allAnswers = [];
-  _coQuestionsMeta.forEach((q,qi)=>{
-    if(q.wordCloud) checkOutData.forEach(s=>{ if(s.answers&&s.answers[qi]) allAnswers.push(s.answers[qi]); });
+function _coCollectWords(){
+  // Collect text from wordCloud-flagged questions; fallback to all checkout answers
+  const answers = [];
+  _coQuestionsMeta.forEach((q, qi) => {
+    if(q.wordCloud){
+      const qField = qi === 0 ? 'q0_answers' : 'q1_answers';
+      checkOutData.forEach(s => { (s[qField]||[]).forEach(a => { if(a) answers.push(a); }); });
+    }
   });
-  if(allAnswers.length===0 && wcFullscreenQIdx>=0)
-    checkOutData.forEach(s=>{ if(s.answers&&s.answers[wcFullscreenQIdx]) allAnswers.push(s.answers[wcFullscreenQIdx]); });
+  // Fallback: no questions marked wordCloud — use all answers
+  if(answers.length === 0){
+    checkOutData.forEach(s => {
+      (s.q0_answers||[]).forEach(a => { if(a) answers.push(a); });
+      (s.q1_answers||[]).forEach(a => { if(a) answers.push(a); });
+    });
+  }
+  return answers;
+}
+
+function buildFullscreenCloud(){
+  // Collect words from checkout answers (wordCloud-flagged questions first, fallback to all)
+  const allAnswers = _coCollectWords();
 
   const freq={};
   allAnswers.forEach(a=>{
@@ -1614,11 +1628,8 @@ function refreshWcToolPanel(){
   const panel=document.getElementById('wc-tool-panel');
   const mini=document.getElementById('wc-tool-mini');
   if(!empty||!panel) return;
-  const allAnswers=[];
-  _coQuestionsMeta.forEach((q,qi)=>{ if(q.wordCloud) checkOutData.forEach(s=>{ if(s.answers&&s.answers[qi]) allAnswers.push(s.answers[qi]); }); });
-  if(wcFullscreenQIdx>=0 && allAnswers.length===0)
-    checkOutData.forEach(s=>{ if(s.answers&&s.answers[wcFullscreenQIdx]) allAnswers.push(s.answers[wcFullscreenQIdx]); });
-  if(allAnswers.length===0 && checkOutData.length===0){ empty.style.display='';panel.style.display='none';return; }
+  const allAnswers=_coCollectWords();
+  if(allAnswers.length===0){ empty.style.display='';panel.style.display='none';return; }
   empty.style.display='none'; panel.style.display='';
   if(mini){
     const freq={};
