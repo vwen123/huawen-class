@@ -1320,11 +1320,123 @@ function downloadCSV(){
 
 function downloadPDF(){
   const date = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric'});
+  const classLabel = (activeSessions[activeCode]||{}).classLabel || '';
   const sorted = [...classRoster].sort((a,b)=>b.total-a.total);
-  const rows = sorted.map((s,i)=>`<tr style="background:${i%2===0?'#fafaf8':'white'}"><td style="padding:7px 10px">${i+1}</td><td style="padding:7px 10px;font-weight:600">${s.name}</td><td style="text-align:center;padding:7px 10px">${s.reading||'—'}</td><td style="text-align:center;padding:7px 10px">${s.flashcard||'—'}</td><td style="text-align:center;padding:7px 10px">${s.comp||'—'}</td><td style="text-align:center;padding:7px 10px">${s.quiz||'—'}</td><td style="text-align:center;padding:7px 10px">${s.checkout?100:'—'}</td><td style="text-align:center;padding:7px 10px;font-weight:900;font-size:15px;color:${s.total>=85?'#16A085':s.total>=70?'#D4A017':s.total>=50?'#E67E22':'#C0392B'}">${s.total}</td></tr>`).join('');
   const totals = classRoster.map(s=>s.total).filter(t=>t>0);
   const avg = totals.length?Math.round(totals.reduce((a,b)=>a+b,0)/totals.length):0;
-  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>body{font-family:"Noto Sans SC",sans-serif;padding:32px;color:#1A1A2E;font-size:13px}h1{font-size:20px;margin-bottom:4px}.sub{color:#888;margin-bottom:20px;font-size:12px}table{width:100%;border-collapse:collapse;margin-bottom:20px}th{background:#1A1A2E;color:white;padding:8px 10px;font-size:12px}th:not(:first-child):not(:nth-child(2)){text-align:center}.footer{font-size:11px;color:#aaa;border-top:1px solid #eee;padding-top:12px}</style></head><body><h1>🏮 ${selectedUnitTitle} — 学生成绩报告</h1><div class="sub">日期：${date} | 共 ${classRoster.length} 位学生 | 班级平均分：${avg}</div><table><thead><tr><th>#</th><th>姓名</th><th>朗读(25%)</th><th>词语(25%)</th><th>理解(20%)</th><th>Quiz(20%)</th><th>签到(10%)</th><th>总分</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">华文学习系统自动生成 · ${date}</div></body></html>`;
+
+  // ── 达人勋章 badge logic ──
+  function getBadges(s){
+    const badges = [];
+    if(s.total >= 95) badges.push({icon:'🏆',name:'超级达人',color:'#C0392B'});
+    else if(s.total >= 85) badges.push({icon:'🌟',name:'优秀达人',color:'#D4A017'});
+    else if(s.total >= 70) badges.push({icon:'🎖',name:'华文达人',color:'#16A085'});
+    else if(s.total >= 55) badges.push({icon:'⭐',name:'进步达人',color:'#3498DB'});
+    if((s.reading||0) >= 90) badges.push({icon:'🎙',name:'朗读达人',color:'#9B59B6'});
+    if((s.flashcard||0) >= 90) badges.push({icon:'📚',name:'词语达人',color:'#E67E22'});
+    if((s.comp||0) >= 90) badges.push({icon:'💬',name:'理解达人',color:'#1ABC9C'});
+    if((s.quiz||0) >= 90) badges.push({icon:'🎮',name:'Quiz达人',color:'#E74C3C'});
+    if(s.total >= 80 && (s.reading||0)>=75 && (s.flashcard||0)>=75 && (s.comp||0)>=75 && (s.quiz||0)>=75)
+      badges.push({icon:'🌈',name:'全能达人',color:'#8E44AD'});
+    return badges;
+  }
+
+  const rows = sorted.map((s,i)=>{
+    const badges = getBadges(s);
+    const badgeHtml = badges.map(b=>`<span style="display:inline-block;background:${b.color}18;border:1px solid ${b.color};color:${b.color};border-radius:10px;padding:1px 6px;font-size:10px;margin:1px;white-space:nowrap">${b.icon} ${b.name}</span>`).join('');
+    const tc = s.total>=85?'#16A085':s.total>=70?'#D4A017':s.total>=50?'#E67E22':'#C0392B';
+    return `<tr style="background:${i%2===0?'#fafaf8':'white'}">
+      <td style="padding:7px 10px;text-align:center;color:#aaa">${i+1}</td>
+      <td style="padding:7px 10px;font-weight:700">${s.name}<div style="margin-top:3px">${badgeHtml}</div></td>
+      <td style="text-align:center;padding:7px 6px">${s.reading||'—'}</td>
+      <td style="text-align:center;padding:7px 6px">${s.flashcard||'—'}</td>
+      <td style="text-align:center;padding:7px 6px">${s.comp||'—'}</td>
+      <td style="text-align:center;padding:7px 6px">${s.quiz||'—'}</td>
+      <td style="text-align:center;padding:7px 6px">${s.checkout?'✓':'—'}</td>
+      <td style="text-align:center;padding:7px 6px;font-weight:900;font-size:16px;color:${tc}">${s.total}</td>
+    </tr>`;
+  }).join('');
+
+  // ── 勋章榜 ──
+  const badgeTiers = [
+    {icon:'🏆',name:'超级达人',cond:s=>s.total>=95,color:'#C0392B'},
+    {icon:'🌟',name:'优秀达人',cond:s=>s.total>=85&&s.total<95,color:'#D4A017'},
+    {icon:'🎖',name:'华文达人',cond:s=>s.total>=70&&s.total<85,color:'#16A085'},
+    {icon:'🌈',name:'全能达人',cond:s=>s.total>=80&&(s.reading||0)>=75&&(s.flashcard||0)>=75&&(s.comp||0)>=75&&(s.quiz||0)>=75,color:'#8E44AD'},
+    {icon:'🎙',name:'朗读达人',cond:s=>(s.reading||0)>=90,color:'#9B59B6'},
+    {icon:'📚',name:'词语达人',cond:s=>(s.flashcard||0)>=90,color:'#E67E22'},
+    {icon:'💬',name:'理解达人',cond:s=>(s.comp||0)>=90,color:'#1ABC9C'},
+    {icon:'🎮',name:'Quiz达人',cond:s=>(s.quiz||0)>=90,color:'#E74C3C'},
+    {icon:'⭐',name:'进步达人',cond:s=>s.total>=55&&s.total<70,color:'#3498DB'},
+  ];
+  const medalRows = badgeTiers.map(t=>{
+    const winners = sorted.filter(t.cond);
+    if(!winners.length) return '';
+    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:10px;border-left:4px solid ${t.color};background:${t.color}0D;margin-bottom:8px">
+      <div style="font-size:22px;line-height:1.2">${t.icon}</div>
+      <div><div style="font-size:13px;font-weight:800;color:${t.color};margin-bottom:4px">${t.name}</div>
+      <div style="font-size:13px;color:#333">${winners.map(s=>s.name).join('、')}</div></div>
+    </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box}
+    body{font-family:"Noto Sans SC",sans-serif;margin:0;padding:36px 40px;color:#1A1A2E;font-size:13px;background:#fff}
+    .header{text-align:center;padding:28px 0 20px;border-bottom:2px solid #1A1A2E;margin-bottom:24px}
+    .title{font-family:"Noto Serif SC",serif;font-size:26px;font-weight:900;color:#1A1A2E;letter-spacing:.05em;margin-bottom:4px}
+    .title-en{font-size:13px;color:#888;letter-spacing:.15em;margin-bottom:8px}
+    .slogan{display:inline-block;background:#1A1A2E;color:#FFD700;padding:4px 16px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:.1em;margin-bottom:12px}
+    .class-info{font-size:14px;color:#555;margin-top:6px}
+    .stats{display:flex;gap:0;border:1px solid #e8e8e8;border-radius:10px;overflow:hidden;margin-bottom:24px}
+    .stat{flex:1;text-align:center;padding:12px 0;border-right:1px solid #e8e8e8}
+    .stat:last-child{border-right:none}
+    .stat-n{font-family:"Noto Serif SC",serif;font-size:22px;font-weight:900;color:#1A1A2E}
+    .stat-l{font-size:11px;color:#888;margin-top:2px}
+    .section-title{font-family:"Noto Serif SC",serif;font-size:15px;font-weight:900;color:#1A1A2E;border-left:4px solid #FFD700;padding-left:10px;margin:20px 0 12px}
+    table{width:100%;border-collapse:collapse;margin-bottom:24px}
+    th{background:#1A1A2E;color:white;padding:9px 8px;font-size:11px;font-weight:700;letter-spacing:.05em}
+    th:not(:first-child):not(:nth-child(2)){text-align:center}
+    td{border-bottom:1px solid #f0f0f0;vertical-align:top}
+    .footer{text-align:center;font-size:11px;color:#bbb;border-top:1px solid #eee;padding-top:16px;margin-top:12px}
+  </style></head><body>
+  <div class="header">
+    <div class="title">智学华文小达人</div>
+    <div class="title-en">Smart Chinese Master</div>
+    <div class="slogan">智能引领，玩转华文</div>
+    <div class="class-info">
+      ${classLabel ? `<strong>${classLabel}</strong> · ` : ''}${selectedUnitTitle || '华文课'}学生成绩报告 &nbsp;|&nbsp; ${date}
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="stat-n">${classRoster.length}</div><div class="stat-l">完成学生</div></div>
+    <div class="stat"><div class="stat-n">${avg}</div><div class="stat-l">班级平均分</div></div>
+    <div class="stat"><div class="stat-n">${totals.length?Math.max(...totals):0}</div><div class="stat-l">最高分</div></div>
+    <div class="stat"><div class="stat-n">${sorted.filter(s=>s.total>=70).length}</div><div class="stat-l">达标人数 ≥70</div></div>
+    <div class="stat"><div class="stat-n">${sorted.filter(s=>s.total<55).length}</div><div class="stat-l">需跟进 &lt;55</div></div>
+  </div>
+
+  <div class="section-title">📋 成绩明细</div>
+  <table><thead><tr>
+    <th style="width:32px">#</th><th style="text-align:left">姓名 · 达人勋章</th>
+    <th>朗读<br><span style="font-weight:400;font-size:10px">25%</span></th>
+    <th>词语<br><span style="font-weight:400;font-size:10px">25%</span></th>
+    <th>理解<br><span style="font-weight:400;font-size:10px">20%</span></th>
+    <th>Quiz<br><span style="font-weight:400;font-size:10px">20%</span></th>
+    <th>签到<br><span style="font-weight:400;font-size:10px">10%</span></th>
+    <th>总分</th>
+  </tr></thead><tbody>${rows}</tbody></table>
+
+  <div class="section-title">🏅 达人勋章榜</div>
+  ${medalRows || '<div style="color:#aaa;font-size:13px;padding:10px 0">暂无学生获得达人勋章</div>'}
+
+  <div class="footer">
+    Designed by Wei Wen @ 2026 &nbsp;·&nbsp; 智学华文小达人 Smart Chinese Master &nbsp;·&nbsp; 智能引领，玩转华文
+  </div>
+  </body></html>`;
+
   const w = window.open('','_blank');
   w.document.write(html); w.document.close();
   setTimeout(()=>w.print(), 600);
