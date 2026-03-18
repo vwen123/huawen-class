@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>华文学习系统 — 老师端</title>
+<title>智学华文小达人 Smart Chinese Master — 老师端</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -120,7 +120,8 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
   <div class="login-card">
     <div style="font-size:48px;margin-bottom:10px">🔐</div>
     <div class="login-title">老师专用</div>
-    <div class="login-sub">华文学习系统 · 管理端</div>
+    <div class="login-sub">智学华文小达人 · 管理端</div>
+    <div style="font-size:11px;color:rgba(255,215,0,.55);font-weight:700;letter-spacing:.1em;margin-bottom:8px">智能引领，玩转华文</div>
     <input type="password" id="pw-input" placeholder="输入密码"
       style="width:100%;background:rgba(255,255,255,.1);border:2px solid rgba(255,255,255,.15);border-radius:10px;padding:12px 16px;font-family:'Noto Sans SC',sans-serif;font-size:18px;color:white;text-align:center;margin-bottom:12px;outline:none;transition:border-color .2s"
       onkeydown="if(event.key==='Enter')checkPW()"
@@ -129,6 +130,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
       style="width:100%;padding:13px;border-radius:10px;border:none;background:linear-gradient(135deg,#D4A017,#F0C040);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s"
       onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">进入管理端 →</button>
     <div class="pw-err" id="pw-err"></div>
+    <div style="margin-top:20px;font-size:10px;color:rgba(255,255,255,.22);text-align:center">Designed by Wei Wen @ 2026</div>
   </div>
 </div>
 
@@ -137,7 +139,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
   <!-- Topnav -->
   <nav class="topnav">
-    <div class="topnav-title">🏮 华文学习系统</div>
+    <div class="topnav-title">🏮 智学华文小达人</div>
     <div class="topnav-sub" id="nav-subtitle">老师管理端</div>
     <div style="display:flex;align-items:center;gap:8px">
       <div id="nav-live-badge" style="display:none" class="t-badge">🟢 上课中</div>

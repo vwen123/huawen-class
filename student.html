@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>华文学习系统 — 学生</title>
+<title>智学华文小达人 Smart Chinese Master</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
 <!-- Firebase SDK -->
@@ -432,7 +432,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 <body>
 
 <nav class="topnav" id="hud-topnav-wrap">
-  <div class="brand">🏮 华文学习系统</div>
+  <div class="brand">🏮 智学华文小达人</div>
   <div class="lesson-info">当前课文：<strong id="lesson-title">—</strong></div>
   <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;margin-left:auto;flex-shrink:0">退出</button>
 </nav>
@@ -1117,6 +1117,12 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     <div style="background:var(--sky-l);border-radius:var(--r);padding:14px 16px;border-left:4px solid var(--sky);margin-bottom:16px">
       <div style="font-size:12px;font-weight:700;color:var(--sky);margin-bottom:6px">💡 建议</div>
       <div style="font-size:13px;color:var(--ink2);line-height:1.7" id="co-advice-text">—</div>
+    </div>
+
+    <!-- 达人勋章 -->
+    <div id="co-badges" style="display:none;margin-bottom:16px;padding:14px 16px;background:linear-gradient(135deg,#FFF8E1,#FFFDE7);border-radius:var(--r);border:1.5px solid var(--gold)">
+      <div style="font-size:12px;font-weight:700;color:var(--gold-d,#B8860B);margin-bottom:10px">🏅 恭喜你获得达人勋章！</div>
+      <div id="co-badges-list" style="display:flex;flex-wrap:wrap;gap:8px"></div>
     </div>
 
     <!-- Done / Review buttons -->
@@ -3566,6 +3572,22 @@ let mmBlanks = []; // [{id, answer, filledWith}]
 let mmSelBlank = null; // currently selected blank id
 let mmSelAns = null;   // currently selected answer string
 
+function getStudentBadges(s){
+  const total = calcTotal(s);
+  const badges = [];
+  if(total >= 95)      badges.push({icon:'🏆', name:'超级达人', color:'#C0392B', bg:'#FFE9E9'});
+  else if(total >= 85) badges.push({icon:'🌟', name:'优秀达人', color:'#B8860B', bg:'#FFF8DC'});
+  else if(total >= 70) badges.push({icon:'🎖', name:'华文达人', color:'#16A085', bg:'#E0FAF3'});
+  else if(total >= 55) badges.push({icon:'⭐', name:'进步达人', color:'#2980B9', bg:'#EBF5FB'});
+  if(total>=80 && (s.reading||0)>=75 && (s.flashcard||0)>=75 && (s.comp||0)>=75 && (s.quiz||0)>=75)
+    badges.push({icon:'🌈', name:'全能达人', color:'#8E44AD', bg:'#F5EEF8'});
+  if((s.reading||0)   >= 90) badges.push({icon:'🎙', name:'朗读达人', color:'#7D3C98', bg:'#F4ECF7'});
+  if((s.flashcard||0) >= 90) badges.push({icon:'📚', name:'词语达人', color:'#CA6F1E', bg:'#FEF5E7'});
+  if((s.comp||0)      >= 90) badges.push({icon:'💬', name:'理解达人', color:'#148F77', bg:'#E8F8F5'});
+  if((s.quiz||0)      >= 90) badges.push({icon:'🎮', name:'Quiz达人', color:'#C0392B', bg:'#FDEDEC'});
+  return badges;
+}
+
 function setScore(section, raw100){
   studentScores[section] = Math.round(Math.min(100, Math.max(0, raw100)));
   refreshScoreReport();
@@ -3604,6 +3626,22 @@ function refreshScoreReport(){
   const gl=document.getElementById('co-grade-label');if(gl)gl.textContent=grade;
   const gs=document.getElementById('co-grade-sub');if(gs)gs.textContent=sub;
   const st=document.getElementById('co-stars');if(st)st.textContent=stars;
+  // ── 达人勋章 ──
+  const badges = getStudentBadges(studentScores);
+  const badgesEl = document.getElementById('co-badges');
+  const badgesList = document.getElementById('co-badges-list');
+  if(badgesEl && badgesList){
+    if(badges.length > 0){
+      badgesList.innerHTML = badges.map(b =>
+        `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;background:${b.bg};border:1.5px solid ${b.color};animation:fc-pop .4s ease">
+          <span style="font-size:18px">${b.icon}</span>
+          <span style="font-size:12px;font-weight:700;color:${b.color}">${b.name}</span>
+        </div>`).join('');
+      badgesEl.style.display = '';
+    } else {
+      badgesEl.style.display = 'none';
+    }
+  }
   buildLearningAnalysis(total);
 }
 
@@ -3735,10 +3773,18 @@ function showCompletionBanner(name, total){
   const existing = document.getElementById('completion-overlay');
   if(existing) existing.remove();
   const grade = total>=90?'🥇优秀':total>=75?'🥈良好':total>=60?'🥉继续加油':'📚需要加油';
+  const badges = getStudentBadges(studentScores);
+  const badgeHtml = badges.length > 0
+    ? `<div style="margin-bottom:20px">
+        <div style="font-size:11px;color:rgba(255,215,0,.6);font-weight:700;letter-spacing:.08em;margin-bottom:10px">🏅 达人勋章</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px;justify-content:center">${
+          badges.map(b=>`<div style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18)"><span style="font-size:16px">${b.icon}</span><span style="font-size:12px;font-weight:700;color:white">${b.name}</span></div>`).join('')
+        }</div>
+      </div>` : '';
   const el = document.createElement('div');
   el.id = 'completion-overlay';
   el.style.cssText='position:fixed;inset:0;z-index:600;background:rgba(10,10,26,.88);display:flex;align-items:center;justify-content:center;padding:24px;backdrop-filter:blur(8px)';
-  el.innerHTML=`<div style="background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:1px solid rgba(255,215,0,.25);border-radius:24px;padding:40px 32px;max-width:380px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,215,0,.15)">
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#1A1A38,#0A0A1A);border:1px solid rgba(255,215,0,.25);border-radius:24px;padding:40px 32px;max-width:400px;width:100%;text-align:center;box-shadow:0 0 60px rgba(255,215,0,.15)">
     <div style="font-size:56px;margin-bottom:8px">🎉</div>
     <div style="font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;color:#FFD700;margin-bottom:4px">学习完成！</div>
     <div style="font-size:15px;color:rgba(255,255,255,.65);margin-bottom:20px">${name}，今天做得很棒！</div>
@@ -3746,7 +3792,9 @@ function showCompletionBanner(name, total){
       <div style="font-size:42px;font-weight:900;font-family:'Noto Serif SC',serif;color:#FFD700;line-height:1">${total}</div>
       <div style="font-size:12px;color:rgba(255,255,255,.4);margin-top:3px">总分 / 100 &nbsp;·&nbsp; ${grade}</div>
     </div>
+    ${badgeHtml}
     <button onclick="dismissCompletionBanner()" style="width:100%;padding:13px;border-radius:12px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:15px;font-weight:900;cursor:pointer">返回主页 →</button>
+    <div style="margin-top:16px;font-size:10px;color:rgba(255,255,255,.2)">智学华文小达人 · 智能引领，玩转华文</div>
   </div>`;
   document.body.appendChild(el);
 }
@@ -4604,7 +4652,8 @@ window.addEventListener('resize',()=>{ if(document.getElementById('page-mindmap'
 <div id="name-overlay">
   <div class="name-card">
     <div style="font-size:44px;margin-bottom:10px">🏮</div>
-    <div class="name-title">华文学习系统</div>
+    <div class="name-title">智学华文小达人</div>
+    <div style="font-size:11px;color:rgba(255,215,0,.7);font-weight:700;letter-spacing:.12em;margin-bottom:8px">智能引领，玩转华文</div>
     <div class="name-sub" id="name-lesson-sub">请输入进入码和名字</div>
 
     <!-- Class code -->
@@ -4622,6 +4671,7 @@ window.addEventListener('resize',()=>{ if(document.getElementById('page-mindmap'
     <div class="name-resume" id="name-resume">📖 找到你上次的进度，将从 <strong id="resume-part">—</strong> 继续</div>
     <div id="name-error" style="font-size:12px;color:#FF4466;margin-bottom:8px;display:none">❌ 进入码不正确，请向老师确认</div>
     <button class="name-submit" onclick="enterByName()">进入学习 →</button>
+    <div style="margin-top:20px;font-size:10px;color:rgba(255,255,255,.25);text-align:center">Designed by Wei Wen @ 2026</div>
   </div>
 </div>
 
