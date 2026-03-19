@@ -2545,6 +2545,7 @@ function showHangmanQ(){
   hmState.currentWord = card.char;
   hmState.guessed = [];
   hmState.wordDone = false;
+  hmState.wordWrong = 0; // per-word wrong count, max 2
   document.getElementById('hm-qnum').textContent = qIdx+1;
   document.getElementById('hm-qtotal').textContent = maxQ;
   document.getElementById('hm-clue').innerHTML =
@@ -2585,16 +2586,14 @@ function hmGuess(ch){
   const inWord = word.includes(ch);
 
   if(!inWord){
-    // ── 猜错：一题只给一次，立即失败 ──
-    hmState.wordDone = true;
+    // ── 猜错：每题最多2次错误机会 ──
+    hmState.wordWrong++;
     hmState.totalWrong++;
     // 累计位置 1-6（在每组6次中的位置）
     const setPos = ((hmState.totalWrong - 1) % 6) + 1;
     const part = document.getElementById(HM_PARTS[setPos - 1]);
     if(part) part.style.display = '';
     document.getElementById('hm-wrong-count').textContent = setPos;
-    // 禁用所有选项
-    document.querySelectorAll('.hm-choice').forEach(b => b.disabled = true);
     // 累计到6次：小人完成 → 1.2秒后清零重新开始
     if(setPos === 6){
       setTimeout(() => {
@@ -2602,7 +2601,20 @@ function hmGuess(ch){
         document.getElementById('hm-wrong-count').textContent = '0';
       }, 1200);
     }
-    showHangmanResult(false);
+    // 第2次猜错：立即失败
+    if(hmState.wordWrong >= 2){
+      hmState.wordDone = true;
+      document.querySelectorAll('.hm-choice').forEach(b => b.disabled = true);
+      showHangmanResult(false);
+    } else {
+      // 第1次猜错：提示还有1次机会，继续猜
+      document.querySelectorAll('.hm-choice').forEach(btn=>{
+        if(btn.textContent===ch) btn.classList.add('used');
+      });
+      const res = document.getElementById('hm-result');
+      res.style.cssText = 'display:block;background:#FFF3CD;border-radius:8px;padding:8px 12px;text-align:center;font-size:13px;color:#856404;font-weight:600';
+      res.innerHTML = `⚠️「${ch}」不对，还有 1 次机会！`;
+    }
 
   } else {
     // ── 猜对：显示字符 ──
@@ -2610,6 +2622,9 @@ function hmGuess(ch){
     document.querySelectorAll('.hm-choice').forEach(btn=>{
       if(btn.textContent===ch) btn.classList.add('used');
     });
+    // 清除第1次猜错的警告提示（若有）
+    const res = document.getElementById('hm-result');
+    if(res.style.background === 'rgb(255, 243, 205)') res.style.display = 'none';
     // 检查词语是否全部猜出
     const allRevealed = word.split('').every(c=>hmState.guessed.includes(c));
     if(allRevealed){
