@@ -2049,8 +2049,10 @@ function initMindMap(){
       else item.children.forEach(c=>allLeafs.push(c.text));
     });
   });
-  // Pick blanks (45%, min 3, max 12)
-  const n=Math.min(8,allLeafs.length);
+  // Pick blanks: use teacher setting if available, else default 8
+  const mmLimit = (gameSettings.mmBlankCount && gameSettings.mmBlankCount > 0)
+    ? gameSettings.mmBlankCount : 8;
+  const n=Math.min(mmLimit, allLeafs.length);
   const shuffled=allLeafs.slice().sort(()=>Math.random()-.5);
   const blankSet=new Set(shuffled.slice(0,n));
   mmBlanks=[]; let bid=0;

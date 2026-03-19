@@ -387,6 +387,11 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <div class="ctitle">🧠 心智图（Markdown 格式）</div>
           <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">格式：# 标题 → ## 主枝 → - 子项 →   - 细项（两格缩进）</div>
           <textarea class="md-textarea" id="mm-write" placeholder="# 暖心小铺&#10;## 背景与环境&#10;- 地点：乡下两层老房子&#10;- 店名：成业杂货店&#10;## 人物刻画&#10;- 陈大婶&#10;  - 外貌：头发斑白&#10;  - 性格：随和" style="min-height:200px"></textarea>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+            <label style="font-size:12px;color:var(--ink2);font-weight:600;white-space:nowrap">✏️ 填空题数：</label>
+            <input type="number" id="mm-blank-count" min="1" max="30" placeholder="自动" style="width:80px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+            <span style="font-size:11px;color:var(--ink3)">（留空 = 自动取8题）</span>
+          </div>
         </div>
 
         <!-- Comprehension questions -->
@@ -1209,6 +1214,8 @@ function selectUnit(id, title){
     }
     const wcEl = document.getElementById('fc-word-count');
     if(wcEl) wcEl.value = (gs.fcWordCount && gs.fcWordCount > 0) ? gs.fcWordCount : '';
+    const mmEl = document.getElementById('mm-blank-count');
+    if(mmEl) mmEl.value = (gs.mmBlankCount && gs.mmBlankCount > 0) ? gs.mmBlankCount : '';
     // Load check-in questions
     const qs = c.ciQuestions || [];
     for(let qi=0;qi<2;qi++){
@@ -1305,6 +1312,7 @@ function saveAllContent(){
     fx:     document.getElementById('quiz-fx')?.checked !== false,
     fcGames: fcGames.length ? fcGames : ['match','blast','hangman','balloon'],
     fcWordCount: parseInt(document.getElementById('fc-word-count')?.value)||0,
+    mmBlankCount: parseInt(document.getElementById('mm-blank-count')?.value)||0,
   };
 
   const content = {
