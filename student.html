@@ -2529,7 +2529,11 @@ function buildHangmanGame(){
   const card = document.getElementById('fc-hangman-card');
   card.style.display = 'block';
   const pool = fcGamePool();
-  hmState = { pool, qIdx:0, maxQ:pool.length, score:0, wordsCorrect:0, wrongCount:0, guessed:[], currentWord:'' };
+  // totalWrong: cumulative across all words; resets at every 6
+  hmState = { pool, qIdx:0, maxQ:pool.length, wordsCorrect:0, guessed:[], currentWord:'', totalWrong:0, wordDone:false };
+  // Clear figure at game start
+  HM_PARTS.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+  document.getElementById('hm-wrong-count').textContent = '0';
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
   showHangmanQ();
 }
@@ -2540,14 +2544,12 @@ function showHangmanQ(){
   const card = pool[qIdx];
   hmState.currentWord = card.char;
   hmState.guessed = [];
-  hmState.wrongCount = 0;
+  hmState.wordDone = false;
   document.getElementById('hm-qnum').textContent = qIdx+1;
   document.getElementById('hm-qtotal').textContent = maxQ;
   document.getElementById('hm-clue').innerHTML =
     `<div style="font-weight:700;font-size:15px">${card.mean}</div>`;
-  // Reset hangman figure
-  HM_PARTS.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
-  document.getElementById('hm-wrong-count').textContent = '0';
+  // Do NOT reset figure or wrong count — they accumulate across words
   document.getElementById('hm-result').style.display = 'none';
   renderHangmanBlanks();
   renderHangmanChoices(card.char);
@@ -2577,29 +2579,44 @@ function renderHangmanChoices(correctWord){
 }
 
 function hmGuess(ch){
-  if(hmState.guessed.includes(ch)) return;
+  if(hmState.guessed.includes(ch) || hmState.wordDone) return;
   hmState.guessed.push(ch);
   const word = hmState.currentWord;
   const inWord = word.includes(ch);
+
   if(!inWord){
-    hmState.wrongCount++;
-    const part = document.getElementById(HM_PARTS[Math.min(hmState.wrongCount-1, HM_PARTS.length-1)]);
+    // ── 猜错：一题只给一次，立即失败 ──
+    hmState.wordDone = true;
+    hmState.totalWrong++;
+    // 累计位置 1-6（在每组6次中的位置）
+    const setPos = ((hmState.totalWrong - 1) % 6) + 1;
+    const part = document.getElementById(HM_PARTS[setPos - 1]);
     if(part) part.style.display = '';
-    document.getElementById('hm-wrong-count').textContent = hmState.wrongCount;
-  }
-  renderHangmanBlanks();
-  // Mark choice as used
-  document.querySelectorAll('.hm-choice').forEach(btn=>{
-    if(btn.textContent===ch) btn.classList.add('used');
-  });
-  // Check win
-  const allRevealed = word.split('').every(c=>hmState.guessed.includes(c));
-  if(allRevealed){
-    hmState.score += Math.max(1, 6 - hmState.wrongCount) * 10;
-    hmState.wordsCorrect++;
-    showHangmanResult(true);
-  } else if(hmState.wrongCount >= 6){
+    document.getElementById('hm-wrong-count').textContent = setPos;
+    // 禁用所有选项
+    document.querySelectorAll('.hm-choice').forEach(b => b.disabled = true);
+    // 累计到6次：小人完成 → 1.2秒后清零重新开始
+    if(setPos === 6){
+      setTimeout(() => {
+        HM_PARTS.forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
+        document.getElementById('hm-wrong-count').textContent = '0';
+      }, 1200);
+    }
     showHangmanResult(false);
+
+  } else {
+    // ── 猜对：显示字符 ──
+    renderHangmanBlanks();
+    document.querySelectorAll('.hm-choice').forEach(btn=>{
+      if(btn.textContent===ch) btn.classList.add('used');
+    });
+    // 检查词语是否全部猜出
+    const allRevealed = word.split('').every(c=>hmState.guessed.includes(c));
+    if(allRevealed){
+      hmState.wordDone = true;
+      hmState.wordsCorrect++;
+      showHangmanResult(true);
+    }
   }
 }
 
