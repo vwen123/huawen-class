@@ -373,6 +373,12 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
               <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-hangman" checked> 🎯 猜词Hangman</label>
               <label style="display:flex;align-items:center;gap:7px;padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;font-size:12px"><input type="checkbox" id="fcg-balloon" checked> 🎈 气球爆破</label>
             </div>
+            <!-- Word count per game -->
+            <div style="margin-top:10px;display:flex;align-items:center;gap:10px">
+              <label style="font-size:12px;color:var(--ink2);font-weight:600;white-space:nowrap">📊 游戏词语题数：</label>
+              <input type="number" id="fc-word-count" min="1" max="50" placeholder="全部" style="width:80px;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit">
+              <span style="font-size:11px;color:var(--ink3)">（留空 = 全部词语）</span>
+            </div>
           </div>
         </div>
 
@@ -1201,6 +1207,8 @@ function selectUnit(id, title){
         if(el2) el2.checked = c.gameSettings.fcGames.includes(g);
       });
     }
+    const wcEl = document.getElementById('fc-word-count');
+    if(wcEl) wcEl.value = (gs.fcWordCount && gs.fcWordCount > 0) ? gs.fcWordCount : '';
     // Load check-in questions
     const qs = c.ciQuestions || [];
     for(let qi=0;qi<2;qi++){
@@ -1296,6 +1304,7 @@ function saveAllContent(){
     hints:  document.getElementById('quiz-hints')?.checked !== false,
     fx:     document.getElementById('quiz-fx')?.checked !== false,
     fcGames: fcGames.length ? fcGames : ['match','blast','hangman','balloon'],
+    fcWordCount: parseInt(document.getElementById('fc-word-count')?.value)||0,
   };
 
   const content = {

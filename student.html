@@ -49,7 +49,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .nprog{margin-left:auto;font-size:11px;color:var(--teal);font-weight:500;}
 
 /* MAIN */
-.main{flex:1;padding:24px;overflow-y:auto;max-width:900px;width:100%;}
+.main{flex:1;padding:28px 32px;overflow-y:auto;max-width:1100px;width:100%;margin:0 auto;}
 .page{display:none;animation:fadeIn .25s ease;}
 .page.on{display:block;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
@@ -78,7 +78,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
 
 /* ── CHECK-IN ── */
-.checkin-wrap{max-width:560px;margin:0 auto;}
+.checkin-wrap{max-width:680px;margin:0 auto;}
 .mood-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:16px 0;}
 .mood-btn{border:2px solid var(--border);border-radius:var(--r);padding:14px 8px;text-align:center;cursor:pointer;transition:all .2s;background:white;}
 .mood-btn:hover{border-color:var(--gold);transform:translateY(-2px);}
@@ -112,7 +112,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .snum{font-size:12px;font-weight:700;width:38px;text-align:right;}
 
 /* ── FLASHCARD ── */
-.fc-wrap{perspective:1000px;width:100%;max-width:420px;margin:0 auto 20px;height:210px;}
+.fc-wrap{perspective:1000px;width:100%;max-width:520px;margin:0 auto 20px;height:230px;}
 .fc-inner{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .5s cubic-bezier(.4,0,.2,1);}
 .fc-inner.flip{transform:rotateY(180deg);}
 .fc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:var(--rl);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:22px;box-shadow:var(--shadow-lg);cursor:pointer;}
@@ -436,9 +436,14 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 
 <nav class="topnav" id="hud-topnav-wrap">
   <div class="brand">🏮 智学华文小达人</div>
-  <div class="lesson-info">当前课文：<strong id="lesson-title">—</strong></div>
-  <div id="badge-counter-wrap" style="display:none;align-items:center;gap:5px;margin-left:auto;margin-right:8px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:4px 11px;font-size:12px;color:rgba(255,215,0,.9);font-weight:700;flex-shrink:0">🏅 <span id="badge-count">0</span></div>
-  <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;flex-shrink:0">退出</button>
+  <!-- Right-side group: lesson title + badge counter + exit -->
+  <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+    <div class="lesson-info" id="lesson-nav-info" style="text-align:right">
+      <strong id="lesson-title" style="font-size:13px;color:rgba(255,215,0,.85)">—</strong>
+    </div>
+    <div id="badge-counter-wrap" style="display:none;align-items:center;gap:5px;background:rgba(255,215,0,.12);border:1px solid rgba(255,215,0,.3);border-radius:20px;padding:4px 11px;font-size:12px;color:rgba(255,215,0,.9);font-weight:700;flex-shrink:0">🏅 <span id="badge-count">0</span></div>
+    <button onclick="exitToHome()" style="background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.8);border-radius:8px;padding:5px 12px;font-size:12px;cursor:pointer;flex-shrink:0">退出</button>
+  </div>
 </nav>
 
 <!-- ══ STUDENT PART STEPPER ══ -->
@@ -2213,6 +2218,15 @@ function submitMindMap(){
 let fcGameQueue = [];
 let fcGameIdx = -1;
 
+// Returns a shuffled pool limited to teacher's fcWordCount (0 = all words)
+function fcGamePool(){
+  const limit = (gameSettings.fcWordCount && gameSettings.fcWordCount > 0)
+    ? Math.min(gameSettings.fcWordCount, fcCards.length) : fcCards.length;
+  const pool = fcCards.slice(0, limit);
+  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  return pool;
+}
+
 // Track best activity score across all games in this session
 let _fcActivityBestScore = 0;
 function _fcActivitySetScore(raw100){
@@ -2221,6 +2235,9 @@ function _fcActivitySetScore(raw100){
     _fcActivityBestScore = score;
     setScore('flashcard', score);
   }
+  // 完成一个游戏后立即检查是否达标（不等全部游戏完成）
+  // _shownSectionBadges Set 防止重复弹窗
+  setTimeout(() => triggerSectionBadge('flashcard'), 700);
 }
 
 // ── 📝 词语测验 MCQ QUIZ ────────────────────
@@ -2346,7 +2363,7 @@ function showFqzFinalResult(){
 function startFcGames(){
   _fcActivityBestScore = studentScores.flashcard || 0; // preserve any existing score
   const enabled = (gameSettings.fcGames && gameSettings.fcGames.length)
-    ? gameSettings.fcGames : ['wordquiz'];
+    ? gameSettings.fcGames : ['match','blast','hangman','balloon'];
   fcGameQueue = enabled;
   fcGameIdx = -1;
   fqzState._batchCorrectBefore = 0;
@@ -2356,7 +2373,7 @@ function fcGameNext(){
   ['fc-quiz-card','fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   fcGameIdx++;
-  if(fcGameIdx >= fcGameQueue.length){ triggerSectionBadge('flashcard'); nav('slides'); return; }
+  if(fcGameIdx >= fcGameQueue.length){ nav('slides'); return; } // badge already handled in _fcActivitySetScore
   const game = fcGameQueue[fcGameIdx];
   if(game==='wordquiz'){
     buildFcQuiz();
@@ -2384,8 +2401,7 @@ function buildSortGame(){
   const card = document.getElementById('fc-blast-card');
   card.style.display = 'block';
   document.getElementById('ss-result').style.display = 'none';
-  const pool = fcCards.slice();
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const pool = fcGamePool();
   const maxRounds = Math.max(1, Math.ceil(pool.length / SS_PAIRS));
   ssState = { pool, round:1, maxRounds, score:0, correct:0, total:0 };
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2489,13 +2505,20 @@ function ssAdvance(){
 function endSortGame(){
   document.getElementById('ss-items').innerHTML='';
   document.getElementById('ss-boxes').innerHTML='';
-  const pct=ssState.total>0?ssState.correct/ssState.total:0;
-  document.getElementById('ss-result-text').textContent=
-    pct>=.9?'🌟 完美！全部配对正确！':pct>=.6?'👍 做得不错！':'💪 再练练！';
-  document.getElementById('ss-result-sub').textContent=
-    `共配对 ${ssState.correct} / ${ssState.total} 次正确`;
-  document.getElementById('ss-result').style.display='block';
-  _fcActivitySetScore(Math.round(pct*100));
+  // "correct" = number of successful first-attempt drops; "total" = all drop attempts
+  const pct = ssState.total > 0 ? Math.round(ssState.correct / ssState.total * 100) : 0;
+  const res = document.getElementById('ss-result');
+  res.innerHTML = `
+    <div style="font-size:32px;margin-bottom:6px">${pct>=90?'🏆':pct>=75?'🌟':pct>=60?'👍':'💪'}</div>
+    <div id="ss-result-text" style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:6px">${pct>=90?'完美！一次全对！':pct>=75?'做得不错！':pct>=60?'继续努力！':'加油练习！'}</div>
+    <div id="ss-result-sub" style="font-size:13px;color:var(--ink2);margin-bottom:4px">一次投放正确 <strong style="font-size:18px;color:${pct>=75?'var(--teal)':'var(--red)'}">${ssState.correct}</strong> / ${ssState.total} 次</div>
+    <div style="font-size:22px;font-weight:900;color:${pct>=75?'var(--teal)':'var(--red)'};margin-bottom:14px">${pct} 分</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="buildSortGame()">🔄 再玩</button>
+      <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+    </div>`;
+  res.style.display = 'block';
+  _fcActivitySetScore(pct);
 }
 
 // ── 🎯 HANGMAN GAME ────────────────────────
@@ -2505,9 +2528,8 @@ const HM_PARTS = ['hm-head','hm-body','hm-larm','hm-rarm','hm-lleg','hm-rleg'];
 function buildHangmanGame(){
   const card = document.getElementById('fc-hangman-card');
   card.style.display = 'block';
-  const pool = fcCards.slice();
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  hmState = { pool, qIdx:0, maxQ:pool.length, score:0, wrongCount:0, guessed:[], currentWord:'' };
+  const pool = fcGamePool();
+  hmState = { pool, qIdx:0, maxQ:pool.length, score:0, wordsCorrect:0, wrongCount:0, guessed:[], currentWord:'' };
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
   showHangmanQ();
 }
@@ -2575,6 +2597,7 @@ function hmGuess(ch){
   const allRevealed = word.split('').every(c=>hmState.guessed.includes(c));
   if(allRevealed){
     hmState.score += Math.max(1, 6 - hmState.wrongCount) * 10;
+    hmState.wordsCorrect++;
     showHangmanResult(true);
   } else if(hmState.wrongCount >= 6){
     showHangmanResult(false);
@@ -2608,16 +2631,18 @@ function endHangmanGame(){
   const max = hmState.maxQ * 60;
   document.getElementById('hm-result').style.display = 'block';
   document.getElementById('hm-result').style.background = 'linear-gradient(135deg,var(--teal-l),#D4FAE6)';
+  const hmPct = hmState.maxQ > 0 ? Math.round(hmState.wordsCorrect / hmState.maxQ * 100) : 0;
   document.getElementById('hm-result').innerHTML = `
-    <div style="font-size:28px;margin-bottom:6px">🎯</div>
-    <div style="font-weight:700;color:var(--teal);font-size:15px;margin-bottom:4px">游戏完成！得分 ${score}</div>
-    <div style="font-size:12px;color:var(--ink3);margin-bottom:12px">答对 ${Math.round(score/50)} 题（满分 ${hmState.maxQ} 题）</div>
+    <div style="font-size:28px;margin-bottom:6px">${hmPct>=90?'🏆':hmPct>=75?'🌟':hmPct>=60?'👍':'💪'}</div>
+    <div style="font-weight:700;color:var(--teal);font-size:15px;margin-bottom:4px">游戏完成！</div>
+    <div style="font-size:13px;color:var(--ink2);margin-bottom:4px">答对 <strong style="font-size:18px;color:${hmPct>=75?'var(--teal)':'var(--red)'}">${hmState.wordsCorrect}</strong> / ${hmState.maxQ} 个词语</div>
+    <div style="font-size:20px;font-weight:900;color:${hmPct>=75?'var(--teal)':'var(--red)'};margin-bottom:12px">${hmPct} 分</div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" style="flex:1" onclick="buildHangmanGame()">🔄 再玩</button>
       <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
     </div>`;
   document.getElementById('hm-choices').innerHTML = '';
-  _fcActivitySetScore(Math.round(hmState.score / (hmState.maxQ * 60) * 100));
+  _fcActivitySetScore(hmPct);
 }
 
 // ── 🎈 BALLOON POP GAME ────────────────────
@@ -2630,8 +2655,7 @@ const BALLOON_COLORS = [
 function buildBalloonGame(){
   const card = document.getElementById('fc-balloon-card');
   card.style.display = 'block';
-  const pool = fcCards.slice();
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+  const pool = fcGamePool();
   bpState = { pool, qIdx:0, maxQ:pool.length, score:0, lives:3, done:false };
   document.getElementById('bp-result').style.display = 'none';
   card.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2690,22 +2714,31 @@ function bpPop(btn){
 function endBalloonGame(){
   bpState.done = true;
   document.getElementById('bp-stage').innerHTML = '';
-  const score = bpState.score;
-  const max = bpState.maxQ * 10;
+  const correct = Math.round(bpState.score / 10);
+  const total = bpState.maxQ;
+  const max = total * 10;
+  const pct = total > 0 ? Math.round(bpState.score / max * 100) : 0;
   const res = document.getElementById('bp-result');
-  document.getElementById('bp-result-text').textContent =
-    score >= max*0.8 ? '🌟 太棒了！全部答对！' : score >= max*0.5 ? '👍 答得不错！' : '💪 再接再厉！';
+  res.innerHTML = `
+    <div style="font-size:32px;margin-bottom:6px">${pct>=90?'🏆':pct>=75?'🌟':pct>=60?'👍':'💪'}</div>
+    <div style="font-weight:700;font-size:15px;color:var(--teal);margin-bottom:6px">气球爆破完成！</div>
+    <div style="font-size:13px;color:var(--ink2);margin-bottom:4px">答对 <strong style="font-size:18px;color:${pct>=75?'var(--teal)':'var(--red)'}">${correct}</strong> / ${total} 题</div>
+    <div style="font-size:22px;font-weight:900;color:${pct>=75?'var(--teal)':'var(--red)'};margin-bottom:14px">${pct} 分</div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1" onclick="buildBalloonGame()">🔄 再玩</button>
+      <button class="btn btn-teal" style="flex:2" onclick="fcGameNext()">继续 →</button>
+    </div>`;
   res.style.display = 'block';
-  _fcActivitySetScore(Math.round(score / max * 100));
+  _fcActivitySetScore(pct);
 }
 
 // ── 词语配配看 matching game ──
 let matchState = { roundPool:[], pairs:[], meanShuf:[], selWord:null, selMean:null, matched:[], wrong:[], totalPairs:0, completedPairs:0, roundDone:false };
 
 function buildMatchGame(){
-  const pool = fcCards.slice();
-  for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
-  matchState = { roundPool:pool.slice(), pairs:[], meanShuf:[], selWord:null, selMean:null, matched:[], wrong:[], totalPairs:pool.length, completedPairs:0, roundDone:false };
+  const pool = fcGamePool();
+  // firstTryFailed = Set of word indices (across all rounds) that had a wrong attempt before matching
+  matchState = { roundPool:pool.slice(), pairs:[], meanShuf:[], selWord:null, selMean:null, matched:[], wrong:[], totalPairs:pool.length, completedPairs:0, roundDone:false, firstTryFailed:new Set() };
   startMatchRound();
 }
 
@@ -2750,10 +2783,23 @@ function renderMatchGame(){
   html += '</div>';
   if(matchState.matched.length === matchState.pairs.length){
     const allWordsMatched = matchState.roundPool.length === 0;
+    // Per-round: how many of this round's words had NO wrong attempt?
+    const roundTotal = matchState.pairs.length;
+    const roundCorrect = matchState.pairs.filter(p => !(matchState.firstTryFailed && matchState.firstTryFailed.has(p.char))).length;
+    let scoreBar = '';
+    if(allWordsMatched){
+      const failed = matchState.firstTryFailed ? matchState.firstTryFailed.size : 0;
+      const correct = matchState.totalPairs - failed;
+      const pct = Math.round(correct / matchState.totalPairs * 100);
+      scoreBar = `<div style="margin-bottom:10px;font-size:13px;color:var(--ink2)">一次配对正确 <strong style="font-size:18px;color:${pct>=75?'var(--teal)':'var(--red)'}">${correct}</strong> / ${matchState.totalPairs} 词 &nbsp;·&nbsp; <strong style="color:${pct>=75?'var(--teal)':'var(--red)'}">${pct} 分</strong></div>`;
+      _fcActivitySetScore(pct);
+    } else {
+      scoreBar = `<div style="margin-bottom:10px;font-size:12px;color:var(--ink3)">本组一次正确 <strong style="color:var(--teal)">${roundCorrect}</strong> / ${roundTotal} 词 &nbsp;·&nbsp; 还有 ${matchState.roundPool.length} 词</div>`;
+    }
     html += `<div style="margin-top:14px;padding:14px;background:linear-gradient(135deg,var(--teal-l),#D4FAE6);border-radius:10px;text-align:center">
       <div style="font-size:24px;margin-bottom:4px">${allWordsMatched?'🎉':'✅'}</div>
-      <div style="font-weight:700;color:var(--teal);margin-bottom:4px">${allWordsMatched?'全部词语配对完成！':'这组配对完成！'}</div>
-      ${allWordsMatched?'':'<div style="font-size:11px;color:var(--ink3);margin-bottom:10px">还有 '+matchState.roundPool.length+' 词等待挑战</div>'}
+      <div style="font-weight:700;color:var(--teal);margin-bottom:6px">${allWordsMatched?'全部词语配对完成！':'这组配对完成！'}</div>
+      ${scoreBar}
       <div style="display:flex;gap:8px">
         ${allWordsMatched?'<button class="btn btn-ghost" style="flex:1" onclick="buildMatchGame()">🔄 再来一局</button>':''}
         <button class="btn btn-teal" style="flex:2" onclick="${allWordsMatched?'fcGameNext()':'startMatchRound()'}">
@@ -2790,11 +2836,13 @@ function checkMatch(){
     matchState.selWord = null; matchState.selMean = null;
     if(matchState.matched.length === matchState.pairs.length){
       matchState.completedPairs += matchState.pairs.length;
-      // Only award score when ALL vocabulary words have been matched
-      if(matchState.roundPool.length === 0) _fcActivitySetScore(100);
+      // Score is computed in renderMatchGame() when allWordsMatched
     }
   } else {
     matchState.wrong = ['w'+wi,'m'+mi];
+    // Record the word char (global unique key) that had a wrong attempt
+    if(!matchState.firstTryFailed) matchState.firstTryFailed = new Set();
+    matchState.firstTryFailed.add(word.char);
     setTimeout(()=>{ matchState.wrong=[]; matchState.selWord=null; matchState.selMean=null; renderMatchGame(); },900);
   }
   renderMatchGame();
@@ -3819,8 +3867,9 @@ function setScore(section, raw100){
   refreshScoreReport();
   fbUpdateScore(qgState.name || '', section, studentScores[section]);
   // Flashcard badge fires only when ALL games are done (in fcGameNext)
+  // Delay popup so result screen renders first
   if(section !== 'flashcard'){
-    triggerSectionBadge(section);
+    setTimeout(() => triggerSectionBadge(section), 700);
   }
 }
 function calcTotal(s){
