@@ -5118,8 +5118,9 @@ function enterByName(){
           ciSetDone(false);
           nav('checkin');
         }
-      });
-  });
+      });       // close fbLoadStudentData callback
+    });         // close fbLoadUnitContent callback
+  });           // close fbFindSessionByCode callback
 }
 
 // Apply unit content loaded from Firebase into all student-facing sections
