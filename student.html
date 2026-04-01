@@ -354,6 +354,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 .pstep:hover{background:var(--mist);}
 .pstep.on{background:var(--red-l);border-bottom-color:var(--red);}
 .pstep.done{background:var(--teal-l);border-bottom-color:var(--teal);}
+.pstep.ps-locked{opacity:.4;cursor:not-allowed;pointer-events:none;}
 .ps-ic{font-size:20px;line-height:1;flex-shrink:0;}
 .ps-label{display:flex;flex-direction:column;gap:1px;}
 .ps-num{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);}
@@ -485,16 +486,16 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     </div>
     <div class="ps-sep" id="ps-sep-mindmap" style="display:none">›</div>
 
-    <div class="pstep" id="ps-comp" onclick="navPart('comp')">
+    <div class="pstep" id="ps-comp" onclick="navPart('comp')" style="display:none">
       <div class="ps-ic">💬</div>
       <div class="ps-label"><span class="ps-num">Part 6</span><span class="ps-name">课文理解</span></div>
       <div class="ps-tick">✓</div>
     </div>
-    <div class="ps-sep">›</div>
+    <div class="ps-sep" id="ps-sep-comp" style="display:none">›</div>
 
     <div class="pstep" id="ps-quiz" onclick="navPart('quiz')">
       <div class="ps-ic">🏆</div>
-      <div class="ps-label"><span class="ps-num">Part 7</span><span class="ps-name">Quiz 竞赛</span></div>
+      <div class="ps-label"><span class="ps-num">Part 6</span><span class="ps-name">Quiz 竞赛</span></div>
       <div class="ps-tick">✓</div>
     </div>
     <div class="ps-sep">›</div>
@@ -943,6 +944,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <button id="qg-start-btn" onclick="qgStart()" style="width:100%;padding:15px;border-radius:10px;border:none;background:linear-gradient(135deg,#FFD700,#FFA500);color:#1A0A00;font-family:'Noto Sans SC',sans-serif;font-size:16px;font-weight:900;cursor:pointer;box-shadow:0 4px 20px rgba(255,215,0,.4);transition:all .2s" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='none'">
         ⚡ 开始挑战！
       </button>
+      <button onclick="qgExitToMain()" style="width:100%;margin-top:8px;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.05);color:rgba(255,255,255,.5);font-family:'Noto Sans SC',sans-serif;font-size:13px;cursor:pointer">← 返回上一步</button>
     </div>
 
     <!-- Leaderboard preview -->
@@ -961,6 +963,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
       <span style="font-size:11px;color:rgba(240,240,255,.45)" id="qg-hud-q">1/5</span>
       <span style="font-size:12px;font-weight:700;color:#FF4466;min-width:56px" id="qg-hud-combo"></span>
       <span style="font-family:'Noto Serif SC',serif;font-size:20px;font-weight:900;color:#FFD700;margin-left:auto" id="qg-hud-score">0</span>
+      <button onclick="qgExitToMain()" title="退出 Quiz" style="margin-left:8px;padding:4px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);font-size:12px;cursor:pointer;line-height:1">✕ 退出</button>
     </div>
 
     <!-- Progress dots -->
@@ -1461,11 +1464,31 @@ const PARTS=[
   {id:'flashcard',icon:'📖', label:'词语'},
   {id:'slides',  icon:'📑', label:'简报'},
   {id:'mindmap', icon:'🧠', label:'心智图'},
-  {id:'comp',    icon:'💬', label:'理解'},
   {id:'quiz',    icon:'🏆', label:'Quiz'},
   {id:'checkout',icon:'☁️', label:'Check Out'},
 ];
+// Sequential order for lock/unlock (comp excluded — teacher-only)
+const PART_SEQ=['checkin','reading','flashcard','slides','mindmap','quiz','checkout'];
 let completedParts=new Set();
+
+// Returns highest index in PART_SEQ the student can access
+function maxUnlockedIdx(){
+  if(!ciDone) return 0;
+  let max=0;
+  PART_SEQ.forEach((id,i)=>{
+    if(completedParts.has(id)||id===curPage) max=Math.max(max,i);
+  });
+  // Also consider mindmap: if not displayed, skip it
+  const mmEnabled=document.getElementById('ps-mindmap')&&document.getElementById('ps-mindmap').style.display!=='none';
+  return Math.min(max+1, PART_SEQ.length-1);
+}
+function canNavTo(id){
+  const idx=PART_SEQ.indexOf(id);
+  if(idx<0) return true; // teacher/other pages always ok
+  // If mindmap disabled, skip it in the sequence
+  if(id==='mindmap' && document.getElementById('ps-mindmap')&&document.getElementById('ps-mindmap').style.display==='none') return false;
+  return idx<=maxUnlockedIdx();
+}
 
 function buildPartBar(){
   updatePartBar(curPage);
@@ -1476,9 +1499,12 @@ function updatePartBar(activeId){
   PARTS.forEach((p,i)=>{
     const step=document.getElementById('ps-'+p.id);
     if(!step)return;
-    step.classList.remove('on','done');
+    step.classList.remove('on','done','ps-locked');
     if(p.id===activeId) step.classList.add('on');
     else if(i<activeIdx||completedParts.has(p.id)) step.classList.add('done');
+    else if(!canNavTo(p.id)){
+      step.classList.add('ps-locked');
+    }
   });
   setTimeout(()=>{
     const el=document.getElementById('ps-'+activeId);
@@ -1492,6 +1518,26 @@ function nav(id){
   const ciGated = ['reading','flashcard','slides','mindmap','comp','quiz','checkout','progress'];
   if(!ciDone && currentSession && ciGated.includes(id)){
     id = 'checkin'; // redirect back to check-in
+  }
+
+  // Comp is teacher-only — students never see it
+  if(role==='student' && id==='comp') return;
+
+  // Sequential lock: block forward jumps to locked sections (students only)
+  if(role==='student' && ciDone && PART_SEQ.includes(id) && !canNavTo(id)){
+    // Show brief locked toast
+    let toast=document.getElementById('_locked-toast');
+    if(!toast){
+      toast=document.createElement('div');
+      toast.id='_locked-toast';
+      toast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(26,26,46,.92);color:white;padding:9px 18px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;transition:opacity .3s';
+      document.body.appendChild(toast);
+    }
+    toast.textContent='🔒 请先完成当前环节';
+    toast.style.opacity='1';
+    clearTimeout(toast._t);
+    toast._t=setTimeout(()=>toast.style.opacity='0',1800);
+    return;
   }
 
   if(curPage && curPage!==id) completedParts.add(curPage);
@@ -3354,6 +3400,8 @@ function qgThemeSound(type){
 
 function qgStart(){
   qgApplyTheme();
+  // Shuffle questions each play
+  for(let i=quizQs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[quizQs[i],quizQs[j]]=[quizQs[j],quizQs[i]];}
   const n = (document.getElementById('qg-pname').value||'').trim();
   qgState = {
     name: n||'玩家', av: qgState.av||'🐯',
@@ -3377,12 +3425,22 @@ function qgGoCheckout(){
   nav('checkout');
 }
 
+function qgExitToMain(){
+  // Exit quiz fullscreen back to slides/mindmap (prev section)
+  clearInterval(qgState.timer);
+  document.getElementById('page-quiz').classList.remove('quiz-fullscreen');
+  document.getElementById('hud-topnav-wrap').style.display = '';
+  document.getElementById('part-bar').style.display = 'block';
+  // Go back to previous completed section
+  const prevSections = ['slides','mindmap','flashcard'];
+  let target = 'slides';
+  for(const s of prevSections){ if(completedParts.has(s)){ target=s; break; } }
+  nav(target);
+}
+
 function qgRestart(){ qgStart(); }
 function qgBackLobby(){
-  // Exit quiz fullscreen and return to main part bar
-  document.getElementById('page-quiz').classList.remove('quiz-fullscreen');
-  document.getElementById('part-bar').style.display = 'block';
-  nav('comp'); // go back to previous step
+  qgExitToMain();
 }
 
 // ══════════════════════════════════════
@@ -4810,18 +4868,25 @@ function enterByName(){
           if(resumePage){
             savedResumePage = resumePage;
             saveProgress(n + '_' + meta.unitId);
-            // Always check in first; ciSubmitAndContinue will resume to savedResumePage
           }
+        }
+
+        // If student already did check-in previously, skip it and jump straight to resume
+        const alreadyCheckedIn = fbData && fbData.checkin && fbData.checkin.mood;
+        if(alreadyCheckedIn){
+          ciSetDone(true);
+          ciSubmitAndContinue();
+          return;
         }
       });
 
-      // Personalise greeting (different message for returning completed students)
+      // Personalise greeting
       const greetEl = document.getElementById('ci-greeting');
       if(greetEl) greetEl.textContent = lessonCompleted
-        ? n + '，欢迎回来！签个到后可以复习今天的内容。'
+        ? n + '，欢迎回来！可以复习今天的内容。'
         : n + '，你好！上课前先签个到吧。';
 
-      // Reset check-in state (ready for whenever they reach it)
+      // Reset check-in state
       _ciMood = ''; coThumb = '';
       ciStep = 1;
       document.getElementById('ci-step1').style.display = '';
@@ -4833,7 +4898,7 @@ function enterByName(){
 
       // Lock pages until check-in is completed
       ciSetDone(false);
-      // Go to checkin — student must complete it before accessing learning pages
+      // Go to checkin — first-time student must complete it
       nav('checkin');
     });
   });
@@ -4927,7 +4992,7 @@ function ciSubmitAndContinue(){
     nav('checkout');
     return;
   }
-  const resumable = ['reading','flashcard','slides','mindmap','comp','quiz','checkout'];
+  const resumable = ['reading','flashcard','slides','mindmap','quiz','checkout'];
   if(savedResumePage && resumable.includes(savedResumePage)){
     nav(savedResumePage);
   } else {

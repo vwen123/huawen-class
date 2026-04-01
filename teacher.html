@@ -75,7 +75,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);cursor:pointer}
 
 /* ── TABLE ── */
-.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
+.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 52px 56px 50px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
 .ts-row:last-child{border-bottom:none}
 .ts-cell{text-align:center;font-weight:600}
 .ts-total{text-align:center;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900}
@@ -268,9 +268,9 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <button class="btn btn-red btn-sm" onclick="downloadPDF()">⬇️ PDF</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
+        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
           <div style="text-align:left">学生</div>
-          <div>朗读</div><div>词语</div><div>理解</div><div>Quiz</div><div>签到</div>
+          <div>朗读</div><div>词语</div><div>心智图</div><div>理解</div><div>Quiz</div><div>签到</div>
           <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div>
         </div>
         <div id="t-score-list"></div>
@@ -342,6 +342,15 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <div style="font-family:'Noto Serif SC',serif;font-size:18px;font-weight:700" id="editing-title">—</div>
           </div>
           <button class="btn btn-gold btn-lg" onclick="saveAllContent()">💾 保存到云端</button>
+        </div>
+
+        <!-- Smart Paste -->
+        <div class="card" style="border:2px dashed var(--teal);background:var(--teal-l)">
+          <div class="ctitle" style="color:var(--teal)">🪄 智能导入（一键分类）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:10px">把所有内容一起贴入，点击「自动分类」，系统将识别并填入对应栏位。<br>
+            识别规则：<code style="font-size:11px">? 题 / A / B / C / D / 0</code> → Quiz · <code style="font-size:11px">## 词 | 拼音</code> → 词卡 · <code style="font-size:11px"># 标题 + ## 枝</code> → 心智图 · 其余 → 课文</div>
+          <textarea id="smart-paste-input" class="md-textarea" placeholder="把课文、词语、心智图、Quiz 题目全部贴在这里……" style="min-height:160px;font-size:13px"></textarea>
+          <button class="btn btn-teal" style="margin-top:10px;width:100%" onclick="smartPasteDistribute()">🪄 自动分类并填入</button>
         </div>
 
         <!-- Lesson text -->
@@ -983,11 +992,14 @@ function renderStudents(){
         ? `<div style="font-size:10px;color:var(--teal)">✅ 完成 ${sc.time}</div>`
         : `<div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>`;
       const badgeIcons = (s.badges||[]).map(b=>`<span title="${b.name}" style="font-size:13px">${b.icon}</span>`).join('');
+      const compVal = sc.comp != null ? sc.comp : '';
+      const skey = safeKey(s.name);
       row.innerHTML = `
         <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}${badgeIcons?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons}</div>`:''}</div></div>
         <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
         <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
-        <div class="ts-cell" style="color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'}">${sc.comp??'—'}</div>
+        <div class="ts-cell" style="color:${(sc.mindmap||0)>=70?'var(--teal)':'var(--ink3)'}">${sc.mindmap??'—'}</div>
+        <div class="ts-cell" title="点击输入理解分数" style="cursor:pointer;color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'};text-decoration:underline dotted" onclick="editCompScore('${skey}','${s.name}',${compVal||0})">${sc.comp!=null?sc.comp:'录入'}</div>
         <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
         <div class="ts-cell" style="color:var(--teal)">${sc.done?'✓':'…'}</div>
         <div class="ts-total" style="color:${dc}">${sc.total||'—'}</div>
@@ -999,7 +1011,7 @@ function renderStudents(){
         <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
-        <div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-total" style="color:var(--ink3)">—</div>
         <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>`;
     }
@@ -1028,6 +1040,80 @@ function updateWeakAnalysis(){
     bar.innerHTML = `<div style="font-size:13px;width:72px;flex-shrink:0;color:var(--ink2)">${lbl}</div><div style="flex:1;height:7px;background:var(--mist2);border-radius:4px;overflow:hidden"><div style="height:100%;border-radius:4px;background:${col};width:${avg}%;transition:width .8s"></div></div><div style="font-size:12px;font-weight:700;width:36px;text-align:right;color:${col}">${avg}</div><div style="font-size:11px;color:var(--ink3);min-width:60px;text-align:right">${below>0?below+'人需加强':''}</div>`;
     wa.appendChild(bar);
   });
+}
+
+// ══════════════════════════════════════
+//  SMART PASTE
+// ══════════════════════════════════════
+function smartPasteDistribute(){
+  const raw = (document.getElementById('smart-paste-input').value||'').trim();
+  if(!raw){ alert('请先贴入内容'); return; }
+
+  const lines = raw.split('\n');
+  const quizLines=[], fcLines=[], mmLines=[], textLines=[];
+
+  lines.forEach(line => {
+    const t = line.trim();
+    if(!t) return;
+    // Quiz: starts with ?
+    if(/^\?/.test(t)){ quizLines.push(t); return; }
+    // Flashcard: ## 词 | pinyin (no sub-items)
+    if(/^##\s+.+\|/.test(t)){ fcLines.push(t); return; }
+    // Flashcard definition/example line (follows a ## line) — append to fc
+    if(fcLines.length && !/^#/.test(t) && !/^\?/.test(t) && !/^---/.test(t) && !/^-\s/.test(t)){
+      // Could be definition or example — but we need context
+      // Heuristic: if previous fc content doesn't end with blank separator, treat as fc body
+      const last = fcLines[fcLines.length-1];
+      if(last && !/^---$/.test(last)){ fcLines.push(t); return; }
+    }
+    // Separator between flashcards
+    if(t==='---'){ if(fcLines.length) fcLines.push(t); return; }
+    // Mind map: # title, ## branch, - item, or indented items
+    if(/^#+\s/.test(t) || /^-\s/.test(t) || /^\s+-\s/.test(t)){ mmLines.push(line); return; }
+    // Everything else → lesson text
+    textLines.push(t);
+  });
+
+  // Fill quiz
+  if(quizLines.length){
+    const qz = document.getElementById('qz-write');
+    if(qz){ qz.value = (qz.value.trim() ? qz.value.trim()+'\n' : '') + quizLines.join('\n'); }
+  }
+  // Fill flashcards
+  if(fcLines.length){
+    const fc = document.getElementById('fc-write');
+    if(fc){ fc.value = (fc.value.trim() ? fc.value.trim()+'\n---\n' : '') + fcLines.join('\n'); }
+  }
+  // Fill mindmap
+  if(mmLines.length){
+    const mm = document.getElementById('mm-write');
+    if(mm){ mm.value = (mm.value.trim() ? mm.value.trim()+'\n' : '') + mmLines.join('\n'); }
+  }
+  // Fill lesson text
+  if(textLines.length){
+    const lt = document.getElementById('lesson-text-input');
+    if(lt){ lt.value = (lt.value.trim() ? lt.value.trim()+'\n\n' : '') + textLines.join('\n'); }
+  }
+
+  const summary = [
+    quizLines.length ? `Quiz: ${quizLines.length} 题` : '',
+    fcLines.filter(l=>l.startsWith('##')).length ? `词卡: ${fcLines.filter(l=>l.startsWith('##')).length} 组` : '',
+    mmLines.length ? `心智图: ${mmLines.length} 行` : '',
+    textLines.length ? `课文: ${textLines.length} 行` : '',
+  ].filter(Boolean).join('，');
+  alert('✅ 自动分类完成！' + (summary ? '\n' + summary : ''));
+  document.getElementById('smart-paste-input').value = '';
+}
+
+// ══════════════════════════════════════
+//  COMP SCORE (teacher-entered)
+// ══════════════════════════════════════
+function editCompScore(skey, name, current){
+  const val = prompt(`「${name}」的课文理解分数（0–100）：`, current||'');
+  if(val===null) return;
+  const score = Math.max(0,Math.min(100,parseInt(val)||0));
+  if(!currentSession) return;
+  sessionRef(currentSession+'/students/'+skey+'/scores').update({comp:score});
 }
 
 // ══════════════════════════════════════
