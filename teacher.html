@@ -1050,59 +1050,107 @@ function smartPasteDistribute(){
   if(!raw){ alert('请先贴入内容'); return; }
 
   const lines = raw.split('\n');
-  const quizLines=[], fcLines=[], mmLines=[], textLines=[];
+  let section = 'pre'; // pre | text | fc | mm | quiz
 
-  lines.forEach(line => {
+  const textLines=[], fcBlocks=[], mmLines=[], quizLines=[];
+  let curFc = null;
+
+  for(const line of lines){
     const t = line.trim();
-    if(!t) return;
-    // Quiz: starts with ?
-    if(/^\?/.test(t)){ quizLines.push(t); return; }
-    // Flashcard: ## 词 | pinyin (no sub-items)
-    if(/^##\s+.+\|/.test(t)){ fcLines.push(t); return; }
-    // Flashcard definition/example line (follows a ## line) — append to fc
-    if(fcLines.length && !/^#/.test(t) && !/^\?/.test(t) && !/^---/.test(t) && !/^-\s/.test(t)){
-      // Could be definition or example — but we need context
-      // Heuristic: if previous fc content doesn't end with blank separator, treat as fc body
-      const last = fcLines[fcLines.length-1];
-      if(last && !/^---$/.test(last)){ fcLines.push(t); return; }
+
+    // ── Section markers: top-level # headers with keywords ──
+    if(/^#(?!#)\s/.test(t)){
+      if(/生字新词|词卡|flashcard/i.test(t)){ section='fc'; continue; }
+      if(/心智图|mindmap/i.test(t)){ section='mm'; continue; }
+      if(/quiz|题目|❓/i.test(t)){ section='quiz'; continue; }
+      // Inside mm section: # title is mindmap root — pass through
+      if(section==='mm'){ mmLines.push(line); continue; }
     }
-    // Separator between flashcards
-    if(t==='---'){ if(fcLines.length) fcLines.push(t); return; }
-    // Mind map: # title, ## branch, - item, or indented items
-    if(/^#+\s/.test(t) || /^-\s/.test(t) || /^\s+-\s/.test(t)){ mmLines.push(line); return; }
-    // Everything else → lesson text
-    textLines.push(t);
-  });
 
-  // Fill quiz
+    if(!t) continue; // skip blanks globally
+
+    // ── Quiz: ? lines captured anywhere ──
+    if(/^\?/.test(t)){ quizLines.push(t); continue; }
+
+    // ── QUIZ section: skip sub-headers ──
+    if(section==='quiz') continue;
+
+    // ── FLASHCARD section ──
+    if(section==='fc'){
+      if(t==='---'){
+        if(curFc && curFc.word){ fcBlocks.push(curFc); curFc=null; }
+        continue;
+      }
+      if(/^##\s/.test(t)){
+        if(curFc && curFc.word) fcBlocks.push(curFc);
+        const cleaned = t.replace(/^##\s*/,'');
+        // Support both [pinyin] and | pinyin formats
+        const bm = cleaned.match(/^(.+?)\s*[\[（(]([^\]）)]+)[\]）)]/);
+        const pm = cleaned.match(/^(.+?)\s*\|\s*(.+)/);
+        let word='', pin='';
+        if(bm){ word=bm[1].trim(); pin=bm[2].trim(); }
+        else if(pm){ word=pm[1].trim(); pin=pm[2].trim(); }
+        else { word=cleaned; }
+        curFc = {word, pin, mean:'', ex:''};
+        continue;
+      }
+      if(curFc){
+        // Strip **含义：** and **例句：** prefixes
+        const defM = t.match(/^\*\*含义[：:]\*\*\s*(.*)/);
+        const exM  = t.match(/^\*\*例句[：:]\*\*\s*(.*)/);
+        if(defM){ curFc.mean = defM[1].trim(); continue; }
+        if(exM) { curFc.ex  = exM[1].trim();  continue; }
+        if(!curFc.mean) curFc.mean = t;
+        else if(!curFc.ex) curFc.ex = t;
+      }
+      continue;
+    }
+
+    // ── MINDMAP section ──
+    if(section==='mm'){ mmLines.push(line); continue; }
+
+    // ── LESSON TEXT ──
+    if(t==='---') continue;
+    // Skip metadata emoji lines and # headers
+    if(/^[📖🎯📝]/.test(t) || /^#/.test(t)) continue;
+    // Only include lines that have Chinese characters
+    if(/[\u4E00-\u9FFF]/.test(t)){ section='text'; textLines.push(t); }
+  }
+
+  // Flush last flashcard block
+  if(curFc && curFc.word) fcBlocks.push(curFc);
+
+  // Format flashcards: ## word | pinyin \n mean \n ex \n---
+  const fcFormatted = fcBlocks.map(b=>`## ${b.word} | ${b.pin}\n${b.mean}\n${b.ex||''}`).join('\n---\n');
+
+  // Fill textareas
+  const filled=[];
   if(quizLines.length){
-    const qz = document.getElementById('qz-write');
-    if(qz){ qz.value = (qz.value.trim() ? qz.value.trim()+'\n' : '') + quizLines.join('\n'); }
+    const el=document.getElementById('qz-write');
+    if(el){ el.value=quizLines.join('\n'); filled.push('Quiz: '+quizLines.length+' 题'); }
   }
-  // Fill flashcards
-  if(fcLines.length){
-    const fc = document.getElementById('fc-write');
-    if(fc){ fc.value = (fc.value.trim() ? fc.value.trim()+'\n---\n' : '') + fcLines.join('\n'); }
+  if(fcBlocks.length){
+    const el=document.getElementById('fc-write');
+    if(el){ el.value=fcFormatted+'\n---'; filled.push('词卡: '+fcBlocks.length+' 张'); }
   }
-  // Fill mindmap
   if(mmLines.length){
-    const mm = document.getElementById('mm-write');
-    if(mm){ mm.value = (mm.value.trim() ? mm.value.trim()+'\n' : '') + mmLines.join('\n'); }
+    const el=document.getElementById('mm-write');
+    if(el){ el.value=mmLines.join('\n'); filled.push('心智图: '+mmLines.length+' 行'); }
   }
-  // Fill lesson text
   if(textLines.length){
-    const lt = document.getElementById('lesson-text-input');
-    if(lt){ lt.value = (lt.value.trim() ? lt.value.trim()+'\n\n' : '') + textLines.join('\n'); }
+    const el=document.getElementById('lesson-text-input');
+    if(el){ el.value=textLines.join('\n'); filled.push('课文: '+textLines.length+' 段'); }
   }
 
-  const summary = [
-    quizLines.length ? `Quiz: ${quizLines.length} 题` : '',
-    fcLines.filter(l=>l.startsWith('##')).length ? `词卡: ${fcLines.filter(l=>l.startsWith('##')).length} 组` : '',
-    mmLines.length ? `心智图: ${mmLines.length} 行` : '',
-    textLines.length ? `课文: ${textLines.length} 行` : '',
-  ].filter(Boolean).join('，');
-  alert('✅ 自动分类完成！' + (summary ? '\n' + summary : ''));
-  document.getElementById('smart-paste-input').value = '';
+  // Auto-fill lesson title from 《…》 if field is empty
+  const titleM = raw.match(/《([^》\n]{2,30})》/);
+  if(titleM){
+    const ti=document.getElementById('lesson-title-input');
+    if(ti && !ti.value.trim()) ti.value=titleM[1].trim();
+  }
+
+  alert('✅ 自动分类完成！\n'+(filled.join('，')||'未能识别内容，请检查格式'));
+  document.getElementById('smart-paste-input').value='';
 }
 
 // ══════════════════════════════════════
