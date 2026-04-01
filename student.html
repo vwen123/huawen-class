@@ -551,7 +551,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
         <div class="mood-btn" onclick="selMood(this,'😔')"><span class="mood-emoji">😔</span><span class="mood-lbl">有点难过</span></div>
         <div class="mood-btn" onclick="selMood(this,'😴')"><span class="mood-emoji">😴</span><span class="mood-lbl">很疲倦</span></div>
       </div>
-      <button class="btn btn-red" onclick="ciNext(2)" id="ci1-btn" disabled>下一步 →</button>
+      <button class="btn btn-red" onclick="ciNext(2)" id="ci1-btn" disabled style="margin-top:4px">下一步 →</button>
     </div>
     <!-- Step 2: Open question 1 -->
     <div id="ci-step2" style="display:none">
@@ -1715,9 +1715,15 @@ function fbSyncCheckoutDebounced(){
 function selMood(el,m){
   document.querySelectorAll('.mood-btn').forEach(b=>b.classList.remove('sel'));
   el.classList.add('sel');
-  _ciMood = m; // save mood value
+  _ciMood = m;
   document.getElementById('ci1-btn').removeAttribute('disabled');
-  fbSyncCheckin(); // live-sync mood immediately
+  fbSyncCheckin();
+  // If no open questions, auto-proceed after a brief moment
+  if(ciMaxStep === 1){
+    const btn = document.getElementById('ci1-btn');
+    if(btn){ btn.textContent = '✓ 开始学习！'; btn.style.animation = 'none'; }
+    setTimeout(ciSubmit, 700);
+  }
 }
 function selCiOpt(el){
   document.querySelectorAll('.ci-opt').forEach(o=>o.classList.remove('sel'));
@@ -4912,7 +4918,7 @@ function saveProgress(name){
   const data = {
     name,
     currentPage: curPage,
-    completedParts: [...completedParts],
+    sectionDone: [...sectionDone],
     scores: {...studentScores},
     fcDone: [...fcDone],
     ts: Date.now(),
@@ -5042,7 +5048,8 @@ function enterByName(){
       if(saved){
         if(saved.scores) studentScores = {...saved.scores};
         if(saved.fcDone) fcDone = [...saved.fcDone];
-        if(saved.completedParts) saved.completedParts.forEach(p => completedParts.add(p));
+        if(saved.sectionDone) saved.sectionDone.forEach(p => sectionDone.add(p));
+        else if(saved.completedParts) saved.completedParts.forEach(p => sectionDone.add(p)); // legacy
         refreshScoreReport();
       }
 
@@ -5076,45 +5083,42 @@ function enterByName(){
           }
         }
 
-        // If student already did check-in previously, skip it and jump straight to resume
+        // ── Decide: skip check-in or show it ──
         const alreadyCheckedIn = fbData && fbData.checkin && fbData.checkin.mood;
         if(alreadyCheckedIn){
-          // Restore completed sections from Firebase scores so sequential lock is correct
+          // Rebuild sectionDone from Firebase scores + lastPage so sequential lock is correct
+          const sc  = fbData.scores || {};
+          const lp  = fbData.lastPage || '';
+          const pastSlides = ['slides','mindmap','quiz','checkout'].includes(lp);
           sectionDone.add('checkin');
-          const sc = fbData.scores || {};
-          if(sc.reading  != null) sectionDone.add('reading');
-          if(sc.flashcard!= null) sectionDone.add('flashcard');
-          if(sc.mindmap  != null || sc.quiz != null || fbData.done) sectionDone.add('slides');
-          if(sc.mindmap  != null) sectionDone.add('mindmap');
-          if(sc.quiz     != null) sectionDone.add('quiz');
-          if(sc.checkout != null || fbData.done) sectionDone.add('checkout');
+          if(sc.reading   != null) sectionDone.add('reading');
+          if(sc.flashcard != null) sectionDone.add('flashcard');
+          // slides is visit-based — mark done if student ever reached slides or beyond
+          if(pastSlides || sc.mindmap != null || sc.quiz != null || fbData.done)
+            sectionDone.add('slides');
+          if(sc.mindmap   != null) sectionDone.add('mindmap');
+          if(sc.quiz      != null) sectionDone.add('quiz');
+          if(sc.checkout  != null || fbData.done) sectionDone.add('checkout');
           ciSetDone(true);
-          ciSubmitAndContinue();
-          return;
+          ciSubmitAndContinue(); // jump straight to last learning page
+        } else {
+          // First time or mood not saved: show check-in
+          const greetEl = document.getElementById('ci-greeting');
+          if(greetEl) greetEl.textContent = lessonCompleted
+            ? n + '，欢迎回来！可以复习今天的内容。'
+            : n + '，你好！上课前先签个到吧。';
+          _ciMood = ''; coThumb = '';
+          ciStep = 1;
+          document.getElementById('ci-step1').style.display = '';
+          document.getElementById('ci-step2').style.display = 'none';
+          document.getElementById('ci-step3').style.display = 'none';
+          document.querySelectorAll('.sdot').forEach((d,i)=>{ d.classList.toggle('on',i===0); d.classList.remove('done'); });
+          document.getElementById('ci1-btn').setAttribute('disabled','');
+          updateCiDots();
+          ciSetDone(false);
+          nav('checkin');
         }
       });
-
-      // Personalise greeting
-      const greetEl = document.getElementById('ci-greeting');
-      if(greetEl) greetEl.textContent = lessonCompleted
-        ? n + '，欢迎回来！可以复习今天的内容。'
-        : n + '，你好！上课前先签个到吧。';
-
-      // Reset check-in state
-      _ciMood = ''; coThumb = '';
-      ciStep = 1;
-      document.getElementById('ci-step1').style.display = '';
-      document.getElementById('ci-step2').style.display = 'none';
-      document.getElementById('ci-step3').style.display = 'none';
-      document.querySelectorAll('.sdot').forEach((d,i)=>{ d.classList.toggle('on',i===0); d.classList.remove('done'); });
-      document.getElementById('ci1-btn').setAttribute('disabled','');
-      updateCiDots();
-
-      // Lock pages until check-in is completed
-      ciSetDone(false);
-      // Go to checkin — first-time student must complete it
-      nav('checkin');
-    });
   });
 }
 
