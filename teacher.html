@@ -75,7 +75,7 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
 label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink2);cursor:pointer}
 
 /* ── TABLE ── */
-.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 52px 56px 50px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
+.ts-row{display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;padding:10px 0;border-bottom:1px solid var(--border);align-items:center;font-size:13px}
 .ts-row:last-child{border-bottom:none}
 .ts-cell{text-align:center;font-weight:600}
 .ts-total{text-align:center;font-family:'Noto Serif SC',serif;font-size:15px;font-weight:900}
@@ -211,6 +211,13 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           </div>
         </div>
         <div id="waiting-list" style="display:flex;flex-wrap:wrap;gap:4px;min-height:44px"></div>
+        <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="flex:1;min-width:160px">
+            <div style="font-size:12px;font-weight:700;color:var(--ink2)" id="quiz-open-status-lbl">🔒 Quiz 未开放</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:2px">开放后，所有学生同时进入 Quiz</div>
+          </div>
+          <button id="quiz-open-btn" class="btn btn-sm" onclick="toggleQuizOpen()" style="background:var(--teal);color:white;min-width:110px">🏆 开放 Quiz</button>
+        </div>
       </div>
 
       <!-- Needs attention -->
@@ -268,9 +275,9 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <button class="btn btn-red btn-sm" onclick="downloadPDF()">⬇️ PDF</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
+        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
           <div style="text-align:left">学生</div>
-          <div>朗读</div><div>词语</div><div>心智图</div><div>理解</div><div>Quiz</div><div>签到</div>
+          <div>朗读<br><span style="font-size:9px;opacity:.7">25%</span></div><div>词语<br><span style="font-size:9px;opacity:.7">20%</span></div><div>心智图<br><span style="font-size:9px;opacity:.7">10%</span></div><div>理解<br><span style="font-size:9px;opacity:.7">25%</span></div><div>Quiz<br><span style="font-size:9px;opacity:.7">20%</span></div>
           <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div>
         </div>
         <div id="t-score-list"></div>
@@ -403,11 +410,8 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           </div>
         </div>
 
-        <!-- Comprehension questions -->
-        <div class="card">
-          <div class="ctitle">💬 课文理解题（每行一题）</div>
-          <textarea class="md-textarea" id="cp-write" placeholder="课文里说春天是「播种的季节」，这是什么意思？&#10;课文中，小鸟和蜜蜂分别在做什么？&#10;如果你是农民伯伯，你会希望秋天收成怎样？"></textarea>
-        </div>
+        <!-- cp-write hidden: comp questions removed, kept for data compat -->
+        <textarea id="cp-write" style="display:none"></textarea>
 
         <!-- Quiz questions -->
         <div class="card">
@@ -590,6 +594,7 @@ let studentRegistry = [];
 let classRoster     = [];
 let sessionListener = null;
 let classStatus     = 'waiting'; // waiting | started
+let quizOpen        = false;
 
 // ══════════════════════════════════════
 //  LOGIN
@@ -719,6 +724,8 @@ function listenActiveSession(){
       // Update metadata in case classStatus changed
       const meta = activeSessions[activeCode];
       classStatus = meta.classStatus || 'waiting';
+      quizOpen = !!meta.quizOpen;
+      updateQuizOpenBtn();
       updateSessionBannerInfo(meta);
     } else {
       // Switch to first available session
@@ -728,6 +735,8 @@ function listenActiveSession(){
       currentUnitId  = meta.unitId;
       activeCode     = meta.code || firstCode;
       classStatus    = meta.classStatus || 'waiting';
+      quizOpen = !!meta.quizOpen;
+      updateQuizOpenBtn();
       studentRegistry = []; classRoster = [];
       attachListener(meta.sessionId);
       updateSessionBannerInfo(meta);
@@ -786,6 +795,8 @@ function switchSession(code){
   currentUnitId  = meta.unitId;
   activeCode     = meta.code || code;
   classStatus    = meta.classStatus || 'waiting';
+  quizOpen = !!meta.quizOpen;
+  updateQuizOpenBtn();
   studentRegistry = []; classRoster = [];
   if(sessionListener) sessionListener.off();
   attachListener(meta.sessionId);
@@ -818,7 +829,7 @@ function attachListener(sid){
       studentRegistry.push({ name:s.name, av:s.av||'🐯', time:s.time||'--:--', currentPage:s.currentPage||'checkin', done:s.done||false, badges });
       if(s.scores){
         const sc = s.scores;
-        const w={reading:.25,flashcard:.25,comp:.2,quiz:.2,checkout:.1};
+        const w={reading:.25,flashcard:.20,mindmap:.10,comp:.25,quiz:.20};
         let ws=0,wt=0;
         Object.entries(w).forEach(([k,v])=>{if(sc[k]!=null){ws+=sc[k]*v;wt+=v;}});
         const tot = s.done && sc.total ? sc.total : (wt>0?Math.round(ws/wt):0);
@@ -869,6 +880,27 @@ function refreshAllViews(){
 // ══════════════════════════════════════
 //  CLASS CONTROL
 // ══════════════════════════════════════
+function toggleQuizOpen(){
+  if(!currentSession || !activeCode){ alert('请先开课'); return; }
+  quizOpen = !quizOpen;
+  sessionRef(currentSession).update({ quizOpen });
+  db.ref('meta/activeSessions/' + activeCode).update({ quizOpen });
+  updateQuizOpenBtn();
+}
+
+function updateQuizOpenBtn(){
+  const btn = document.getElementById('quiz-open-btn');
+  const lbl = document.getElementById('quiz-open-status-lbl');
+  if(btn){
+    btn.textContent = quizOpen ? '🔒 关闭 Quiz' : '🏆 开放 Quiz';
+    btn.style.background = quizOpen ? 'var(--red)' : 'var(--teal)';
+  }
+  if(lbl){
+    lbl.textContent = quizOpen ? '🏆 Quiz 已开放，学生正在进入！' : '🔒 Quiz 未开放';
+    lbl.style.color = quizOpen ? 'var(--teal)' : 'var(--ink2)';
+  }
+}
+
 function startClass(){
   if(!currentSession || !activeCode){ alert('请先开课'); return; }
   sessionRef(currentSession).update({ classStatus: 'started' });
@@ -1001,7 +1033,6 @@ function renderStudents(){
         <div class="ts-cell" style="color:${(sc.mindmap||0)>=70?'var(--teal)':'var(--ink3)'}">${sc.mindmap??'—'}</div>
         <div class="ts-cell" title="点击输入理解分数" style="cursor:pointer;color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'};text-decoration:underline dotted" onclick="editCompScore('${skey}','${s.name}',${compVal||0})">${sc.comp!=null?sc.comp:'录入'}</div>
         <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
-        <div class="ts-cell" style="color:var(--teal)">${sc.done?'✓':'…'}</div>
         <div class="ts-total" style="color:${dc}">${sc.total||'—'}</div>
         <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
     } else {
@@ -1011,7 +1042,7 @@ function renderStudents(){
         <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
-        <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
+        <div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-total" style="color:var(--ink3)">—</div>
         <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>`;
     }
@@ -1478,10 +1509,10 @@ function downloadCSV(){
     ['智能引领，玩转华文'],
     [label, '', '', '', '', '', '', date],
     [],
-    ['姓名','朗读(25%)','词语(25%)','理解(20%)','Quiz(20%)','签到(10%)','总分','时间'],
+    ['姓名','朗读(25%)','词语(20%)','心智图(10%)','理解(25%)','Quiz(20%)','总分','时间'],
   ];
   const rows = [...classRoster].sort((a,b)=>b.total-a.total)
-    .map(s=>[s.name, s.reading||0, s.flashcard||0, s.comp||0, s.quiz||0, s.checkout?100:0, s.total, s.time]);
+    .map(s=>[s.name, s.reading||0, s.flashcard||0, s.mindmap||0, s.comp||0, s.quiz||0, s.total, s.time]);
   const footer = [[], ['Designed by Wei Wen @ 2026']];
   const csv = [...meta, ...rows, ...footer].map(r=>r.map(c=>`"${c}"`).join(',')).join('\n');
   const a = document.createElement('a');
@@ -1504,9 +1535,9 @@ function downloadPDF(){
       <td style="padding:8px 10px;font-weight:700">${s.name}</td>
       <td style="text-align:center;padding:8px 6px">${s.reading||'—'}</td>
       <td style="text-align:center;padding:8px 6px">${s.flashcard||'—'}</td>
+      <td style="text-align:center;padding:8px 6px">${s.mindmap||'—'}</td>
       <td style="text-align:center;padding:8px 6px">${s.comp||'—'}</td>
       <td style="text-align:center;padding:8px 6px">${s.quiz||'—'}</td>
-      <td style="text-align:center;padding:8px 6px">${s.checkout?'✓':'—'}</td>
       <td style="text-align:center;padding:8px 6px;font-weight:900;font-size:16px;color:${tc}">${s.total}</td>
     </tr>`;
   }).join('');
@@ -1554,10 +1585,10 @@ function downloadPDF(){
   <table><thead><tr>
     <th style="width:32px">#</th><th style="text-align:left">姓名</th>
     <th>朗读<br><span style="font-weight:400;font-size:10px">25%</span></th>
-    <th>词语<br><span style="font-weight:400;font-size:10px">25%</span></th>
-    <th>理解<br><span style="font-weight:400;font-size:10px">20%</span></th>
+    <th>词语<br><span style="font-weight:400;font-size:10px">20%</span></th>
+    <th>心智图<br><span style="font-weight:400;font-size:10px">10%</span></th>
+    <th>理解<br><span style="font-weight:400;font-size:10px">25%</span></th>
     <th>Quiz<br><span style="font-weight:400;font-size:10px">20%</span></th>
-    <th>签到<br><span style="font-weight:400;font-size:10px">10%</span></th>
     <th>总分</th>
   </tr></thead><tbody>${rows}</tbody></table>
 

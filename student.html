@@ -646,10 +646,11 @@ body{font-family:'Noto Sans SC',sans-serif;background:var(--mist);color:var(--in
     <div class="fc-wrap" onclick="flipFC()">
       <div class="fc-inner" id="fc-inner">
         <div class="fc-face fc-front">
-          <button onclick="event.stopPropagation();speakFC()" title="读出来" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.18)'">🔊</button>
+          <button onclick="event.stopPropagation();speakFC()" title="听发音" style="position:absolute;top:10px;right:10px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.4);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.35)'" onmouseout="this.style.background='rgba(255,255,255,.18)'">🔊</button>
           <div class="fc-char" id="fc-char">五颜六色</div>
           <div class="fc-pin" id="fc-pin">wǔ yán liù sè</div>
           <div class="fc-hint" style="margin-top:10px">👆 点击翻面看含义</div>
+          <button id="fc-mic-btn" onclick="event.stopPropagation();fcSpeakRec()" title="朗读单词" style="margin-top:12px;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.5);border-radius:20px;padding:6px 16px;color:white;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .2s" onmouseover="this.style.background='rgba(255,255,255,.32)'" onmouseout="this.style.background='rgba(255,255,255,.18)'"><span>🎙</span><span id="fc-mic-lbl">朗读单词</span></button>
         </div>
         <div class="fc-face fc-back">
           <div class="fc-mean" id="fc-mean">形容颜色很多，非常好看</div>
@@ -1453,17 +1454,20 @@ const PARTS=[
 ];
 // Sequential order for lock/unlock (comp excluded — teacher-only)
 const PART_SEQ=['checkin','reading','flashcard','slides','mindmap','quiz','checkout'];
-let completedParts=new Set();
+let sectionDone=new Set(); // tracks truly-completed sections (not just visits)
+
+function markSectionDone(id){
+  sectionDone.add(id);
+  updatePartBar(curPage);
+}
 
 // Returns highest index in PART_SEQ the student can access
 function maxUnlockedIdx(){
   if(!ciDone) return 0;
   let max=0;
   PART_SEQ.forEach((id,i)=>{
-    if(completedParts.has(id)||id===curPage) max=Math.max(max,i);
+    if(sectionDone.has(id)) max=Math.max(max,i);
   });
-  // Also consider mindmap: if not displayed, skip it
-  const mmEnabled=document.getElementById('ps-mindmap')&&document.getElementById('ps-mindmap').style.display!=='none';
   return Math.min(max+1, PART_SEQ.length-1);
 }
 function canNavTo(id){
@@ -1471,6 +1475,8 @@ function canNavTo(id){
   if(idx<0) return true; // teacher/other pages always ok
   // If mindmap disabled, skip it in the sequence
   if(id==='mindmap' && document.getElementById('ps-mindmap')&&document.getElementById('ps-mindmap').style.display==='none') return false;
+  // Quiz requires teacher to open it explicitly
+  if(id==='quiz' && !quizOpen) return false;
   return idx<=maxUnlockedIdx();
 }
 
@@ -1485,7 +1491,7 @@ function updatePartBar(activeId){
     if(!step)return;
     step.classList.remove('on','done','ps-locked');
     if(p.id===activeId) step.classList.add('on');
-    else if(i<activeIdx||completedParts.has(p.id)) step.classList.add('done');
+    else if(i<activeIdx||sectionDone.has(p.id)) step.classList.add('done');
     else if(!canNavTo(p.id)){
       step.classList.add('ps-locked');
     }
@@ -1509,7 +1515,6 @@ function nav(id){
 
   // Sequential lock: block forward jumps to locked sections (students only)
   if(role==='student' && ciDone && PART_SEQ.includes(id) && !canNavTo(id)){
-    // Show brief locked toast
     let toast=document.getElementById('_locked-toast');
     if(!toast){
       toast=document.createElement('div');
@@ -1517,14 +1522,23 @@ function nav(id){
       toast.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(26,26,46,.92);color:white;padding:9px 18px;border-radius:20px;font-size:13px;z-index:9999;pointer-events:none;transition:opacity .3s';
       document.body.appendChild(toast);
     }
-    toast.textContent='🔒 请先完成当前环节';
-    toast.style.opacity='1';
-    clearTimeout(toast._t);
-    toast._t=setTimeout(()=>toast.style.opacity='0',1800);
+    // Special message when quiz is locked by teacher
+    if(id==='quiz' && !quizOpen && sectionDone.has('mindmap')){
+      toast.textContent='⏳ 等待老师开放 Quiz，请稍候…';
+      toast.style.opacity='1';
+      clearTimeout(toast._t);
+      toast._t=setTimeout(()=>toast.style.opacity='0',3000);
+    } else {
+      toast.textContent='🔒 请先完成当前环节';
+      toast.style.opacity='1';
+      clearTimeout(toast._t);
+      toast._t=setTimeout(()=>toast.style.opacity='0',1800);
+    }
     return;
   }
 
-  if(curPage && curPage!==id) completedParts.add(curPage);
+  // Mark slides as done on visit (no explicit completion event)
+  if(id==='slides' && ciDone) markSectionDone('slides');
 
   // Exit quiz fullscreen when leaving quiz
   if(curPage==='quiz' && id!=='quiz'){
@@ -1645,6 +1659,7 @@ function setRole(r){
 // ── CHECK IN ──
 let ciStep=1, ciMaxStep=1; // ciMaxStep set by applyUnitContent: 1=mood only, 2=+Q1, 3=+Q2
 let ciDone = false;        // gate: must complete check-in before accessing other pages
+let quizOpen = false;      // gate: teacher must open quiz before students can enter
 let lessonCompleted = false; // student has previously finished the full lesson (done:true in Firebase)
 
 function ciSetDone(done){
@@ -1728,7 +1743,8 @@ function updateCiDots(){
   if(btn1) btn1.textContent = ciMaxStep === 1 ? '开始学习！' : '下一步 →';
 }
 function ciSubmit(){
-  ciSetDone(true); // unlock all pages now that check-in is complete
+  ciSetDone(true);
+  markSectionDone('checkin');
   const nameIn = document.getElementById('qg-pname');
   if(nameIn && qgState.name) nameIn.value = qgState.name;
   // Final submit: update draft AND append to accumulated history
@@ -1891,17 +1907,42 @@ function showParaResult(idx, acc, flu, cmp, wrongChars, feedback){
   if(lbl) lbl.textContent='评测完成';
 
   const score = paraScores[idx]||0;
-  const scoreCol = score>=75?'var(--teal)':score>=60?'var(--gold)':'var(--red)';
-  const fbEl = document.getElementById('para-feedback-'+idx);
   const resEl = document.getElementById('para-result-'+idx);
   const valEl = document.getElementById('para-score-val-'+idx);
-  const bgCol = score>=75?'var(--teal-l)':score>=60?'var(--gold-pale)':'var(--red-l)';
-  const txtCol= score>=75?'var(--teal)':score>=60?'var(--gold)':'var(--red)';
-  if(fbEl){ fbEl.style.background=bgCol; fbEl.style.color=txtCol; fbEl.textContent=feedback; }
-  if(valEl){ valEl.textContent=score; valEl.style.color=scoreCol; }
+  if(valEl){ valEl.textContent=score; valEl.style.color=score>=75?'var(--teal)':score>=60?'var(--gold)':'var(--red)'; }
+
+  // Rich feedback card
+  const fbEl = document.getElementById('para-feedback-'+idx);
+  if(fbEl){
+    const face  = score>=90?'🌟':score>=75?'😊':score>=60?'😐':'💪';
+    const title = score>=90?'太棒了！发音准确，节奏自然！'
+                 :score>=75?'读得不错，继续加油！'
+                 :score>=60?'有点小错误，再练练！'
+                 :'还需要多练习，加油！';
+    const wrongHint = wrongChars.length
+      ? `<div style="margin-top:6px;font-size:12px">⚠️ 注意这些字：<strong>${wrongChars.slice(0,6).join('、')}</strong></div>` : '';
+    const bars = `
+      <div style="display:flex;flex-direction:column;gap:4px;margin-top:8px;font-size:11px;color:var(--ink3)">
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:36px">准确</span><div style="flex:1;height:5px;background:var(--mist2);border-radius:3px;overflow:hidden"><div style="width:${acc}%;height:100%;background:var(--teal);border-radius:3px"></div></div><span style="width:24px;text-align:right">${acc}</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:36px">流利</span><div style="flex:1;height:5px;background:var(--mist2);border-radius:3px;overflow:hidden"><div style="width:${flu}%;height:100%;background:var(--gold);border-radius:3px"></div></div><span style="width:24px;text-align:right">${flu}</span></div>
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:36px">完整</span><div style="flex:1;height:5px;background:var(--mist2);border-radius:3px;overflow:hidden"><div style="width:${cmp}%;height:100%;background:var(--orange);border-radius:3px"></div></div><span style="width:24px;text-align:right">${cmp}</span></div>
+      </div>`;
+    const bg = score>=75?'var(--teal-l)':score>=60?'var(--gold-pale)':'var(--red-l)';
+    const tc = score>=75?'var(--teal)':score>=60?'var(--gold)':'var(--red)';
+    fbEl.style.background = bg;
+    fbEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:36px;line-height:1">${face}</div>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:14px;color:${tc}">${title}</div>
+          ${wrongHint}
+        </div>
+      </div>${bars}`;
+  }
+
   if(resEl) resEl.style.display='block';
 
-  // Highlight wrong chars in this para's text box
+  // Highlight wrong chars in the paragraph text
   if(wrongChars.length>0){
     const box=document.getElementById('para-text-'+idx);
     if(box){
@@ -1952,6 +1993,7 @@ function updateReadingTotal(){
   // Only save score and trigger badge after all paragraphs are done
   if(allDone){
     setScore('reading', total);
+    markSectionDone('reading');
     setTimeout(()=>triggerSectionBadge('reading'), 700);
     // Scroll to total card
     if(totalCard) totalCard.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -2084,6 +2126,86 @@ function speakFC(){
   utter.lang = 'zh-CN';
   utter.rate = 0.9;
   window.speechSynthesis.speak(utter);
+}
+
+// ── Voice input on flashcard: student reads word aloud ──
+let _fcRecActive = false;
+function fcSpeakRec(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('此浏览器不支持语音录入，请使用 Chrome 或 Safari。'); return; }
+  if(_fcRecActive) return;
+  const c = fcCards[fcIdx];
+  if(!c) return;
+
+  const btn = document.getElementById('fc-mic-btn');
+  const lbl = document.getElementById('fc-mic-lbl');
+  _fcRecActive = true;
+  if(btn) btn.style.background = 'rgba(255,80,80,.6)';
+  if(lbl) lbl.textContent = '正在录音…';
+
+  const rec = new SR();
+  rec.lang = 'zh-CN';
+  rec.interimResults = false;
+  rec.maxAlternatives = 3;
+
+  rec.onresult = e => {
+    const heard = Array.from(e.results[0]).map(r=>r.transcript.trim()).join('');
+    _fcRecActive = false;
+    if(btn) btn.style.background = 'rgba(255,255,255,.18)';
+    if(lbl) lbl.textContent = '朗读单词';
+
+    // Check if target word appears in any of the spoken alternatives
+    const target = c.char.trim();
+    const matched = Array.from(e.results[0]).some(r => r.transcript.includes(target));
+
+    _fcShowVoiceReaction(matched, heard, target);
+  };
+
+  rec.onerror = () => {
+    _fcRecActive = false;
+    if(btn) btn.style.background = 'rgba(255,255,255,.18)';
+    if(lbl) lbl.textContent = '朗读单词';
+  };
+
+  rec.onend = () => {
+    _fcRecActive = false;
+    if(btn) btn.style.background = 'rgba(255,255,255,.18)';
+    if(lbl) lbl.textContent = '朗读单词';
+  };
+
+  rec.start();
+}
+
+const FC_CORRECT_REACTIONS = ['🎉','🥳','⭐','✨','🌟','👏','🎊','💯','🦄','🏆'];
+const FC_TRY_REACTIONS     = ['😅','💪','🙈','🤔','😬','👂','🔁'];
+
+function _fcShowVoiceReaction(correct, heard, target){
+  // Remove any existing popup
+  const old = document.getElementById('_fc-reaction');
+  if(old) old.remove();
+
+  const emoji = correct
+    ? FC_CORRECT_REACTIONS[Math.floor(Math.random()*FC_CORRECT_REACTIONS.length)]
+    : FC_TRY_REACTIONS[Math.floor(Math.random()*FC_TRY_REACTIONS.length)];
+  const msg  = correct ? '读对了！' : '再试一次！';
+  const sub  = correct ? `「${target}」发音正确 👍` : `你说了「${heard||'…'}」，目标是「${target}」`;
+  const bg   = correct ? 'linear-gradient(135deg,#1ABC9C,#16A085)' : 'linear-gradient(135deg,#E67E22,#D35400)';
+
+  const pop = document.createElement('div');
+  pop.id = '_fc-reaction';
+  pop.style.cssText = `position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);animation:fadeIn .2s ease`;
+  pop.innerHTML = `
+    <div style="background:${bg};border-radius:20px;padding:32px 40px;text-align:center;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,.3);animation:fc-pop .35s cubic-bezier(.175,.885,.32,1.275)">
+      <div style="font-size:64px;margin-bottom:8px;line-height:1">${emoji}</div>
+      <div style="color:white;font-family:'Noto Serif SC',serif;font-size:22px;font-weight:900;margin-bottom:6px">${msg}</div>
+      <div style="color:rgba(255,255,255,.85);font-size:13px;margin-bottom:20px">${sub}</div>
+      <button onclick="document.getElementById('_fc-reaction').remove()" style="background:rgba(255,255,255,.25);border:1.5px solid rgba(255,255,255,.5);color:white;border-radius:12px;padding:8px 24px;font-size:14px;cursor:pointer;font-weight:600">继续</button>
+    </div>`;
+  pop.onclick = e => { if(e.target===pop) pop.remove(); };
+  document.body.appendChild(pop);
+
+  // Auto-dismiss after 3s if correct
+  if(correct) setTimeout(()=>{ if(pop.parentNode) pop.remove(); }, 3000);
 }
 
 // ── 🧠 MIND MAP ──────────────────────────────
@@ -2279,6 +2401,7 @@ function submitMindMap(){
   });
   const score=mmBlanks.length>0?Math.round(correct/mmBlanks.length*100):0;
   setScore('mindmap',score);
+  markSectionDone('mindmap');
   document.getElementById('mm-submit-row').style.display='none';
   const res=document.getElementById('mm-result-section');
   res.innerHTML=`
@@ -2291,7 +2414,7 @@ function submitMindMap(){
     <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">
       ${mmBlanks.map(b=>{const fa=b.filledWith!==null?mmBlanks[b.filledWith].answer:null;return `<div style="padding:4px 12px;background:${fa===b.answer?'#D4FAE6':'#FFE0E0'};border:1px solid ${fa===b.answer?'var(--teal)':'var(--red)'};border-radius:8px;font-size:12px;font-family:'Noto Serif SC',serif">${b.answer}</div>`}).join('')}
     </div>
-    <button class="btn btn-teal btn-lg" style="width:100%" onclick="nav('comp')">继续：课文理解 →</button>`;
+    <button class="btn btn-teal btn-lg" style="width:100%" onclick="nav('quiz')">继续：Quiz →</button>`;
   res.style.display='block';
   res.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
@@ -2455,7 +2578,7 @@ function fcGameNext(){
   ['fc-quiz-card','fc-match-card','fc-blast-card','fc-hangman-card','fc-balloon-card']
     .forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='none';});
   fcGameIdx++;
-  if(fcGameIdx >= fcGameQueue.length){ nav('slides'); return; } // badge already handled in _fcActivitySetScore
+  if(fcGameIdx >= fcGameQueue.length){ markSectionDone('flashcard'); nav('slides'); return; } // badge already handled in _fcActivitySetScore
   const game = fcGameQueue[fcGameIdx];
   if(game==='wordquiz'){
     buildFcQuiz();
@@ -3789,6 +3912,7 @@ function qgEndGame(){
   const bonusPct = Math.min(100, Math.round(Math.max(0, qgState.score - qgState.correct * 100) / maxPossible * 100));
   const quizScore = Math.min(100, Math.round(correctPct * 0.6 + bonusPct * 0.4));
   setScore('quiz', quizScore);
+  markSectionDone('quiz');
   saveProgress(qgState.name || '');
 
   qgShow('results');
@@ -4374,6 +4498,16 @@ function listenClassStatus(){
       nav('checkin'); // class started → proceed to check-in
     }
   });
+  // Listen for teacher opening/closing quiz
+  sessionRef(currentSession + '/quizOpen').on('value', snap => {
+    const wasOpen = quizOpen;
+    quizOpen = !!snap.val();
+    updatePartBar(curPage); // refresh lock state on part bar
+    // Auto-navigate to quiz when teacher opens it (if student has done mindmap)
+    if(quizOpen && !wasOpen && ciDone && sectionDone.has('mindmap') && curPage !== 'quiz'){
+      nav('quiz');
+    }
+  });
 }
 
 function manualEnter(){
@@ -4945,6 +5079,15 @@ function enterByName(){
         // If student already did check-in previously, skip it and jump straight to resume
         const alreadyCheckedIn = fbData && fbData.checkin && fbData.checkin.mood;
         if(alreadyCheckedIn){
+          // Restore completed sections from Firebase scores so sequential lock is correct
+          sectionDone.add('checkin');
+          const sc = fbData.scores || {};
+          if(sc.reading  != null) sectionDone.add('reading');
+          if(sc.flashcard!= null) sectionDone.add('flashcard');
+          if(sc.mindmap  != null || sc.quiz != null || fbData.done) sectionDone.add('slides');
+          if(sc.mindmap  != null) sectionDone.add('mindmap');
+          if(sc.quiz     != null) sectionDone.add('quiz');
+          if(sc.checkout != null || fbData.done) sectionDone.add('checkout');
           ciSetDone(true);
           ciSubmitAndContinue();
           return;
