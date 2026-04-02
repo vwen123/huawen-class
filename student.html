@@ -2577,7 +2577,8 @@ function showFqzFinalResult(){
 function startFcGames(){
   _fcActivityBestScore = studentScores.flashcard || 0; // preserve any existing score
   const enabled = (gameSettings.fcGames && gameSettings.fcGames.length)
-    ? gameSettings.fcGames : ['match','blast','hangman','balloon'];
+    ? [...gameSettings.fcGames] : ['match','blast','hangman','balloon'];
+  for(let i=enabled.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[enabled[i],enabled[j]]=[enabled[j],enabled[i]];}
   fcGameQueue = enabled;
   fcGameIdx = -1;
   fqzState._batchCorrectBefore = 0;

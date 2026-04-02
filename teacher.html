@@ -830,6 +830,7 @@ function updateSessionBannerInfo(meta){
       const c = snap.val()||{};
       _coQuestionsMeta = c.coQuestions||[];
     });
+    compToolAutoLoad();
   }
 }
 
@@ -1699,7 +1700,7 @@ function showTab(id){
   document.getElementById('screen-'+id).classList.add('on');
   if(id==='progress') renderStudents();
   if(id==='units'){ loadGradeList(); loadUnitList(); }
-  if(id==='tools') refreshDrawPanel();
+  if(id==='tools'){ refreshDrawPanel(); compToolAutoLoad(); }
 }
 
 // ══════════════════════════════════════
@@ -2115,6 +2116,25 @@ function compToolSyncFromEditor(){
   const rawEl = document.getElementById('comp-tool-raw');
   if(rawEl) rawEl.value = src;
   compToolParse(true); // silent: don't alert on parse, mark as loaded from editor
+}
+
+// Auto-load comp questions for the current session's unit
+function compToolAutoLoad(){
+  const uid = currentUnitId || selectedUnitId;
+  if(!uid || !firebaseReady) return;
+  db.ref('units/'+uid+'/content').once('value', snap => {
+    const c = snap.val() || {};
+    const src = (c.cpMarkdown || '').trim();
+    if(!src) return;
+    const rawEl = document.getElementById('comp-tool-raw');
+    if(rawEl) rawEl.value = src;
+    compToolParse(true);
+    const badge = document.getElementById('comp-tool-source-badge');
+    if(badge){
+      badge.textContent = '📖 ' + (c.lessonTitle || '课文理解题');
+      badge.style.display = '';
+    }
+  });
 }
 
 function compToolParse(silent){
