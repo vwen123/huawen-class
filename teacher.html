@@ -418,8 +418,19 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           </div>
         </div>
 
-        <!-- cp-write hidden: comp questions removed, kept for data compat -->
-        <textarea id="cp-write" style="display:none"></textarea>
+        <!-- Comprehension questions -->
+        <div class="card">
+          <div class="ctitle">💬 课文理解题（题目 + 答案）</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">每题格式：题目在前，答案另起一行以「答：」开头，题目之间空一行。保存后在课堂工具自动显示。</div>
+          <textarea class="md-textarea" id="cp-write" style="min-height:180px" placeholder="1. 课文里说春天是「播种的季节」，这是什么意思？
+答：春天是适合种植的好季节，农民在这时撒下种子，期待秋天的丰收。
+
+2. 课文中，小鸟和蜜蜂分别在做什么？
+答：小鸟在枝头唱歌，蜜蜂在花丛中采蜜。
+
+3. 如果你是农民伯伯，你会希望秋天收成怎样？
+答：（开放题，学生自由作答）"></textarea>
+        </div>
 
         <!-- Quiz questions -->
         <div class="card">
@@ -557,6 +568,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
         <!-- Parsed questions display -->
         <div id="comp-tool-display" style="display:none">
+          <div id="comp-tool-source-badge" style="display:none;font-size:11px;color:var(--teal);background:var(--teal-l);border-radius:6px;padding:4px 10px;margin-bottom:10px">☁️ 已从课文编辑器加载</div>
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
             <div style="font-size:13px;color:var(--ink3)">题目 <span id="comp-tool-cur">1</span> / <span id="comp-tool-total">0</span></div>
             <div style="display:flex;gap:6px">
@@ -1434,6 +1446,7 @@ function selectUnit(id, title){
     if(el('mm-write'))           el('mm-write').value           = c.mmMarkdown||'';
     if(el('cp-write'))           el('cp-write').value           = c.cpMarkdown||'';
     if(el('qz-write'))           el('qz-write').value           = c.qzMarkdown||'';
+    compToolSyncFromEditor(); // auto-load saved questions into classroom tool
     if(el('manage-slides-url'))  el('manage-slides-url').value  = c.slidesUrl||'';
     // Load quiz game settings
     const gs = c.gameSettings || {};
@@ -2095,9 +2108,18 @@ let compToolQs = []; // [{q, a}]
 let compToolIdx = 0;
 let compFsAnsVisible = false;
 
-function compToolParse(){
+// Auto-load from cp-write (content editor) into classroom tool
+function compToolSyncFromEditor(){
+  const src = (document.getElementById('cp-write')?.value || '').trim();
+  if(!src) return;
+  const rawEl = document.getElementById('comp-tool-raw');
+  if(rawEl) rawEl.value = src;
+  compToolParse(true); // silent: don't alert on parse, mark as loaded from editor
+}
+
+function compToolParse(silent){
   const raw = (document.getElementById('comp-tool-raw').value || '').trim();
-  if(!raw){ alert('请先输入题目内容'); return; }
+  if(!raw){ if(!silent) alert('请先输入题目内容'); return; }
 
   const blocks = raw.split(/\n{2,}/);  // split on blank lines first
   const parsed = [];
@@ -2140,13 +2162,18 @@ function compToolParse(){
     if(cur) parsed.push(cur);
   }
 
-  if(!parsed.length){ alert('未能解析出题目，请检查格式后重试'); return; }
+  if(!parsed.length){ if(!silent) alert('未能解析出题目，请检查格式后重试'); return; }
 
   compToolQs = parsed;
   compToolIdx = 0;
   document.getElementById('comp-tool-input-area').style.display = 'none';
   document.getElementById('comp-tool-display').style.display = '';
-  document.getElementById('comp-edit-toggle-btn').textContent = '✏️ 重新输入';
+  document.getElementById('comp-edit-toggle-btn').textContent = '✏️ 编辑题目';
+
+  // Show source badge
+  const badge = document.getElementById('comp-tool-source-badge');
+  if(badge) badge.style.display = silent ? '' : 'none';
+
   compToolRender();
 }
 
