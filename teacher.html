@@ -218,6 +218,14 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           </div>
           <button id="quiz-open-btn" class="btn btn-sm" onclick="toggleQuizOpen()" style="background:var(--teal);color:white;min-width:110px">🏆 开放 Quiz</button>
         </div>
+        <!-- Quiz participant list — shown when quiz is open -->
+        <div id="quiz-participants-panel" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:12px;font-weight:700;color:var(--gold)">🏆 已进入 Quiz</div>
+            <div style="font-size:12px;color:var(--ink3)"><span id="quiz-in-count" style="font-weight:700;color:var(--gold)">0</span> / <span id="quiz-total-count">0</span> 人</div>
+          </div>
+          <div id="quiz-in-list" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+        </div>
       </div>
 
       <!-- Needs attention -->
@@ -1001,6 +1009,25 @@ function renderDashboard(){
       <span>${s.av}</span><span style="font-weight:600">${s.name}</span>
       <span style="opacity:.6">${s.done?'✅完成':s.currentPage==='waiting'?'⏳':s.currentPage}</span>
     </div>`).join('');
+
+  // Quiz participant panel
+  const qPanel = document.getElementById('quiz-participants-panel');
+  const qList  = document.getElementById('quiz-in-list');
+  const qCnt   = document.getElementById('quiz-in-count');
+  const qTot   = document.getElementById('quiz-total-count');
+  if(qPanel){
+    if(quizOpen){
+      qPanel.style.display = '';
+      const inQuiz = studentRegistry.filter(s => s.currentPage === 'quiz' || s.done);
+      if(qCnt) qCnt.textContent = inQuiz.length;
+      if(qTot) qTot.textContent = studentRegistry.length;
+      if(qList) qList.innerHTML = inQuiz.length
+        ? inQuiz.map(s => `<div style="display:flex;align-items:center;gap:5px;background:var(--gold-pale);border:1px solid var(--gold);border-radius:20px;padding:4px 10px;font-size:12px"><span>${s.av}</span><span style="font-weight:600">${s.name}</span></div>`).join('')
+        : `<div style="font-size:12px;color:var(--ink3)">等待学生进入…</div>`;
+    } else {
+      qPanel.style.display = 'none';
+    }
+  }
 
   // Needs attention
   const attn = document.getElementById('t-needs-attention');
