@@ -529,6 +529,53 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         </div>
       </div>
 
+      <!-- Comprehension Q&A Tool -->
+      <div class="card" id="comp-tool-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+          <div class="ctitle" style="margin:0">💬 课文理解题展示</div>
+          <button class="btn btn-ghost btn-sm" onclick="compToolToggleEdit()" id="comp-edit-toggle-btn">✏️ 输入题目</button>
+        </div>
+
+        <!-- Input area (hidden after parsing) -->
+        <div id="comp-tool-input-area">
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:8px">每题格式：题目在前，答案另起一行以「答：」开头。题目之间空一行，或以数字序号开头。</div>
+          <textarea id="comp-tool-raw" class="md-textarea" style="min-height:160px" placeholder="1. 课文里说春天是「播种的季节」，这是什么意思？
+答：春天是适合种植的好季节，农民在这时撒下种子……
+
+2. 课文中，小鸟和蜜蜂分别在做什么？
+答：小鸟在枝头唱歌，蜜蜂在花丛中采蜜……"></textarea>
+          <button class="btn btn-teal" style="width:100%;margin-top:10px" onclick="compToolParse()">🪄 解析题目</button>
+        </div>
+
+        <!-- Parsed questions display -->
+        <div id="comp-tool-display" style="display:none">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div style="font-size:13px;color:var(--ink3)">题目 <span id="comp-tool-cur">1</span> / <span id="comp-tool-total">0</span></div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" onclick="compToolNav(-1)">← 上一题</button>
+              <button class="btn btn-ghost btn-sm" onclick="compToolNav(1)">下一题 →</button>
+            </div>
+          </div>
+
+          <!-- Question card -->
+          <div style="background:linear-gradient(135deg,var(--ink),var(--ink2));border-radius:12px;padding:18px;margin-bottom:12px;color:white;min-height:90px">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;opacity:.6;margin-bottom:8px">问题</div>
+            <div id="comp-tool-q-text" style="font-family:'Noto Serif SC',serif;font-size:15px;line-height:1.7"></div>
+          </div>
+
+          <!-- Answer (toggleable) -->
+          <div id="comp-tool-ans-wrap" style="background:var(--teal-l);border:1.5px solid var(--teal);border-radius:10px;padding:14px;margin-bottom:14px;display:none">
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--teal);margin-bottom:6px">参考答案</div>
+            <div id="comp-tool-a-text" style="font-size:14px;line-height:1.6;color:var(--ink)"></div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" onclick="compToolToggleAns()" id="comp-ans-btn" style="flex:1">👁 显示答案</button>
+            <button class="btn btn-teal" style="flex:2;font-size:14px" onclick="compToolFullscreen()">🖥 大屏展示</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Timer -->
       <div class="card">
         <div class="ctitle">⏱️ 计时器</div>
@@ -2016,6 +2063,142 @@ function syncTimerFullscreen(){
 }
 
 let _wcInterval = null;
+// ── Comprehension Q&A Tool ──────────────────────────────
+let compToolQs = []; // [{q, a}]
+let compToolIdx = 0;
+let compFsAnsVisible = false;
+
+function compToolParse(){
+  const raw = (document.getElementById('comp-tool-raw').value || '').trim();
+  if(!raw){ alert('请先输入题目内容'); return; }
+
+  const blocks = raw.split(/\n{2,}/);  // split on blank lines first
+  const parsed = [];
+
+  // Try blank-line-separated blocks
+  blocks.forEach(block => {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if(!lines.length) return;
+    // Find where answer starts
+    const ansIdx = lines.findIndex(l => /^(答[：:]|答案[：:]|A[：:]|参考答案[：:])/i.test(l));
+    let qLines, aLines;
+    if(ansIdx > 0){
+      qLines = lines.slice(0, ansIdx);
+      aLines = lines.slice(ansIdx);
+    } else if(ansIdx === 0){
+      return; // answer without question
+    } else {
+      qLines = lines;
+      aLines = [];
+    }
+    const q = qLines.join(' ').replace(/^[\d１２３４５６７８９]+[.．、。）)]\s*/,'').trim();
+    const a = aLines.map(l => l.replace(/^(答[：:]|答案[：:]|A[：:]|参考答案[：:])/i,'').trim()).join(' ').trim();
+    if(q) parsed.push({ q, a });
+  });
+
+  // Fallback: if blank-line split didn't yield results, try numbered-line split
+  if(parsed.length === 0){
+    const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+    let cur = null;
+    lines.forEach(line => {
+      if(/^[\d１２３４５６７８９]+[.．、。）)]\s*/.test(line)){
+        if(cur) parsed.push(cur);
+        cur = { q: line.replace(/^[\d１２３４５６７８９]+[.．、。）)]\s*/,''), a: '' };
+      } else if(cur && /^(答[：:]|答案[：:]|A[：:]|参考答案[：:])/i.test(line)){
+        cur.a = line.replace(/^(答[：:]|答案[：:]|A[：:]|参考答案[：:])/i,'').trim();
+      } else if(cur){
+        cur.q += ' ' + line;
+      }
+    });
+    if(cur) parsed.push(cur);
+  }
+
+  if(!parsed.length){ alert('未能解析出题目，请检查格式后重试'); return; }
+
+  compToolQs = parsed;
+  compToolIdx = 0;
+  document.getElementById('comp-tool-input-area').style.display = 'none';
+  document.getElementById('comp-tool-display').style.display = '';
+  document.getElementById('comp-edit-toggle-btn').textContent = '✏️ 重新输入';
+  compToolRender();
+}
+
+function compToolRender(){
+  const q = compToolQs[compToolIdx];
+  if(!q) return;
+  document.getElementById('comp-tool-cur').textContent   = compToolIdx + 1;
+  document.getElementById('comp-tool-total').textContent = compToolQs.length;
+  document.getElementById('comp-tool-q-text').textContent = q.q;
+  document.getElementById('comp-tool-a-text').textContent = q.a || '（无参考答案）';
+  document.getElementById('comp-tool-ans-wrap').style.display = 'none';
+  document.getElementById('comp-ans-btn').textContent = '👁 显示答案';
+}
+
+function compToolNav(dir){
+  compToolIdx = (compToolIdx + dir + compToolQs.length) % compToolQs.length;
+  compToolRender();
+}
+
+function compToolToggleAns(){
+  const wrap = document.getElementById('comp-tool-ans-wrap');
+  const btn  = document.getElementById('comp-ans-btn');
+  const hidden = wrap.style.display === 'none';
+  wrap.style.display = hidden ? '' : 'none';
+  btn.textContent = hidden ? '🙈 隐藏答案' : '👁 显示答案';
+}
+
+function compToolToggleEdit(){
+  const input   = document.getElementById('comp-tool-input-area');
+  const display = document.getElementById('comp-tool-display');
+  const btn     = document.getElementById('comp-edit-toggle-btn');
+  if(input.style.display === 'none'){
+    input.style.display = '';
+    display.style.display = 'none';
+    btn.textContent = compToolQs.length ? '← 返回展示' : '✏️ 输入题目';
+  } else {
+    if(compToolQs.length){
+      input.style.display = 'none';
+      display.style.display = '';
+      btn.textContent = '✏️ 重新输入';
+    }
+  }
+}
+
+function compToolFullscreen(){
+  if(!compToolQs.length) return;
+  compFsAnsVisible = false;
+  const fs = document.getElementById('comp-fullscreen');
+  fs.style.display = 'flex';
+  compFsRender();
+}
+
+function closeCompFullscreen(){
+  document.getElementById('comp-fullscreen').style.display = 'none';
+}
+
+function compFsRender(){
+  const q = compToolQs[compToolIdx];
+  document.getElementById('comp-fs-num').textContent = (compToolIdx+1) + ' / ' + compToolQs.length;
+  document.getElementById('comp-fs-q').textContent   = q.q;
+  document.getElementById('comp-fs-a').textContent   = q.a || '（无参考答案）';
+  compFsAnsVisible = false;
+  document.getElementById('comp-fs-ans-wrap').style.display = 'none';
+  document.getElementById('comp-fs-ans-btn').textContent = '👁 显示答案';
+}
+
+function compFsNav(dir){
+  compToolIdx = (compToolIdx + dir + compToolQs.length) % compToolQs.length;
+  compFsRender();
+  // Keep panel in sync
+  if(document.getElementById('comp-tool-display').style.display !== 'none') compToolRender();
+}
+
+function compFsToggleAns(){
+  compFsAnsVisible = !compFsAnsVisible;
+  document.getElementById('comp-fs-ans-wrap').style.display = compFsAnsVisible ? '' : 'none';
+  document.getElementById('comp-fs-ans-btn').textContent = compFsAnsVisible ? '🙈 隐藏答案' : '👁 显示答案';
+}
+
 function openWcFullscreen(){
   const el=document.getElementById('wc-fullscreen');
   if(!el) return;
@@ -2291,6 +2474,26 @@ document.head.appendChild(style);
 <!-- ══ FULLSCREEN OVERLAYS — must be at body level so display:none parents don't hide them ══ -->
 
 <!-- Word cloud fullscreen -->
+<!-- Comp Q fullscreen -->
+<div id="comp-fullscreen" style="display:none;position:fixed;inset:0;z-index:9996;background:linear-gradient(135deg,#1A1A2E,#0A0A18);flex-direction:column;align-items:center;justify-content:center;padding:40px 32px">
+  <div style="position:absolute;top:16px;right:20px;display:flex;gap:10px;align-items:center">
+    <button onclick="compFsNav(-1)" style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:6px 16px;font-size:14px;cursor:pointer">← 上一题</button>
+    <span id="comp-fs-num" style="color:rgba(255,255,255,.5);font-size:13px">1 / 1</span>
+    <button onclick="compFsNav(1)" style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:6px 16px;font-size:14px;cursor:pointer">下一题 →</button>
+    <button onclick="closeCompFullscreen()" style="background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);color:white;border-radius:10px;padding:6px 16px;font-size:14px;cursor:pointer">✕ 关闭</button>
+  </div>
+  <div style="width:100%;max-width:820px;text-align:center">
+    <div id="comp-fs-label" style="font-size:14px;font-weight:700;letter-spacing:.15em;color:rgba(255,215,0,.7);margin-bottom:20px;text-transform:uppercase">问题</div>
+    <div id="comp-fs-q" style="font-family:'Noto Serif SC',serif;font-size:clamp(22px,4vw,36px);font-weight:700;color:white;line-height:1.6;margin-bottom:36px"></div>
+    <div id="comp-fs-ans-wrap" style="display:none;animation:fadeIn .4s ease">
+      <div style="height:1.5px;background:rgba(255,255,255,.15);margin-bottom:28px"></div>
+      <div style="font-size:13px;font-weight:700;letter-spacing:.12em;color:rgba(78,205,196,.8);margin-bottom:12px">参考答案</div>
+      <div id="comp-fs-a" style="font-family:'Noto Serif SC',serif;font-size:clamp(16px,2.5vw,22px);color:rgba(255,255,255,.9);line-height:1.7"></div>
+    </div>
+    <button id="comp-fs-ans-btn" onclick="compFsToggleAns()" style="margin-top:28px;background:rgba(78,205,196,.18);border:1.5px solid rgba(78,205,196,.5);color:#4ECDC4;border-radius:12px;padding:10px 32px;font-size:15px;cursor:pointer;transition:background .2s" onmouseover="this.style.background='rgba(78,205,196,.32)'" onmouseout="this.style.background='rgba(78,205,196,.18)'">👁 显示答案</button>
+  </div>
+</div>
+
 <div id="wc-fullscreen" style="display:none;position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#0A0A18,#1A1A2E);overflow:hidden" onclick="closeWcFullscreen()">
   <div style="position:absolute;top:16px;right:20px;color:rgba(255,255,255,.5);font-size:13px;z-index:1">点击任意处关闭</div>
   <div id="wc-fullscreen-cloud" style="position:relative;width:100%;height:100%"></div>
