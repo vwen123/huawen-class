@@ -1475,8 +1475,11 @@ function canNavTo(id){
   if(idx<0) return true; // teacher/other pages always ok
   // If mindmap disabled, skip it in the sequence
   if(id==='mindmap' && document.getElementById('ps-mindmap')&&document.getElementById('ps-mindmap').style.display==='none') return false;
-  // Quiz requires teacher to open it explicitly
-  if(id==='quiz' && !quizOpen) return false;
+  // Quiz: teacher must open it; when open, bypass sequential lock so all students can enter
+  if(id==='quiz'){
+    if(!quizOpen) return false;
+    return ciDone; // only need check-in done; teacher open overrides sequence
+  }
   return idx<=maxUnlockedIdx();
 }
 
@@ -4510,8 +4513,8 @@ function listenClassStatus(){
     quizOpen = !!snap.val();
     updatePartBar(curPage); // refresh lock state on part bar
     // Auto-navigate to quiz when teacher opens it (if student has done mindmap)
-    if(quizOpen && !wasOpen && ciDone && sectionDone.has('mindmap') && curPage !== 'quiz'){
-      nav('quiz');
+    if(quizOpen && !wasOpen && ciDone && curPage !== 'quiz'){
+      nav('quiz'); // teacher opened quiz — all checked-in students enter together
     }
   });
 }
@@ -5067,6 +5070,8 @@ function enterByName(){
         }
         // Register (only reset currentPage if brand new student)
         fbRegisterStudent(n, qgState.av, isNew);
+        // Start listening for teacher signals (class start, quiz open)
+        listenClassStatus();
         // Detect if student has already completed the full lesson
         if(fbData && fbData.done){
           lessonCompleted = true;
