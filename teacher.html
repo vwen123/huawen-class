@@ -2126,13 +2126,11 @@ function slidesUrlPreview(){
   if(!fb) return;
   if(!url){ fb.textContent = '支持 Canva、Google Slides、Google Drive 链接'; fb.style.color='var(--ink3)'; return; }
   if(url.includes('canva.com')){
-    fb.textContent = '✅ Canva 简报 — 请确保已设为「任何人可查看」'; fb.style.color='var(--teal)';
+    fb.textContent = '✅ Canva 简报 — 学生将看到「打开简报」按钮（Canva 不支持内嵌）'; fb.style.color='var(--teal)';
   } else if(url.includes('docs.google.com/presentation')){
     fb.textContent = '✅ Google Slides — 请确保共享权限为「任何人可查看」'; fb.style.color='var(--teal)';
   } else if(url.includes('drive.google.com')){
     fb.textContent = '✅ Google Drive 文件 — 请确保共享权限为「任何人可查看」'; fb.style.color='var(--teal)';
-  } else {
-    fb.textContent = '⚠️ 不认识的链接格式，学生端可能无法嵌入显示'; fb.style.color='#e07d00';
   }
 }
 
