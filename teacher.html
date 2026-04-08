@@ -468,7 +468,11 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
         <!-- Slides URL -->
         <div class="card">
           <div class="ctitle">📑 课文简报链接（Canva / Google Slides）</div>
-          <input class="wi" id="manage-slides-url" placeholder="https://www.canva.com/design/...">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input class="wi" id="manage-slides-url" placeholder="https://www.canva.com/design/..." oninput="slidesUrlPreview()" style="flex:1;margin-bottom:0">
+            <button class="btn btn-ghost btn-sm" onclick="slidesTestOpen()" style="white-space:nowrap">🔗 测试链接</button>
+          </div>
+          <div id="slides-url-feedback" style="font-size:12px;margin-top:8px;color:var(--ink3)">支持 Canva、Google Slides、Google Drive 链接</div>
         </div>
 
         <!-- Check-in questions -->
@@ -1448,7 +1452,7 @@ function selectUnit(id, title){
     if(el('cp-write'))           el('cp-write').value           = c.cpMarkdown||'';
     if(el('qz-write'))           el('qz-write').value           = c.qzMarkdown||'';
     compToolSyncFromEditor(); // auto-load saved questions into classroom tool
-    if(el('manage-slides-url'))  el('manage-slides-url').value  = c.slidesUrl||'';
+    if(el('manage-slides-url')){ el('manage-slides-url').value = c.slidesUrl||''; slidesUrlPreview(); }
     // Load quiz game settings
     const gs = c.gameSettings || {};
     const qstyle = gs.style || 'arcade';
@@ -2108,6 +2112,29 @@ let _wcInterval = null;
 let compToolQs = []; // [{q, a}]
 let compToolIdx = 0;
 let compFsAnsVisible = false;
+
+// ── Slides URL helpers ──────────────────
+function slidesTestOpen(){
+  const url = (document.getElementById('manage-slides-url')?.value || '').trim();
+  if(!url){ alert('请先输入简报链接'); return; }
+  window.open(url, '_blank');
+}
+
+function slidesUrlPreview(){
+  const url = (document.getElementById('manage-slides-url')?.value || '').trim();
+  const fb  = document.getElementById('slides-url-feedback');
+  if(!fb) return;
+  if(!url){ fb.textContent = '支持 Canva、Google Slides、Google Drive 链接'; fb.style.color='var(--ink3)'; return; }
+  if(url.includes('canva.com')){
+    fb.textContent = '✅ Canva 简报 — 请确保已设为「任何人可查看」'; fb.style.color='var(--teal)';
+  } else if(url.includes('docs.google.com/presentation')){
+    fb.textContent = '✅ Google Slides — 请确保共享权限为「任何人可查看」'; fb.style.color='var(--teal)';
+  } else if(url.includes('drive.google.com')){
+    fb.textContent = '✅ Google Drive 文件 — 请确保共享权限为「任何人可查看」'; fb.style.color='var(--teal)';
+  } else {
+    fb.textContent = '⚠️ 不认识的链接格式，学生端可能无法嵌入显示'; fb.style.color='#e07d00';
+  }
+}
 
 // Auto-load from cp-write (content editor) into classroom tool
 function compToolSyncFromEditor(){
