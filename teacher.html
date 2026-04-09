@@ -337,6 +337,7 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <input class="wi" id="new-unit-title" placeholder="单元名称，例如：第三课《春天来了》" style="flex:3;min-width:160px">
           <button class="btn btn-red" onclick="createUnit()">+ 建立</button>
         </div>
+        <div id="grade-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
         <div id="unit-list"><div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">加载中…</div></div>
       </div>
 
@@ -758,6 +759,16 @@ function loadGradeList(){
         grades.map(g => `<option value="${g.id}" data-name="${g.name}">${g.name}</option>`).join('');
       if(cur) sel.value = cur;
     }
+
+    // Filter tabs
+    const ft = document.getElementById('grade-filter');
+    if(ft && grades.length > 0){
+      ft.innerHTML =
+        `<button class="btn btn-sm" style="border-radius:20px;padding:4px 14px;font-size:12px;${currentGradeFilter===''?'background:var(--red);color:white;border-color:var(--red)':'background:var(--bg);border:1.5px solid var(--border);color:var(--ink2)'}" onclick="filterGrade('')">全部</button>` +
+        grades.map(g =>
+          `<button class="btn btn-sm" style="border-radius:20px;padding:4px 14px;font-size:12px;${currentGradeFilter===g.id?'background:var(--red);color:white;border-color:var(--red)':'background:var(--bg);border:1.5px solid var(--border);color:var(--ink2)'}" onclick="filterGrade('${g.id}')">${g.name}</button>`
+        ).join('');
+    } else if(ft){ ft.innerHTML=''; }
 
   });
 }
@@ -1290,7 +1301,7 @@ function loadUnitList(){
       const data = snap.val() || {};
       const ul = document.getElementById('unit-list');
       if(!ul) return;
-      const units = Object.entries(data)
+      let units = Object.entries(data)
         .map(([id,u]) => ({id, ...u.info, hasContent:!!u.content}))
         .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
 
@@ -1315,19 +1326,23 @@ function loadUnitList(){
 
       let html = '';
 
-      // Render each grade section
-      grades.forEach(g => {
-        const gUnits = units.filter(u => u.gradeId === g.id);
-        if(gUnits.length === 0) return;
-        html += `<div style="font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--teal-l);margin-bottom:8px">${g.name}</div>`;
-        html += gUnits.map(unitCard).join('');
-      });
-
-      // Ungrouped units
-      const ungrouped = units.filter(u => !u.gradeId);
-      if(ungrouped.length){
-        if(html) html += `<div style="font-size:12px;font-weight:700;color:var(--ink3);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--border);margin-bottom:8px">未分类</div>`;
-        html += ungrouped.map(unitCard).join('');
+      if(currentGradeFilter){
+        // Filtered view — show only selected grade, no section header
+        const filtered = units.filter(u => u.gradeId === currentGradeFilter);
+        html = filtered.length ? filtered.map(unitCard).join('') : '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">该年级还没有单元</div>';
+      } else {
+        // All — grouped by grade with section headers
+        grades.forEach(g => {
+          const gUnits = units.filter(u => u.gradeId === g.id);
+          if(!gUnits.length) return;
+          html += `<div style="font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--teal-l);margin-bottom:8px">${g.name}</div>`;
+          html += gUnits.map(unitCard).join('');
+        });
+        const ungrouped = units.filter(u => !u.gradeId);
+        if(ungrouped.length){
+          if(html) html += `<div style="font-size:12px;font-weight:700;color:var(--ink3);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--border);margin-bottom:8px">未分类</div>`;
+          html += ungrouped.map(unitCard).join('');
+        }
       }
 
       ul.innerHTML = html || '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>';
