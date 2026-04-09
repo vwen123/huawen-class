@@ -337,8 +337,6 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
           <input class="wi" id="new-unit-title" placeholder="单元名称，例如：第三课《春天来了》" style="flex:3;min-width:160px">
           <button class="btn btn-red" onclick="createUnit()">+ 建立</button>
         </div>
-        <!-- Grade filter -->
-        <div id="grade-filter" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
         <div id="unit-list"><div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">加载中…</div></div>
       </div>
 
@@ -761,15 +759,6 @@ function loadGradeList(){
       if(cur) sel.value = cur;
     }
 
-    // Filter tabs
-    const ft = document.getElementById('grade-filter');
-    if(ft){
-      ft.innerHTML = grades.length === 0 ? '' :
-        `<button class="btn btn-ghost btn-sm" style="${currentGradeFilter===''?'background:var(--red);color:white;':''}" onclick="filterGrade('')">全部</button>` +
-        grades.map(g =>
-          `<button class="btn btn-ghost btn-sm" style="${currentGradeFilter===g.id?'background:var(--red);color:white;':''}" onclick="filterGrade('${g.id}')">${g.name}</button>`
-        ).join('');
-    }
   });
 }
 
@@ -1291,24 +1280,51 @@ function editCompScore(skey, name, current){
 // ══════════════════════════════════════
 function loadUnitList(){
   if(!firebaseReady) return;
-  unitsRef().once('value', snap => {
-    const data = snap.val() || {};
-    const ul = document.getElementById('unit-list');
-    if(!ul) return;
-    let units = Object.entries(data).map(([id,u])=>({id,...u.info,hasContent:!!u.content})).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
-    if(currentGradeFilter) units = units.filter(u => u.gradeId === currentGradeFilter);
-    if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>'; return; }
-    ul.innerHTML = units.map(u=>`
-      <div class="unit-card ${selectedUnitId===u.id?'selected':''}" id="uc-${u.id}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
-        <input type="checkbox" class="uc-cb" data-id="${u.id}" onclick="event.stopPropagation();unitCbChange(this)" title="勾选以批量删除">
-        <div style="flex:1">
-          <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
-          <div style="font-size:11px;color:var(--ink3);margin-top:3px">
-            ${u.gradeName?`<span style="background:var(--teal-l);color:var(--teal);padding:1px 7px;border-radius:10px;font-weight:600;margin-right:4px">${u.gradeName}</span>`:''}${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}
+  gradesRef().once('value', gSnap => {
+    const gradeData = gSnap.val() || {};
+    const grades = Object.entries(gradeData)
+      .map(([id,g]) => ({id, name:g.name, createdAt:g.createdAt||0}))
+      .sort((a,b) => a.createdAt - b.createdAt);
+
+    unitsRef().once('value', snap => {
+      const data = snap.val() || {};
+      const ul = document.getElementById('unit-list');
+      if(!ul) return;
+      const units = Object.entries(data)
+        .map(([id,u]) => ({id, ...u.info, hasContent:!!u.content}))
+        .sort((a,b) => (b.createdAt||0) - (a.createdAt||0));
+
+      if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>'; return; }
+
+      const unitCard = u => `
+        <div class="unit-card ${selectedUnitId===u.id?'selected':''}" id="uc-${u.id}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
+          <input type="checkbox" class="uc-cb" data-id="${u.id}" onclick="event.stopPropagation();unitCbChange(this)" title="勾选以批量删除">
+          <div style="flex:1">
+            <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
+            <div style="font-size:11px;color:var(--ink3);margin-top:3px">${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}</div>
           </div>
-        </div>
-        <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
-      </div>`).join('');
+          <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
+        </div>`;
+
+      let html = '';
+
+      // Render each grade section
+      grades.forEach(g => {
+        const gUnits = units.filter(u => u.gradeId === g.id);
+        if(gUnits.length === 0) return;
+        html += `<div style="font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--teal-l);margin-bottom:8px">${g.name}</div>`;
+        html += gUnits.map(unitCard).join('');
+      });
+
+      // Ungrouped units
+      const ungrouped = units.filter(u => !u.gradeId);
+      if(ungrouped.length){
+        if(html) html += `<div style="font-size:12px;font-weight:700;color:var(--ink3);letter-spacing:.05em;padding:10px 2px 6px;border-bottom:1.5px solid var(--border);margin-bottom:8px">未分类</div>`;
+        html += ungrouped.map(unitCard).join('');
+      }
+
+      ul.innerHTML = html || '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>';
+    });
   });
 }
 
