@@ -1296,6 +1296,10 @@ function loadUnitList(){
 
       if(units.length === 0){ ul.innerHTML='<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>'; return; }
 
+      const gradeOptsFor = u =>
+        `<option value="" ${!u.gradeId?'selected':''}>未分类</option>` +
+        grades.map(g => `<option value="${g.id}" data-name="${g.name}" ${u.gradeId===g.id?'selected':''}>${g.name}</option>`).join('');
+
       const unitCard = u => `
         <div class="unit-card ${selectedUnitId===u.id?'selected':''}" id="uc-${u.id}" onclick="selectUnit('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">
           <input type="checkbox" class="uc-cb" data-id="${u.id}" onclick="event.stopPropagation();unitCbChange(this)" title="勾选以批量删除">
@@ -1303,6 +1307,9 @@ function loadUnitList(){
             <div style="font-size:14px;font-weight:600">${u.title||'未命名'}</div>
             <div style="font-size:11px;color:var(--ink3);margin-top:3px">${u.hasContent?'✅ 内容已准备':'⚠️ 未填写内容'}</div>
           </div>
+          <select onclick="event.stopPropagation()" onchange="setUnitGrade('${u.id}',this)" style="font-size:11px;padding:3px 6px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--ink);max-width:90px" title="更改年级">
+            ${gradeOptsFor(u)}
+          </select>
           <button class="btn btn-teal btn-sm" onclick="event.stopPropagation();openSession('${u.id}','${(u.title||'').replace(/'/g,"\\'")}')">▶ 开课</button>
         </div>`;
 
@@ -1326,6 +1333,13 @@ function loadUnitList(){
       ul.innerHTML = html || '<div style="font-size:13px;color:var(--ink3);text-align:center;padding:20px">还没有单元</div>';
     });
   });
+}
+
+function setUnitGrade(unitId, sel){
+  const gradeId   = sel.value;
+  const gradeName = gradeId ? sel.options[sel.selectedIndex].text : '';
+  const update = gradeId ? { gradeId, gradeName } : { gradeId: null, gradeName: null };
+  db.ref('units/'+unitId+'/info').update(update).then(() => loadUnitList());
 }
 
 function createUnit(){
