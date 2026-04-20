@@ -278,15 +278,16 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <div class="ctitle" style="margin:0">📋 全班成绩明细</div>
             <div id="progress-class-label" style="font-size:12px;color:var(--ink3);margin-top:2px"></div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-teal btn-sm" onclick="downloadCSV()">⬇️ CSV</button>
             <button class="btn btn-red btn-sm" onclick="downloadPDF()">⬇️ PDF</button>
+            <button class="btn btn-ghost btn-sm" onclick="promptAddStudent()">＋ 添加学生</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 50px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
+        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 44px 32px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
           <div style="text-align:left">学生</div>
           <div>朗读<br><span style="font-size:9px;opacity:.7">25%</span></div><div>词语<br><span style="font-size:9px;opacity:.7">20%</span></div><div>心智图<br><span style="font-size:9px;opacity:.7">10%</span></div><div>理解<br><span style="font-size:9px;opacity:.7">25%</span></div><div>Quiz<br><span style="font-size:9px;opacity:.7">20%</span></div>
-          <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div>
+          <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div><div></div>
         </div>
         <div id="t-score-list"></div>
         <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
@@ -1125,17 +1126,20 @@ function renderStudents(){
         <div class="ts-cell" title="点击输入理解分数" style="cursor:pointer;color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'};text-decoration:underline dotted" onclick="editCompScore('${skey}','${s.name}',${compVal||0})">${sc.comp!=null?sc.comp:'录入'}</div>
         <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
         <div class="ts-total" style="color:${dc}">${sc.total||'—'}</div>
-        <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
+        <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>
+        <div style="text-align:center"><button onclick="deleteStudent('${skey}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--ink3);cursor:pointer;font-size:15px;padding:2px 4px" title="删除学生">🗑</button></div>`;
     } else {
       const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
       const badgeIcons2 = (s.badges||[]).map(b=>`<span title="${b.name}" style="font-size:13px">${b.icon}</span>`).join('');
+      const skey2 = safeKey(s.name);
       row.innerHTML = `
         <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-total" style="color:var(--ink3)">—</div>
-        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>`;
+        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>
+        <div style="text-align:center"><button onclick="deleteStudent('${skey2}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--ink3);cursor:pointer;font-size:15px;padding:2px 4px" title="删除学生">🗑</button></div>`;
     }
     list.appendChild(row);
   });
@@ -1278,6 +1282,33 @@ function smartPasteDistribute(){
 // ══════════════════════════════════════
 //  COMP SCORE (teacher-entered)
 // ══════════════════════════════════════
+function deleteStudent(skey, name){
+  if(!confirm(`确定删除「${name}」的所有成绩记录？`)) return;
+  if(!currentSession) return;
+  sessionRef(currentSession + '/students/' + skey).remove().then(() => {
+    studentRegistry = studentRegistry.filter(s => safeKey(s.name) !== skey);
+    classRoster     = classRoster.filter(s => safeKey(s.name) !== skey);
+    renderStudents();
+    renderDashboard();
+  });
+}
+
+function promptAddStudent(){
+  if(!currentSession){ alert('请先开启课堂'); return; }
+  const name = prompt('输入学生姓名：');
+  if(!name || !name.trim()) return;
+  const n    = name.trim();
+  const skey = safeKey(n);
+  const entry = { name:n, av:'🐯', checkin:{ mood:'😊' }, time: new Date().toLocaleTimeString('zh',{hour:'2-digit',minute:'2-digit'}), currentPage:'checkin' };
+  sessionRef(currentSession + '/students/' + skey).update(entry).then(() => {
+    if(!studentRegistry.find(s => s.name === n)){
+      studentRegistry.push({ name:n, av:'🐯', currentPage:'checkin', done:false, badges:[] });
+    }
+    renderStudents();
+    renderDashboard();
+  });
+}
+
 function editCompScore(skey, name, current){
   const val = prompt(`「${name}」的课文理解分数（0–100）：`, current||'');
   if(val===null) return;
@@ -2276,6 +2307,9 @@ function compToolRender(){
   document.getElementById('comp-tool-a-text').textContent = q.a || '（无参考答案）';
   document.getElementById('comp-tool-ans-wrap').style.display = 'none';
   document.getElementById('comp-ans-btn').textContent = '👁 显示答案';
+  // Sync fullscreen if open
+  const fs = document.getElementById('comp-fullscreen');
+  if(fs && fs.style.display === 'flex') compFsRender();
 }
 
 function compToolNav(dir){
