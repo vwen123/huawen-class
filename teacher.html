@@ -284,10 +284,10 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
             <button class="btn btn-ghost btn-sm" onclick="promptAddStudent()">＋ 添加学生</button>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 44px 32px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
+        <div style="display:grid;grid-template-columns:1fr 52px 52px 52px 52px 52px 56px 44px;font-size:10px;font-weight:700;color:var(--ink3);padding:0 0 8px;border-bottom:1.5px solid var(--border);letter-spacing:.05em;text-transform:uppercase;text-align:center">
           <div style="text-align:left">学生</div>
           <div>朗读<br><span style="font-size:9px;opacity:.7">25%</span></div><div>词语<br><span style="font-size:9px;opacity:.7">20%</span></div><div>心智图<br><span style="font-size:9px;opacity:.7">10%</span></div><div>理解<br><span style="font-size:9px;opacity:.7">25%</span></div><div>Quiz<br><span style="font-size:9px;opacity:.7">20%</span></div>
-          <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div><div></div>
+          <div style="color:var(--ink);font-weight:900">总分</div><div>状态</div>
         </div>
         <div id="t-score-list"></div>
         <div style="display:flex;gap:12px;margin-top:12px;flex-wrap:wrap">
@@ -583,14 +583,14 @@ label.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--i
 
           <!-- Question card -->
           <div style="background:linear-gradient(135deg,var(--ink),var(--ink2));border-radius:12px;padding:18px;margin-bottom:12px;color:white;min-height:90px">
-            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;opacity:.6;margin-bottom:8px">问题</div>
-            <div id="comp-tool-q-text" style="font-family:'Noto Serif SC',serif;font-size:15px;line-height:1.7"></div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.1em;opacity:.6;margin-bottom:8px">问题 <span style="opacity:.5;font-weight:400">（可直接点击修改）</span></div>
+            <div id="comp-tool-q-text" contenteditable="true" spellcheck="false" oninput="compToolLiveEdit('q',this)" style="font-family:'Noto Serif SC',serif;font-size:15px;line-height:1.7;outline:none;border-bottom:1px dashed rgba(255,255,255,.3);min-height:28px"></div>
           </div>
 
           <!-- Answer (toggleable) -->
           <div id="comp-tool-ans-wrap" style="background:var(--teal-l);border:1.5px solid var(--teal);border-radius:10px;padding:14px;margin-bottom:14px;display:none">
-            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--teal);margin-bottom:6px">参考答案</div>
-            <div id="comp-tool-a-text" style="font-size:14px;line-height:1.6;color:var(--ink)"></div>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--teal);margin-bottom:6px">参考答案 <span style="color:var(--teal);opacity:.6;font-weight:400">（可直接点击修改）</span></div>
+            <div id="comp-tool-a-text" contenteditable="true" spellcheck="false" oninput="compToolLiveEdit('a',this)" style="font-size:14px;line-height:1.6;color:var(--ink);outline:none;border-bottom:1px dashed var(--teal);min-height:22px"></div>
           </div>
 
           <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -1119,27 +1119,25 @@ function renderStudents(){
       const compVal = sc.comp != null ? sc.comp : '';
       const skey = safeKey(s.name);
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}${badgeIcons?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons}</div>`:''}</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px"><div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}${rank<3?medals[rank]:''}</div>${statusBadge}${badgeIcons?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons}</div>`:''}</div></div><button onclick="deleteStudent('${skey}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--border);cursor:pointer;font-size:13px;padding:2px;flex-shrink:0;line-height:1" title="删除学生" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--border)'">🗑</button></div>
         <div class="ts-cell" style="color:${(sc.reading||0)>=70?'var(--teal)':'var(--red)'}">${sc.reading??'—'}</div>
         <div class="ts-cell" style="color:${(sc.flashcard||0)>=70?'var(--teal)':'var(--red)'}">${sc.flashcard??'—'}</div>
         <div class="ts-cell" style="color:${(sc.mindmap||0)>=70?'var(--teal)':'var(--ink3)'}">${sc.mindmap??'—'}</div>
         <div class="ts-cell" title="点击输入理解分数" style="cursor:pointer;color:${(sc.comp||0)>=70?'var(--teal)':'var(--red)'};text-decoration:underline dotted" onclick="editCompScore('${skey}','${s.name}',${compVal||0})">${sc.comp!=null?sc.comp:'录入'}</div>
         <div class="ts-cell" style="color:${(sc.quiz||0)>=70?'var(--gold)':'var(--red)'}">${sc.quiz??'—'}</div>
         <div class="ts-total" style="color:${dc}">${sc.total||'—'}</div>
-        <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>
-        <div style="text-align:center"><button onclick="deleteStudent('${skey}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--ink3);cursor:pointer;font-size:15px;padding:2px 4px" title="删除学生">🗑</button></div>`;
+        <div style="text-align:center"><span class="ts-dot" style="background:${dc}"></span></div>`;
     } else {
       const pg = {checkin:'签到',waiting:'等待',reading:'朗读',flashcard:'词语',slides:'简报',comp:'理解',quiz:'Quiz',checkout:'签出'}[s.currentPage]||s.currentPage;
       const badgeIcons2 = (s.badges||[]).map(b=>`<span title="${b.name}" style="font-size:13px">${b.icon}</span>`).join('');
       const skey2 = safeKey(s.name);
       row.innerHTML = `
-        <div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:4px"><div style="display:flex;align-items:center;gap:7px"><span style="font-size:17px">${s.av}</span><div><div style="font-size:13px;font-weight:600">${s.name}</div><div style="font-size:10px;color:var(--orange)">⏳ ${pg}</div>${badgeIcons2?`<div style="margin-top:2px;letter-spacing:2px">${badgeIcons2}</div>`:''}</div></div><button onclick="deleteStudent('${skey2}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--border);cursor:pointer;font-size:13px;padding:2px;flex-shrink:0;line-height:1" title="删除学生" onmouseover="this.style.color='var(--red)'" onmouseout="this.style.color='var(--border)'">🗑</button></div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div><div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-cell" style="color:var(--ink3)">—</div>
         <div class="ts-total" style="color:var(--ink3)">—</div>
-        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>
-        <div style="text-align:center"><button onclick="deleteStudent('${skey2}','${s.name.replace(/'/g,"\\'")}');" style="border:none;background:none;color:var(--ink3);cursor:pointer;font-size:15px;padding:2px 4px" title="删除学生">🗑</button></div>`;
+        <div style="text-align:center"><span class="ts-dot" style="background:var(--mist2)"></span></div>`;
     }
     list.appendChild(row);
   });
@@ -2315,6 +2313,14 @@ function compToolRender(){
 function compToolNav(dir){
   compToolIdx = (compToolIdx + dir + compToolQs.length) % compToolQs.length;
   compToolRender();
+}
+
+function compToolLiveEdit(field, el){
+  if(!compToolQs[compToolIdx]) return;
+  compToolQs[compToolIdx][field] = el.innerText.trim();
+  // Sync fullscreen live
+  const fs = document.getElementById('comp-fullscreen');
+  if(fs && fs.style.display === 'flex') compFsRender();
 }
 
 function compToolToggleAns(){
